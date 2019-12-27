@@ -24,12 +24,12 @@ The following cartridge types are currently supported:
 ## Hardware
 There are three buttons on the cartridge; a reset button, a menu button for starting the launcher, and a special button that is used by the freezer cartridges.
 
-![Kung Fu Flash prototype PCB](pics/prototype.jpg)
+![Cartridge Case](pics/cartridge_case.jpg)
 
 The PCB will fit the Stumpy Cartridge Case from TFW8b, you just need to drill some holes for the buttons and make a cut for the microSD card.
 If you plan to use USB you will need to cut a hole for that as well.
 
-![Cartridge Case](pics/cartridge_case.jpg)
+![Kung Fu Flash prototype PCB](pics/prototype.jpg)
 
 The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.
 Kung Fu Flash shows up as a standard serial port when connected to a PC not requiring any custom drivers to be installed.
@@ -39,7 +39,7 @@ For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3u
 ## Firmware Update
 Just place the KungFuFlash_v1.xx.upd file on the SD card and select the file in the launcher to initiate the firmware update.
 
-For initial firmware installation, [see here](firmware).
+For initial firmware installation, [see here](firmware/README.md).
 
 ## Limitations
 Kung Fu Flash is a so called Software Defined Cartridge where a fast microcontroller emulates cartridge hardware in software.
@@ -66,5 +66,5 @@ Kung Fu Flash was based on or uses other open source projects:
 and a few others. Please check the individual files for their license.
 
 Thanks to Bjørn N. Jørgensen for giving this project its name.
-Special thanks to the author of [RasPIC64](https://github.com/frntc/RasPIC64) Carsten Dachsbacher for his support and inspiration.
 
+Special thanks to the author of [RasPIC64](https://github.com/frntc/RasPIC64) Carsten Dachsbacher for his support and inspiration.
