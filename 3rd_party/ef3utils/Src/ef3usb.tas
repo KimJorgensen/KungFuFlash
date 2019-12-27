@@ -1,0 +1,1826 @@
+;=======================================================
+;     ********************************************
+;         EeasyFlash III USB Utilities C64 side
+;     ********************************************
+;                     tomcat@sgn.net
+;=======================================================
+
+;
+;
+; $E50A PLOT    : CLC!!!  .Y and .X registers
+; $AB1E STROUT  : .Y and .A registers (low, high) , zero terminated
+;
+;-----------------------------------------------------------------------
+
+;--- Zeropages:
+
+len_lo          = $31
+len_hi          = $32
+len_hi_hi       = $33
+
+numretr         = $34
+
+mychecksum      = $35
+checkcalc       = $36
+
+zp_dest_lo	= $38		;|word pointer - Destination
+zp_dest_hi	= $39	        ;|
+
+tmpalo          = $3a
+tmpahi          = $3b
+tmpclo          = $3c
+tmpchi          = $3d
+
+retries         = $3e
+indicator       = $3f
+
+indaddlo        = $31
+indaddhi        = $32
+
+templo          = $43
+temphi          = $44
+
+zerop           = $f4
+
+;------------ SERIAL DRIVE/IDE64 compatible kernal calls ------------
+ROM_status      = $ffb7
+Rom_Setlfs      = $ffba
+Rom_Setnam      = $ffbd
+Rom_Open        = $ffc0
+Rom_Close       = $ffc3
+Rom_Chkin       = $ffc6
+Rom_Chkout      = $ffc9
+Rom_Clrchn      = $ffcc
+Rom_Chrin       = $ffcf
+Rom_Chrout      = $ffd2
+Rom_Getin       = $ffe4
+Rom_Clall       = $ffe7
+
+datachan        = 2             ;2-14 for data channel
+
+USBStatus       = $DE09
+USBData         = $DE0A
+
+                .include "format2_runtime.i"
+;------------------------------------------------------------------
+; MACROS
+;------------------------------------------------------------------
+print           .macro
+                ldy #>\1
+                lda #<\1
+                jsr $ab1e
+                .endm
+                
+printat         .macro
+                clc
+                ldx #\2
+                ldy #\1
+                jsr $e50a
+                #print \3
+                .endm
+
+printcenter     .macro
+                clc
+                ldx #\1
+                ldy #20-(((\3-1)-\2)/2)
+                jsr $e50a
+                #print \2
+                .endm
+
+;**********************************************************************
+
+;this creates a basic start
+        *=$0801
+
+        ;SYS 2064
+        .byte $0C,$08,$0A,$00,$9E,$20,$32,$30,$36,$34,$00,$00,$00,$00,$00
+
+                sei
+
+                lda $ba
+				bne +
+				lda #$08
+				sta $ba
++                
+                tsx
+                stx restart+1 
+
+                lda #$37
+                sta $01
+
+                lda #<formatcode         ; move format code to $c000
+                sta tmpalo
+                lda #>formatcode
+                sta tmpahi
+                lda #<$c000
+                sta tmpclo
+                lda #>$c000
+                sta tmpchi
+                ldx #((formatcodeend-formatcode)/$100)+1
+
+                jsr copymem
+
+                ldy #$00                ; remember ZP $F0 - $FF
+savezp          lda $F0,y
+                sta zptemp,y
+                iny
+                cpy #$10
+                bne savezp
+                
+                jsr printdrive          ; use current $ba device #
+
+restart         ldx #00
+                txs
+
+                jsr displaymenu
+
+                jsr handlemenu
+
+                #print clrscr           ; return to basic
+                rts
+
+
+;-----------------------------------------------
+; CHANGE DIR
+;-----------------------------------------------
+
+changedir
+
+                lda #<fbmessagers
+                sta len_lo
+                lda #>fbmessagers
+                sta len_hi
+
+                jsr start_tool
+                rts
+
+fbmessagers     .text $97,"           <run/stop to exit>",0
+
+
+;-----------------------------------------------
+; FILE COPY
+;-----------------------------------------------
+filecopy_end2   
+                jmp filecopy_end_nospace
+
+filecopy
+                #print clrscr
+                #print copying
+                
+                ; synced here - start getting files
+nextfile                
+                lda #$00
+                sta checkcalc
+                
+                jsr get_byte            ; file type
+                beq filecopy_end2       ; $00 = no more files
+                cmp #$01                ; $01 = seq file
+                bne notseq
+                lda #18                 ; add ,S to the name for SEQ
+                jmp notseq2
+notseq          lda #16                 ; $02 = prg file
+notseq2         sta filenamelen+1
+
+                ; filename
+                ldy #$00
+nextfnchar
+                jsr get_byte
+                sta savenameptr,y
+                iny
+                cpy #16
+                bne nextfnchar
+                
+                jsr printfilename
+                
+                ; file length
+                jsr get_byte            ; low len
+                eor #$ff
+                sta len_lo
+                jsr get_byte            ; hi len
+                eor #$ff
+                sta len_hi
+                jsr get_byte            ; hi hi len     (3 bytes file length !)
+                eor #$ff
+                sta len_hi_hi
+                
+                jsr declen              ; proper len
+                
+                ; mychecksum
+                jsr get_byte
+                sta mychecksum
+; OPEN FILE
+             	lda #0                  ; just incase
+	        sta $98
+
+                lda #datachan           ;Filenumber+Data channel
+                ldx $ba                 ;put the value of $ba here
+                ldy #1
+                jsr Rom_SetLfs
+filenamelen
+                lda #16
+                ldx #<savenameptr
+                ldy #>savenameptr
+                jsr Rom_Setnam
+                jsr Rom_Open            ;returns clc/sec on error                
+                bcs showerror22          ;device off/busy error
+                ldx #datachan
+                jsr Rom_Chkout           ;Set data channel to input
+                jmp next_data8
+
+showerror22     jmp showerror           
+
+                ; get the data and save to file
+next_data8
+                bit USBStatus
+                bpl next_data8
+                lda USBData
+                inc $d020
+; SAVE BYTE                
+                jsr Rom_Chrout
+
+                clc                     ; mychecksum
+                adc checkcalc
+                sta checkcalc
+                
+                inc len_lo              ; decrease length
+                bne next_data8
+                inc len_hi
+                bne next_data8
+                inc len_hi_hi
+                bne next_data8
+                
+                ; end of file here
+; CLOSE FILE
+                lda #datachan
+                jsr Rom_Close
+                ldx #$00
+                jsr Rom_Chkout
+                
+                lda #$00
+                sta $d020
+
+                ; check R/S key
+                jsr $ffe4
+                cmp #$03        ; R/S
+                bne norunstop
+                
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+                
+                #print rserror
+                jmp filecopy_end
+                
+norunstop                
+                lda mychecksum            ; check crc
+                cmp checkcalc
+                beq checkok
+
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+
+                #print cerror
+                jmp filecopy_end
+                
+checkok         
+                ; send ok ack back
+                lda #$FF
+                jsr send_byte
+
+                jmp nextfile
+                                
+filecopy_end
+                jsr waitforspace
+
+filecopy_end_nospace
+
+                jsr displaymenu
+                jmp handlemenu
+
+waitforspace
+                #print printspace
+keydir2         jsr $ffe4
+                cmp #$20
+                bne keydir2
+                rts
+savenameptr
+                .text "1234567890123456,s"
+
+copying         .text $99,"copying files, please wait !",$05,$0d,$0d,0
+cerror          .text $99,$0d,"checksum error!!!",$0d,0
+rserror         .text $99,$0d,"run/stop pressed. stopping!",$0d,0
+
+printnameptr
+                .text "1234567890123456",$0d,$05,0
+
+declen                          ; decrease length
+                inc len_lo
+                bne ceof       
+                inc len_hi            
+                bne ceof
+                inc len_hi_hi
+ceof        
+        rts
+
+get_byte                        ; gets one byte from usb
+                bit USBStatus
+                bpl get_byte
+                lda USBData
+                rts
+        
+send_byte
+        	bit USBStatus
+	        bvc send_byte           ; check if ready to send a byte
+                sta USBData             ; send back the byte
+                rts
+        
+printfilename
+                ldy #$00
+nextprintfn
+                lda savenameptr,y
+                cmp #$a0
+                bne nota0
+                
+nota0           
+                sta printnameptr,y
+                iny
+                cpy #16
+                bne nextprintfn
+                
+                #print printnameptr
+                
+                rts
+
+;------------------------------------------------------------------
+; ROUTINE : ERROR FLASHING OR DRIVE ERROR
+;------------------------------------------------------------------
+showerror
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+                ldx #$00
+                jsr Rom_Chkout
+                jsr Rom_Chkin                
+                
+                #print clrscr
+                #printat 1,11,linetext
+                #printat 1,12,errortext
+                #printat 1,13,linetext
+                
+errr1           dec $d020
+                jsr $ffe4
+                cmp #$20
+                bne errr1
+                
+                lda #$00
+                sta $d020
+                jmp restart
+                
+;                               1234567890123456789012345678901234567890
+errortext       .text $05, 18, "          error! press <space>        ",146,0
+
+;------------------------------------------------------------------
+; ROUTINE : INIT SCREEN TABLE
+;------------------------------------------------------------------
+initscreentable
+                LDA $0288     ; High Byte of Screen Memory Address
+                ORA #$80
+                TAY
+                LDA #$00
+                TAX
+
+E54D            STY $D9,X     ; Screen Line Link Table
+                CLC
+                ADC #$28
+                BCC E555
+                INY
+
+E555            INX
+                CPX #$1A
+                BNE E54D
+
+                rts
+
+;------------------------------------------------------------------
+; ROUTINE : ASK Y FOR BACKUP/RESTORE
+;------------------------------------------------------------------
+askbackup
+                jsr initscreentable
+                #printat 1,10,linetext
+                #printat 1,11,backuptext
+                jmp contask
+askrestore
+                jsr initscreentable
+                #printat 1,10,linetext
+                #printat 1,11,restoretext
+contask
+                #printat 1,12,linetext
+                
+ask1            jsr $ffe4
+                beq ask1
+
+                cmp #$59        ; F1
+                beq okbackup
+                lda #$ff
+                rts
+                
+okbackup        lda #$00
+                
+                rts
+
+;                            1234567890123456789012345678901234567890
+backuptext       .text $05, 18, " do you really want to backup ? (y/n) ",146, 0
+restoretext      .text $05, 18, " do you really want to restore? (y/n) ",146, 0
+linetext         .text $05, 18, "                                      ",146, 0
+
+;------------------------------------------------------------------
+; ROUTINE : CHANGE DRIVE
+;------------------------------------------------------------------
+changedrive
+                jsr initscreentable
+
+                inc $ba
+                lda $ba
+                cmp #16
+                bne not16
+                lda #$06
+not16           sta $ba
+                
+                jsr printdrive
+
+                jmp handlemenu
+
+;------------------------------------------------------------------
+; ROUTINE : DRIVE COMMAND
+;------------------------------------------------------------------
+drivecommand
+                #print clrscr
+                #print entercommand
+
+                jsr $a560     ; input string
+
+                ldy #$00      ; get the length of the command on $0200
+nextdc
+                lda $0200,y
+                beq outdc
+                iny
+                cpy #89
+                bne nextdc
+outdc               
+                tya           ; len is in A now
+                LDX #<$0200   ; command is in the input buffer
+                LDY #>$0200
+                JSR $FFBD     ; call SETNAM
+                LDA #$0F      ; file number 15
+                LDX $BA       ; last used device number
+                LDY #$0F      ; secondary address 15
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN
+                LDA #$0F      ; filenumber 15
+                JSR $FFC3     ; call CLOSE                
+
+                #print enter
+                
+                jsr error_channel
+
+                jsr waitforspace
+
+                jsr displaymenu
+                jmp handlemenu
+
+entercommand
+                .text $99,"enter custom drive command:",$05,$0d,$0d,0
+enter           .text $0d,0
+                
+;------------------------------------------------------------------
+; ROUTINE : GET ERROR CHANNEL FROM DRIVE
+;------------------------------------------------------------------
+error_channel
+                LDA #$00      ; no filename
+                LDX #$00
+                LDY #$00
+                JSR $FFBD     ; call SETNAM
+                LDA #$0F      ; file number 15
+                LDX $BA       ; last used device number
+                LDY #$0F      ; secondary address 15 (error channel)
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN
+                BCS close1    ; if carry set, the file could not be opened
+
+                LDX #$0F      ; filenumber 15
+                JSR $FFC6     ; call CHKIN (file 15 now used as input)
+
+                LDY #$00
+loop1           JSR $FFB7     ; call READST (read status byte)
+                BNE eof1      ; either EOF or read error
+                JSR $FFCF     ; call CHRIN (get a byte from file)
+                JSR $FFD2     ; call CHROUT (print byte to screen)
+                JMP loop1     ; next byte
+
+eof1
+close1
+                LDA #$0F      ; filenumber 15
+                JSR $FFC3     ; call CLOSE
+
+                LDX #$00      ; filenumber 0 = keyboard
+                JSR $FFC6     ; call CHKIN (keyboard now input device again)
+                
+                RTS                
+                
+;------------------------------------------------------------------
+; ROUTINE : PRINT DRIVE
+;------------------------------------------------------------------
+printdrive
+                lda $ba
+                
+                ldy #$2f
+                ldx #$3a
+                sec
+-               iny
+                sbc #100
+                bcs -
+-               dex
+                adc #10
+                bmi -
+                adc #$2f
+
+                stx deviceoptionum
+                sta deviceoptionum+1   
+                
+                #printat 8,menustart+10,deviceoption
+
+                rts
+
+;------------------------------------------------------------------
+; ROUTINE : EXECUTE FILE
+;------------------------------------------------------------------
+executefile
+
+MOVETO          = $0400+40         ; loader addr
+
+        lda #$00
+        sta $d020
+        sta $d021
+        
+        lda #$00
+        tay
+clr                             ; clear attributes
+        sta $d800+40,y
+        sta $d900,y
+        sta $da00,y
+        sta $db00,y
+        iny
+        bne clr
+        
+        lda #$01
+clr2                            ; first line of text is visible, the rest is loader code
+        sta $d800,y
+        iny
+        cpy #40
+        bne clr2
+
+        lda #<startmove         ; move loader to screen data
+        sta tmpalo
+        lda #>startmove
+        sta tmpahi
+        lda #<MOVETO
+        sta tmpclo
+        lda #>MOVETO
+        sta tmpchi
+        ldx #((endmove-startmove)/$100)+1
+
+        jsr copymem
+
+        jmp MOVETO              ; execute loader
+
+ 
+copymem
+        ldy #$00
+cpmem1
+        lda (tmpalo),y
+        sta (tmpclo),y
+        iny
+               
+        bne cpmem1
+        inc tmpahi
+        inc tmpchi
+        dex
+        bne cpmem1
+        
+        rts         
+
+;------------------------------------------------------------------
+; ROUTINE : TEST USB
+;------------------------------------------------------------------
+testusb
+                #print clrscr
+                #print waiting_msgtt
+
+                lda #$16
+                sta $d018
+
+                jsr send_byte
+
+sync1tt
+                bit USBStatus
+                bpl sync1tt       ; check if ready to read a byte
+                lda USBData     ; read byte
+                sta byte2tt+1     ; send back the same byte later
+
+                jsr hex2pet
+
+        	sta $0401
+                sty $0400
+        
+	        inc $d020
+	        dec $d020
+
+byte2tt
+                lda #$00
+sync2tt
+	        bit USBStatus
+	        bvc sync2tt       ; check if ready to send a byte
+                sta USBData     ; send back the byte
+
+	        dec $d020
+	        inc $d020
+        
+                jmp sync1tt
+
+; ***************************************
+; Converts the 1 byte name to hex name XX
+hex2pet		tax
+		lsr
+		lsr
+		lsr
+		lsr
+		jsr h2p
+		tay
+		txa
+		and #$0f
+h2p		ora #$30		;30-39
+		cmp #$3a
+		bcc h2pexit
+		adc #$06		;41-46
+h2pexit		rts
+
+waiting_msgtt
+        .text "   TEST BYTE",0
+
+;------------------------------------------------------------------
+; ROUTINE : READ IMAGE KERNAL MODE
+;------------------------------------------------------------------
+filecopy_end2kr
+                #printat 0,0,copyendkr
+                jmp filecopy_endkr
+
+read_kernal
+                #print clrscr
+                #print copyingkr
+                
+                ; synced here - start getting sectors
+nextsectorkr
+                lda #$00
+                sta checkcalc
+                
+                jsr get_byte            ; status
+                beq filecopy_end2kr       ; $00 = no more files
+
+                ; track and sector string
+                ldy #$00
+gettrsekr       jsr get_byte
+                sta trsekr,y
+                iny
+                cpy #05
+                bne gettrsekr
+                
+; OPEN FILE
+                LDA #cname_end-cname
+                LDX #<cname
+                LDY #>cname
+                JSR $FFBD     ; call SETNAM
+                LDA #$02      ; file number 2
+                LDX $BA       ; last used device number
+                LDY #$02      ; secondary address 2
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN
+
+                ; open the command channel
+
+                LDA #uname_end-uname
+                LDX #<uname
+                LDY #>uname
+                JSR $FFBD     ; call SETNAM
+                LDA #$0F      ; file number 15
+                LDX $BA       ; last used device number
+                LDY #$0F      ; secondary address 15
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN (open command channel and send U1 command)
+
+                LDX #$02      ; filenumber 2
+                JSR $FFC6     ; call CHKIN (file 2 now used as input)
+
+                LDY #$00
+loop3kr
+                JSR $FFCF     ; call CHRIN (get a byte from file)
+                
+        	bit USBStatus
+	        bvc loop3kr
+                sta USBData             ; send back the byte
+                inc $d020
+                dec $d020
+
+                clc                     ; mychecksum
+                adc checkcalc
+                sta checkcalc
+                
+                INY
+                BNE loop3kr     ; next byte, end when 256 bytes are read
+
+                LDA #$0F      ; filenumber 15
+                JSR $FFC3     ; call CLOSE
+
+                LDA #$02      ; filenumber 2
+                JSR $FFC3     ; call CLOSE
+
+                LDX #$00      ; filenumber 0 = keyboard
+                JSR $FFC6     ; call CHKIN (keyboard now input device again)
+
+                ; end of file here
+                
+                jsr get_byte  ; get mychecksum from pc
+                sta mychecksum
+                
+                ; get the indicator address and value
+                jsr get_byte
+                sta indaddkr+1
+                jsr get_byte
+                sta indaddkr+2
+                jsr get_byte
+
+indaddkr        sta $ffff               ; show the indicator on the screen
+
+                ; check R/S key
+                jsr $ffe4
+                cmp #$03        ; R/S
+                bne norunstopkr
+                
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+                
+                #printat 0,0,rserrorkr
+                jmp filecopy_endkr
+                
+norunstopkr
+                lda mychecksum            ; check crc
+                cmp checkcalc
+                beq checkokkr
+
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+
+                #printat 0,0,cerrorkr
+                jmp filecopy_endkr
+                
+checkokkr
+                ; send ok ack back
+                lda #$FF
+                jsr send_byte
+
+                jmp nextsectorkr
+                                
+filecopy_endkr  jsr $ffe4               ; space
+                cmp #$20
+                bne filecopy_endkr
+                
+                jsr displaymenu
+                jmp handlemenu
+
+copyingkr       .text $99,"transfering sectors...         ",13
+                .text $9b,"         1         2         3         4"
+                .text $9b,"1234567890123456789012345678901234567890",0
+cerrorkr        .text $99,"checksum error!!!              ",$9b,"<space>",0
+rserrorkr       .text $99,"run/stop pressed. stopping!    ",$9b,"<space>",0
+copyendkr       .text $99,"finished reading image!        ",$9b,"<space>",0
+
+cname           .TEXT "#"
+cname_end
+
+uname           .TEXT "u1 2 0 "
+trsekr          .TEXT "00 00"
+uname_end
+
+;------------------------------------------------------------------
+; ROUTINE : READ IMAGE TURBO MODE
+;------------------------------------------------------------------
+
+filecopy_end2tr
+                #printat 0,0,copyendkr
+                jmp filecopy_endtr
+read_turbo
+                jsr tinstall
+                
+                #print clrscr
+                #print copyingkr
+                
+                lda #<sectordata
+                sta zerop+0
+                lda #>sectordata
+                sta zerop+1     
+                
+                ; synced here - start getting sectors
+nextsectortr                
+                jsr get_byte            ; status
+                beq filecopy_end2tr       ; $00 = no more files
+
+                ; track and sector
+                jsr get_byte
+                tax
+                jsr get_byte
+                tay
+                lda #$05
+
+                jsr tloader
+                
+                LDY #$00
+loop3tr
+                lda sectordata,y
+        	bit USBStatus
+	        bvc loop3tr
+                sta USBData             ; send back the byte
+                
+                INY
+                BNE loop3tr     ; next byte, end when 256 bytes are read
+
+                ; get the indicator address and value
+                jsr get_byte
+                sta indaddtr+1
+                jsr get_byte
+                sta indaddtr+2
+                jsr get_byte
+
+indaddtr        sta $ffff               ; show the indicator on the screen
+
+                ; check R/S key
+                jsr $ffe4
+                cmp #$03        ; R/S
+                bne norunstoptr
+                
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+                
+                #printat 0,0,rserrorkr
+                jmp filecopy_endtr
+                
+norunstoptr
+                ; send ok ack back
+                lda #$FF
+                jsr send_byte
+
+                jmp nextsectortr
+                                
+filecopy_endtr  lda #$07
+                jsr tloader
+filecopy_endtr2
+                jsr $ffe4               ; space
+                cmp #$20
+                bne filecopy_endtr2
+                
+                jsr displaymenu
+                jmp handlemenu
+
+;------------------------------------------------------------------
+; ROUTINE : READ IMAGE
+;------------------------------------------------------------------
+readimage
+                jsr get_byte            ; get kernal or turbo mode
+                beq read_kernal2
+                jmp read_turbo
+
+read_kernal2
+                jmp read_kernal        
+
+;------------------------------------------------------------------
+; ROUTINE : WRITE IMAGE KERNAL
+;------------------------------------------------------------------
+filecopy_end2wk
+                #printat 0,0,copyendwk
+                jmp filecopy_endwk
+
+write_kernal
+                #print clrscr
+                #print copyingkr
+         
+                jsr get_byte
+                sta numretr             ; verify flag
+                
+                ; synced here - start getting sectors
+nextsectorwk
+                lda #$00
+                sta checkcalc
+                lda numretr
+                sta retries
+                
+                jsr get_byte            ; status
+                beq filecopy_end2wk       ; $00 = no more files
+
+                ; track and sector string
+                ldy #$00
+gettrsewk       jsr get_byte
+                sta trsewk,y
+                sta trsekr,y
+                iny
+                cpy #05
+                bne gettrsewk
+                
+                ; mychecksum
+                jsr get_byte
+                sta mychecksum
+
+                ; data               
+                LDY #$00
+loopdatawk
+                bit USBStatus
+                bpl loopdatawk
+                lda USBData
+                inc $d020
+                dec $d020
+                
+                sta sectordata,y
+
+                clc                     ; mychecksum
+                adc checkcalc
+                sta checkcalc
+                
+                INY
+                BNE loopdatawk            ; next byte, end when 256 bytes are read
+                
+                ; get the indicator address and value
+                jsr get_byte
+                sta indaddlo
+                jsr get_byte
+                sta indaddhi
+                jsr get_byte
+                sta indicator
+
+                sta errorindwk+1          ; no error at start
+
+                ; check the mychecksum
+                lda mychecksum 
+                cmp checkcalc
+                beq checkokwk
+
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+
+                #printat 0,0,cerrorkr
+                jmp filecopy_endwk
+                
+; OPEN FILE FOR WRITING
+checkokwk
+                LDA #cname_end-cname
+                LDX #<cname
+                LDY #>cname
+                JSR $FFBD     ; call SETNAM
+                LDA #$02      ; file number 2
+                LDX $BA       ; last used device number
+                LDY #$02      ; secondary address 2
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN
+
+                ; open the command channel
+                LDA #bpcmd_end-bpcmd
+                LDX #<bpcmd
+                LDY #>bpcmd
+                JSR $FFBD     ; call SETNAM
+                LDA #$0F      ; file number 15
+                LDX $BA       ; last used device number
+                LDY #$0F      ; secondary address 15
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN (open command channel and send B-P command)
+
+                LDX #$02      ; filenumber 2
+                JSR $FFC9     ; call CHKOUT (file 2 now used as output)
+
+                LDY #$00
+loop3rwk
+                lda sectordata,y
+                
+                JSR $FFD2     ; call CHROUT (write byte to channel buffer)
+                
+                INY
+                BNE loop3rwk     ; next byte, end when 256 bytes are read
+
+                LDX #$0F      ; filenumber 15
+                JSR $FFC9     ; call CHKOUT (file 15 now used as output)
+
+                LDY #$00
+loop2wk         LDA bwcmd,Y   ; read byte from command string
+                JSR $FFD2     ; call CHROUT (write byte to command channel)
+                INY
+                CPY #bwcmd_end-bwcmd
+                BNE loop2wk     ; next byte, end when 256 bytes are read
+close3wk
+
+                JSR $FFCC     ; call CLRCHN
+
+                LDA #$0F      ; filenumber 15
+                JSR $FFC3     ; call CLOSE
+
+                LDA #$02      ; filenumber 2
+                JSR $FFC3     ; call CLOSE
+
+                LDX #$00      ; filenumber 0
+                JSR $FFC9     ; call CHKOUT (reset output device)
+
+                ; end of file here
+
+                ldy #$00
+                lda #$17      ; 'W'
+                sta (indaddlo),y
+                
+                lda retries             ; do we still have to verify ?
+                beq nomoreretrieswk
+                dec retries
+                
+                lda indicator
+                sta errorindwk+1          ; no error at start
+
+; OPEN FILE FOR VERIFY
+                LDA #cname_end-cname
+                LDX #<cname
+                LDY #>cname
+                JSR $FFBD     ; call SETNAM
+                LDA #$02      ; file number 2
+                LDX $BA       ; last used device number
+                LDY #$02      ; secondary address 2
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN
+
+                ; open the command channel
+
+                LDA #uname_end-uname
+                LDX #<uname
+                LDY #>uname
+                JSR $FFBD     ; call SETNAM
+                LDA #$0F      ; file number 15
+                LDX $BA       ; last used device number
+                LDY #$0F      ; secondary address 15
+                JSR $FFBA     ; call SETLFS
+
+                JSR $FFC0     ; call OPEN (open command channel and send U1 command)
+
+                LDX #$02      ; filenumber 2
+                JSR $FFC6     ; call CHKIN (file 2 now used as input)
+
+                LDY #$00
+loop3wk
+                JSR $FFCF     ; call CHRIN (get a byte from file)
+                cmp sectordata,y
+                beq everythingokwk
+                lda #$05      ; 'E'
+                sta errorindwk+1
+                jmp everythingnotokwk
+everythingokwk
+                INY
+                BNE loop3wk     ; next byte, end when 256 bytes are read
+everythingnotokwk
+                LDA #$0F      ; filenumber 15
+                JSR $FFC3     ; call CLOSE
+
+                LDA #$02      ; filenumber 2
+                JSR $FFC3     ; call CLOSE
+
+                LDX #$00      ; filenumber 0 = keyboard
+                JSR $FFC6     ; call CHKIN (keyboard now input device again)
+
+nomoreretrieswk
+                ldy #$00
+errorindwk
+                lda #$57
+                sta (indaddlo),y
+
+                lda retries
+                beq erroredoutwk
+
+                lda (indaddlo),y                
+                cmp indicator
+                bne checkok2wk    ; there was an error - retry writing
+
+erroredoutwk
+                ; check R/S key
+                jsr $ffe4
+                cmp #$03        ; R/S
+                bne norunstopwk
+                
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+                
+                #printat 0,0,rserrorkr
+                jmp filecopy_endwk
+                
+norunstopwk
+                ; send ok ack back
+                lda #$FF
+                jsr send_byte
+
+                jmp nextsectorwk
+                
+checkok2wk      jmp checkokwk
+                                
+filecopy_endwk  jsr $ffe4               ; space
+                cmp #$20
+                bne filecopy_endwk
+                
+                jsr displaymenu
+                jmp handlemenu
+
+                
+copyendwk         .text $99,"finished writing image!        ",$9b,"<space>",0
+
+bpcmd           .TEXT "b-p 2 0"
+bpcmd_end
+
+bwcmd           .TEXT "u2 2 0 "
+trsewk          .TEXT "00 00"
+                .BYTE $0D,0     ; carriage return, required to start command
+bwcmd_end
+
+;------------------------------------------------------------------
+; ROUTINE : WRITE IMAGE TURBO MODE
+;------------------------------------------------------------------
+
+filecopy_end2wt
+                 #printat 0,0,copyendwk
+                jmp filecopy_endwt
+
+write_turbo
+                jsr tinstall
+                
+                #print clrscr
+                #print copyingkr
+
+                jsr get_byte            ; verify
+                sta numretr
+
+                ; synced here - start getting sectors
+nextsectorwt
+                lda numretr
+                sta retries
+                
+                jsr get_byte            ; status
+                beq filecopy_end2wt     ; $00 = no more files
+
+                ; data               
+                LDY #$00
+loopdatawt
+                bit USBStatus
+                bpl loopdatawt
+                lda USBData
+                sta sectordata,y
+
+                INY
+                BNE loopdatawt            ; next byte, end when 256 bytes are read
+
+                ; track and sector
+                jsr get_byte
+                sta verifytrackwt+1
+                jsr get_byte
+                sta verifysectorwt+1
+
+                ; get the indicator address and value
+                jsr get_byte
+                sta indaddlo
+                jsr get_byte
+                sta indaddhi
+                jsr get_byte
+                sta indicator
+
+                sta errorindwt+1          ; no error at start
+
+checkokwt
+                lda #<sectordata
+                sta zerop+0
+                lda #>sectordata
+                sta zerop+1     
+
+                ldx verifytrackwt+1
+                ldy verifysectorwt+1
+                lda #$06
+                
+                jsr tloader              ; write the track
+                
+                ldy #$00
+                lda #$17      ; 'W'
+                sta (indaddlo),y
+                
+                lda retries             ; do we still have to verify ?
+                beq nomoreretrieswt
+                dec retries
+                
+                lda indicator
+                sta errorindwt+1          ; no error at start
+
+                ; VERIFY
+                lda #<verifydata
+                sta zerop+0
+                lda #>verifydata
+                sta zerop+1     
+
+verifytrackwt
+                ldx #$00
+verifysectorwt
+                ldy #$00
+                lda #$05
+                
+                jsr tloader              ; verify
+
+                LDY #$00
+loop3wt
+                lda verifydata,y
+                cmp sectordata,y
+                beq everythingokwt
+                lda #$05      ; 'E'
+                sta errorindwt+1
+                jmp everythingnotokwt
+everythingokwt
+                INY
+                BNE loop3wt     ; next byte, end when 256 bytes are read
+everythingnotokwt
+
+nomoreretrieswt            
+                ldy #$00
+errorindwt
+                lda #$57
+                sta (indaddlo),y
+
+                lda retries
+                beq erroredoutwt
+
+                lda (indaddlo),y                
+                cmp indicator
+                bne checkok2wt    ; there was an error - retry writing
+
+erroredoutwt
+                ; check R/S key
+                jsr $ffe4
+                cmp #$03        ; R/S
+                bne norunstopwt
+                
+                ; send error ack back
+                lda #$00
+                jsr send_byte
+                
+                #printat 0,0,rserrorkr
+                jmp filecopy_endwt
+                
+norunstopwt
+                ; send ok ack back
+                lda #$FF
+                jsr send_byte
+
+                jmp nextsectorwt
+                
+checkok2wt      jmp checkokwt
+                                
+filecopy_endwt  lda #$07
+                jsr tloader
+filecopy_endwt2
+                jsr $ffe4               ; space
+                cmp #$20
+                bne filecopy_endwt2
+                
+                jsr displaymenu
+                jmp handlemenu
+
+;------------------------------------------------------------------
+; ROUTINE : WRITE IMAGE
+;------------------------------------------------------------------
+writeimage
+                jsr get_byte            ; get kernal or turbo mode
+                beq write_kernal2
+                jmp write_turbo
+
+write_kernal2
+                jmp write_kernal        
+
+;------------------------------------------------------------------
+; ROUTINE : FORMAT
+;------------------------------------------------------------------
+formatdisk
+                #print clrscr
+                
+                ldx #<fmt_cmd
+                ldy #>fmt_cmd
+                lda #9
+                jsr $ffbd               ; setnam
+
+                jsr get_byte            ; get # tracks in A
+                sta numtracks+1
+                cmp #35
+                bne tracks40
+                #print formatmessage35
+                jmp numtracks
+tracks40        #print formatmessage40
+numtracks
+                lda #$00
+                ldx #$1                 ; optimized tailmode
+                jsr fmt2_format
+
+                lda #$ff
+                jsr send_byte
+                
+;                jsr error_channel
+                ldy #$01
+                lda #"i"
+                sta $0200
+                jmp outdc
+;                jsr outdc               ; init drive
+
+;                jsr waitforspace
+
+;                jsr displaymenu
+;                jmp handlemenu
+                
+fmt_cmd         .text "n0:ef3,00",0
+formatmessage35 .text "formatting 35 tracks...",$0d,$0d,0
+formatmessage40 .text "formatting 40 tracks...",$0d,$0d,0
+
+;------------------------------------------------------------------
+; ROUTINE : XFER FILES FROM C64 TO PC
+;------------------------------------------------------------------
+xferfiles
+                lda #<fbmessagecopy
+                sta len_lo
+                lda #>fbmessagecopy
+                sta len_hi
+
+                jsr start_tool
+
+                lda len_lo
+                beq xfernextfile
+
+                lda #$ff
+                jsr send_byte       ; xfer end
+
+                jsr displaymenu
+                jmp handlemenu
+
+xfernextfile
+                lda #$00
+                jsr send_byte       ; xfer start
+                
+                ; START COPY HERE
+                #print clrscr
+
+                ldy #$0
+                lda #$0
+deletename      sta xferfilename,y
+                iny
+                cpy #16
+                bne deletename
+
+                lda zpFNLEN          ;fnamelength
+                jsr send_byte        ; send filenamelength to pc
+                ldy #$00
+copyname4load   lda (zpFNAM+0),y
+                sta xferfilename,y ;to $03xx.. filename used for actual loading
+                
+                jsr send_byte        ; send filename to pc                
+                
+                iny
+                cpy zpFNLEN
+                bne copyname4load
+
+                #print xferfilemsg
+; OPEN FILE
+             	lda #0                  ; just incase
+	        sta $98
+
+                lda #datachan           ;Filenumber+Data channel
+                ldx $ba                 ;put the value of $ba here
+                ldy #0
+                jsr Rom_SetLfs
+
+                lda zpFNLEN
+                ldx #<xferfilename
+                ldy #>xferfilename
+                jsr Rom_Setnam
+                jsr Rom_Open            ;returns clc/sec on error                
+                ldx #datachan
+                jsr Rom_Chkin           ;Set data channel to input
+loadbyte1
+                jsr Rom_Chrin
+                
+                jsr send_byte
+                
+                dec $d020
+                inc $d020
+                
+                jsr ROM_status
+                and #64
+                bne loadbyteend
+                
+                jsr send_byte           ; $00 = ok
+                
+                jmp loadbyte1
+loadbyteend
+                jsr send_byte           ; end of file 
+                
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+
+                jmp xferfiles
+                
+;                          1234567890123456789012345678901234567890
+fbmessagecopy   .text $97,"    <return> send file    <r/s> exit",0
+xferfilemsg     .text "sending file "
+xferfilename    .text "1234567890123456",0
+                
+;------------------------------------------------------------------
+; ROUTINE : RUN COMMAND
+;------------------------------------------------------------------
+runcommand
+                lda #$00
+                jsr send_byte           ; ACK
+                
+                jsr get_byte            ; get command
+                beq run_execute         ; $00 = execute prg
+                cmp #$01
+                beq run_copy            ; $01 = copy from pc
+                cmp #$05
+                beq run_test            ; $05 = test
+                cmp #$03
+                beq run_read            ; $03 = read image
+                cmp #$02
+                beq run_write           ; $02 = write image
+                cmp #$06
+                beq run_format          ; $06 = format disk
+                cmp #$07
+                beq run_xfer            ; $07 = copy to pc
+                cmp #$08
+                beq run_tapwriter       ; $08 = TAP writer
+                cmp #$09
+                beq run_tapreader       ; $09 = TAP reader
+                
+                lda #$02
+                sta $d020
+        
+                jmp handlemenu                
+run_execute
+                jmp executefile
+run_copy
+                jmp filecopy
+run_test
+                jmp testusb
+run_read        
+                jmp readimage
+run_write
+                jmp writeimage
+run_format
+                jmp formatdisk
+run_xfer
+                jmp xferfiles
+run_tapwriter				
+				jmp starttaptransfer
+run_tapreader
+				jmp starttapreader
+				
+;------------------------------------------------------------------
+; ROUTINE : HANDLE MENU
+;------------------------------------------------------------------
+handlemenu
+                bit USBStatus
+                bpl sync1
+                lda USBData
+sync2           cmp #$B3                ; first sync byte
+                bne sync1
+                jsr get_byte
+                cmp #$68                ; 2nd sync byte
+                bne sync2
+                jsr get_byte
+                cmp #$92
+                bne sync2
+                jmp runcommand
+sync1           
+                jsr $ffe4
+                beq handlemenu
+
+                cmp #$85        ; F1
+                beq directory
+                cmp #$86        ; F3
+                beq changedrive2
+                cmp #$87        ; F5
+                beq changedir2
+                cmp #$88        ; F7
+                beq drivecommand2
+                cmp #$44+20     ; X
+                bne handlemenu
+                
+getback         rts
+
+changedir2      jsr changedir
+                jmp restart
+drivecommand2   jmp drivecommand
+changedrive2    jmp changedrive
+
+;------------------------------------------------------------------
+; ROUTINE : DIRECTORY
+;------------------------------------------------------------------
+directory
+                #print clrscr
+
+                LDA #1
+                LDX #<dirname
+                LDY #>dirname
+                JSR $FFBD      ; call SETNAM
+                LDA #$02       ; filenumber 2
+                LDX $BA
+                LDY #$00       ; secondary address 0 (required for dir reading!)
+                JSR $FFBA      ; call SETLFS
+
+                JSR $FFC0      ; call OPEN (open the directory)
+                BCS showerror3 ; quit if OPEN failed
+
+                LDX #$02       ; filenumber 2
+                JSR $FFC6      ; call CHKIN
+
+                LDY #$04       ; skip 4 bytes on the first dir line
+                BNE dskip2
+dnext
+                LDY #$02       ; skip 2 bytes on all other lines
+dskip2          JSR dgetbyte   ; get a byte from dir and ignore it
+                DEY
+                BNE dskip2
+
+                JSR dgetbyte   ; get low byte of basic line number
+                TAY
+                JSR dgetbyte   ; get high byte of basic line number
+                PHA
+                TYA            ; transfer Y to X without changing Akku
+                TAX
+                PLA
+                JSR $BDCD      ; print basic line number
+                LDA #$20       ; print a space first
+dchar
+                JSR $FFD2      ; call CHROUT (print character)
+                JSR dgetbyte
+                BNE dchar      ; continue until end of line
+
+                LDA #$0D
+                JSR $FFD2      ; print RETURN
+                JSR $FFE1      ; RUN/STOP pressed?
+                BNE dnext      ; no RUN/STOP -> continue
+                JMP runstop
+dgetbyte
+                JSR $FFB7      ; call READST (read status byte)
+                BNE dend       ; read error or end of file
+                JMP $FFCF      ; call CHRIN (read byte from directory)
+dend
+                PLA            ; don't return to dir reading loop
+                PLA
+        
+runstop        
+                LDA #$02       ; filenumber 2
+                JSR $FFC3      ; call CLOSE
+
+                LDX #$00
+                JSR $FFC9      ; call CHKIN (keyboard now input device again)                
+
+
+                jsr waitforspace
+
+                jsr displaymenu
+                jmp handlemenu
+
+printspace      .text 13,$9b,"<space>",0                
+dirname         .text "$"
+
+showerror3      jmp showerror
+
+;------------------------------------------------------------------
+; ROUTINE : DISPLAY MENU
+;------------------------------------------------------------------
+displaymenu
+
+menustart       = 0
+
+; $E50A PLOT    : CLC!!!  .Y and .X registers
+; $AB1E STROUT  : .Y and .A registers (low, high) , zero terminated
+
+                lda #$00
+                sta $d020
+                sta $d021
+
+                #print clrscr
+                #printcenter menustart,title,titlend
+                #printcenter menustart+2,title2,title2end
+                #printcenter menustart+4,title3,title3end
+                #printat 8,menustart+8,backupoption
+                #printat 8,menustart+10,deviceoption
+                #printat 8,menustart+12,changediroption
+                #printat 8,menustart+14,commandoption
+;              #printat 8,menustart+16,diroption
+                #printat 8,menustart+16,rsoption
+                #printcenter menustart+21,copyright,tc
+                #printat 38,menustart+23,tc
+                
+                rts
+
+clrscr          .byte $05,147,0
+title           .text $05, "easy flash 3",0
+titlend
+title2          .text $99, "usb utilities 1.93",0
+title2end
+title3          .text $9e, "server running. run ef3usb.exe on pc",0
+title3end
+backupoption    .text $9b, "f1 - directory",0
+deviceoption    .text $9b, "f3 - device #"
+deviceoptionum  .text "08",0
+changediroption .text $9b, "f5 - change directory",0
+commandoption   .text $9b, "f7 - custom drive command",0
+;diroption       .text $9b, " d - directory",0
+rsoption        .text $98, " x - exit to basic",0
+copyright       .text $1e, "(c)2015 tom-cat,enthusi,s!r,krill,tlr",0
+tc              .text $05, 18, "tc", 146, 0
+
+
+.include "fb.tas"
+;------------------------------------------------------------------
+; end of code - FILE goes here
+;------------------------------------------------------------------
+
+startmove
+        .binary "ef3executec.prg",2
+zptemp  .byte 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+endmove 
+
+;         .include "irq2bitdisksysv2.tas"
+;tloader  = $2000
+;tinstall = $2500
+
+        * = $2000
+tloader
+        .binary "irq2bitdsys-2000.prg",2
+        
+        * = $2500
+tinstall
+        .binary "irq2bdsinst-2500.prg",2
+        
+sectordata
+verifydata = sectordata+256
+
+formatcode
+        .binary "format2_c000.prg",2
+formatcodeend
+
+tapreadermsg     .text "to exit just stop the tape!", $0d, $00
+
+starttapreader
+        #print clrscr
+        #print tapreadermsg
+
+		sei
+
+		jsr $F817 	; press play on tape
+
+		lda $d012	; disable screen
+		bne *-3
+		sta $d011
+	
+		lda #$00
+		sta $dc0d
+		sta $dd0d
+		lda $dc0d
+		lda $dd0d
+
+		lda #$00
+		sta $dc0e
+		
+		lda #$00
+		sta $d01a
+		inc $d019	; ack interrupts
+
+		LDA $01		; enable cass. motor
+		AND #%11011111
+		STA $01
+
+		ldx #$00
+testcas
+		inx
+		beq overflow
+		lda $dc0d
+;		and #$10			; no need, timers disabled
+		beq testcas
+
+		txa
+		
+;	ldx #$01	; usb check ... this is useless, if we have to wait for usb it is too late !
+;checkusb1
+;	inx
+;	nop
+ ;	bit USBStatus
+  ;	bvc checkusb1           ; check if ready to send a byte
+	
+		stx USBData		; X holds number of cycles here, send it to PC
+		inc $d020
+		ldx #$01		; remove if usb check is in
+		jmp testcas
+	
+overflow
+		lda #$00		; 00 = overflow
+		sta $d020
+;
+
+		jsr send_byte
+		
+;		lda #$7f		; check Run stop
+;		sta $dc00	; port a
+;		lda $dc01       ; port b
+;		and #%10000000
+;		beq runstop1
+		lda $01
+		and #%00010000	; any button pressed ?
+		bne runstop1
+
+		ldx #$02
+		jmp testcas
+	
+runstop1
+		lda #$01		; 00, 1, 2, 3, 4 = run stop pressed combo
+		jsr send_byte
+		lda #$02
+		jsr send_byte
+		lda #$03
+		jsr send_byte
+		lda #$04
+		jsr send_byte
+
+getout1		
+		lda #$00
+		sta $d020
+		
+		lda #$1b
+		sta $d011
+
+		lda #$f0
+		sta $d01a
+
+		lda #$01
+		sta $dc0e
+		
+		cli
+
+        jsr displaymenu
+        jmp handlemenu
+
+
+starttaptransfer
+        ldx #$00
+backupstackloop
+        lda $100,x
+        sta stackbackup,x
+        inx
+        bne backupstackloop
+        tsx
+        stx sprestore+1
+        jmp tapwriter
+
+endtaptransfer
+        ldx #$00
+restorestackloop
+        lda stackbackup,x
+        sta $100,x
+        inx
+        bne restorestackloop
+sprestore
+        ldx #$ff
+        txs
+
+  lda #13	;place cursor further down
+  jsr $ffd2
+  jsr $ffd2
+        
+        jsr waitforspace        
+        
+        jsr displaymenu
+        jmp handlemenu
+
+stackbackup
+    .fill 256,$00
+
+.include "taper.tas"

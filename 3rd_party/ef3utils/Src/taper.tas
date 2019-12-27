@@ -1,0 +1,321 @@
+delta	= $02
+dummy	= $03
+
+EASYFLASH = 1
+;19 was fine, should be slightly lower to have LONGER pulses
+OFFSET    = 17
+
+tapwriter
+;------------
+  sei
+main
+  jsr $e544
+  lda #13	;place cursor further down
+  jsr $ffd2
+  jsr $ffd2
+;  lda #22	;set lower case ROM charset
+;  sta $d018
+  sei		;ffd2 includes CLI
+  jsr print_message
+  jsr read_header
+  jsr display_stats
+  jsr init_io
+  jsr fill_buffer
+  jmp start_mastering ;no more stack usage from here on!
+
+;==========================
+;print message
+print_message
+.proc
+  ldx #0
+loop
+  lda text1,x
+  beq end
+  sta $0400+40*1,x
+  inx
+  bpl loop
+end
+  rts
+.pend
+;            0123456789012345678901234567890123456789
+.enc screen
+text1  .text "initiating tap transfer now...",0
+
+;---------------------------------
+;first, read TAP header, 20 bytes
+read_header
+.proc
+  ldy #0
+loop
+wait
+  bit $de09
+  bpl wait
+  lda $de0a
+  sta header,y
+  iny
+  cpy #20
+  bne loop
+  rts
+.pend
+
+;---------------------------------
+display_stats
+.proc
+  ldy #20
+loop
+  lda header,y
+  sta $0400+40*20,y
+  dey
+  bpl loop
+  rts
+.pend
+
+;---------------------------------
+init_io
+.proc
+  lda #0
+  sta delta
+  jsr $f817 ;play on tape
+  ror $d011 ;screen off
+  lda #%00010111
+  sta $01
+  rts
+.pend
+
+;---------------------------------
+;first, fill buffer 
+fill_buffer
+.proc
+init_loop
+  lda delta
+  bmi buffer_filled
+wait
+  bit $de09
+  bpl wait
+  inc delta
+  lda delta
+  tay
+  lda $de0a
+  sta buffer,y
+  jmp init_loop
+buffer_filled
+  rts
+.pend
+
+;---------------------------------
+start_mastering
+  ldx #0
+  ldy delta    ;buffer starts ahead
+;======================================
+start  
+   lda #OFFSET ;offset for timing, fine tune this ;-)
+   sec
+source
+  sbc buffer,x ;TAP data
+  inx	     ;x is ptr into buffer
+  dec delta ;we just used up one buffer byte
+
+;length_of_routine - TAP_byte = number of 4_cycle_OPcodes per pulse
+  sta target1+1 ;these are rows of 4 cycle opcodes, thus splitting
+  sta target2+1 ;the TAP value into 2 halves
+;  sta $d021
+;---------------------------
+;one-sided overhead is from start to here
+;in cycles: 2+2+4+2+5+4+4 = 23
+;---------------------------
+  lda $01		;3
+  ora #%00001000	;2
+  sta $01		;3
+ 
+;try to read one byte
+  lda delta ;if delta > 127 fetch no new byte	;3
+  ;bmi no_new_byte				;2/3
+
+;instead we do this, so tming is constant in any case
+  bpl good ;3
+  ;2 so we need 1+4+3=8 from here on
+  nop		;2
+ nop		;2
+  lda dummy	;3
+  jmp no_new_byte ;3
+  
+  
+good
+  bit $de09	;4
+  bpl no_new_byte ;USB  just wasnt ready yet
+
+  inc delta 		;5
+  ;bpl branch took      2
+  iny               ;2
+  lda $de0a         ;4
+  sta buffer,y      ;5
+	      ;(18)
+  jmp got_new_byte  ;3
+
+no_new_byte
+;just waste equal amount of time
+  ;branch took      3
+  inc dummy	  ;5
+  nop              ;2
+  nop		;2
+  nop		;2
+  nop		;2
+  nop		;2
+	      ;(18)
+  jmp got_new_byte ;3
+
+got_new_byte
+target1
+  jmp pharow ;enter row of PHAs
+;-------------------------------
+
+end_of_data
+  ;either an error in speed or file done
+  ;try to receive another byte for 256 times
+  lda #$0e
+  sta $d020
+  ldx #0
+loope2
+  bit $de09
+  bpl no_new_byte_yet
+  ;here, we got a byte
+  jmp error
+
+no_new_byte_yet
+  dex
+  bne loope2
+
+;here we got 256 times no byte
+end_of_transfer  
+.proc
+  lda #%10011011
+  sta $d011 ;screen on
+  ldx #0
+loop_eof
+  lda text2,x
+  beq end3
+  sta $0400+40*6,x
+  inx
+  jmp loop_eof
+end3
+  lda $01
+  ora #%00100000
+  sta $01
+  jmp endtaptransfer
+.pend
+
+;-------------------------
+error
+.proc
+  lda #%10011011
+  sta $d011 ;screen on
+  ldx #0
+loop_err
+  lda text3,x
+  beq end4
+  sta $0400+40*6,x
+  inx
+  jmp loop_err
+end4
+  lda $01
+  ora #%00100000
+  sta $01
+  jmp endtaptransfer
+.pend
+;            0123456789012345678901234567890123456789
+.enc screen
+text2  .text "* end of tap file.",0
+text3  .text "* an error occured during transfer!",0
+
+;==============================
+
+.align $100
+pharow
+.fill 256,$68 ;PHAs...
+
+;===============
+;waste 23 cycles here for symmetry
+  lda delta ;3
+  sta $d020 ;4 = 15
+
+;from here to ;==== we have 16 cycles
+  ;end of data check
+  bne all_ok ;+3
+
+  ;delta=0!
+  jmp end_of_data
+
+all_ok
+  bne all_ok2 ;+3
+all_ok2
+
+  lda $d020 ;4
+  eor #%00000001 ;2
+  sta $d020 ;4
+;===============
+  lda $01
+  and #%11110111
+  sta $01
+
+;try to read one byte
+  lda delta ;if delta > 127 fetch no new byte
+  ;bmi no_new_byte2
+;instead we do this, so tming is constant in any case
+  bpl good2 ;3
+  ;2 so we need 1+4+3=8 from here on
+  nop		;2
+  nop		;2
+;nop
+  lda dummy	;3
+  jmp no_new_byte2 ;3
+
+good2
+  bit $de09
+  bpl no_new_byte2
+
+  inc delta	;5
+  ;branch took       2
+  iny               ;2
+  lda $de0a         ;4
+  sta buffer,y      ;5
+  	      ;(18)
+  jmp got_new_byte2  ;3
+
+no_new_byte2
+;just waste equal amount of time
+  ;branch took      3
+  inc dummy;5
+  nop              ;2
+  nop;2
+  nop;2
+  nop;2
+  nop;2
+	      ;(18)
+  jmp got_new_byte2 ;3
+;----------------------------
+got_new_byte2
+target2
+  jmp pharow2 ;enter row of PHAs
+;-------------------------------
+
+.align $100
+pharow2
+.fill 256,$68
+  jmp start
+
+  ;--------------
+header
+;.bin 0,30,"final.tap"
+.proc
+signature	.byte 0,0,0,0,0,0,0,0,0,0,0,0
+version		.byte 0
+machine		.byte 0
+video		.byte 0
+reserved	.byte 0
+length		.byte 0,0,0,0
+.pend
+
+;--------------
+.fill $200,0
+buffer
+z_end

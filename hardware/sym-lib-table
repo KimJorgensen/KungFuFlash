@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name C64-Exp-Port)(type Legacy)(uri ${KIPRJMOD}/lib/C64-Exp-Port.lib)(options "")(descr ""))
+  (lib (name KungFuFlash-rescue)(type Legacy)(uri ${KIPRJMOD}/KungFuFlash-rescue.lib)(options "")(descr ""))
+  (lib (name uSD_push-push_ebay)(type Legacy)(uri ${KIPRJMOD}/lib/uSD_push-push_ebay.lib)(options "")(descr ""))
+)

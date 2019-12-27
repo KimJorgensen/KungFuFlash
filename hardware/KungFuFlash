@@ -1,0 +1,250 @@
+.HEA
+.TIM 2019-12-27T20:53:02 CET
+.APP "Eeschema 5.1.4+dfsg1-1"
+
+.ADD_COM U3 STM32F405RGTx  Package_QFP:LQFP-64_10x10mm_P0.5mm
+.ADD_COM RN1 100R  Resistor_SMD:R_Array_Convex_4x0603
+.ADD_COM RN2 100R  Resistor_SMD:R_Array_Convex_4x0603
+.ADD_COM U1 C64-Exp-Port  mod:C64-Cart
+.ADD_COM SW2 Menu  Button_Switch_THT:SW_PUSH_6mm_H8mm
+.ADD_COM SW3 Special  Button_Switch_THT:SW_PUSH_6mm_H8mm
+.ADD_COM R5 510R  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM R6 510R  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM R3 10k  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM R4 510R  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM Q1 BC817  Package_TO_SOT_SMD:SOT-23
+.ADD_COM J2 USB_B_Micro  mod:Conn_USBmicro-B_ebay-side_TH
+.ADD_COM R2 10k  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM Y1 8MHz  Crystal:Crystal_SMD_5032-2Pin_5.0x3.2mm
+.ADD_COM C7 20p  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C8 20p  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM J4 SWD  Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+.ADD_COM R1 510R  Resistor_SMD:R_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM D1 LED  LED_SMD:LED_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM C15 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM U2 AMS1117-3.3  Package_TO_SOT_SMD:SOT-223-3_TabPin2
+.ADD_COM C1 10u  Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM C2 10u  Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM C11 2.2u  Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM C12 2.2u  Capacitor_SMD:C_0805_2012Metric_Pad1.15x1.40mm_HandSolder
+.ADD_COM SW1 Reset  Button_Switch_THT:SW_PUSH_6mm_H8mm
+.ADD_COM C9 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C3 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C4 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C5 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C6 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C10 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C13 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C14 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM J1 USB Power  Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical
+.ADD_COM XS1 uSD_push_push  mod:Conn_uSDcard
+.ADD_COM C17 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+.ADD_COM C16 100n  Capacitor_SMD:C_0603_1608Metric_Pad1.05x0.95mm_HandSolder
+
+
+.ADD_TER R1.1  /~LED
+.TER     U3.2
+.ADD_TER D1.1  Net-(D1-Pad1)
+.TER     R1.2
+.ADD_TER C14.1  +3V3
+.TER     C2.1
+         U2.2
+         C15.1
+         XS1.4
+         U3.13
+         R3.1
+         C13.1
+         C10.1
+         C6.1
+         C5.1
+         C3.1
+         C4.1
+         SW3.1
+         SW2.1
+         J4.2
+         U3.32
+         U3.48
+         U3.19
+         D1.2
+         U3.64
+         U3.1
+.ADD_TER RN1.7  /D6
+.TER     U3.37
+.ADD_TER U3.39  /SD_D0
+.TER     XS1.7
+.ADD_TER XS1.8  /SD_D1
+.TER     U3.40
+.ADD_TER RN2.5  /D0
+.TER     U3.8
+.ADD_TER RN2.6  /D1
+.TER     U3.9
+.ADD_TER RN2.7  /D2
+.TER     U3.10
+.ADD_TER RN2.8  /D3
+.TER     U3.11
+.ADD_TER U3.24  /D4
+.TER     RN1.5
+.ADD_TER RN1.6  /D5
+.TER     U3.25
+.ADD_TER J1.2  +5C
+.TER     J2.1
+.ADD_TER XS1.1  /SD_D2
+.TER     U3.51
+.ADD_TER U3.52  /SD_D3
+.TER     XS1.2
+.ADD_TER XS1.5  /SD_CK
+.TER     U3.53
+.ADD_TER XS1.3  /SD_CMD
+.TER     U3.54
+.ADD_TER J4.5  /SWCLK
+.TER     U3.49
+.ADD_TER U3.28  /A2
+.TER     U1.W
+.ADD_TER J2.2  /USB_DM
+.TER     U3.44
+.ADD_TER J2.3  /USB_DP
+.TER     U3.45
+.ADD_TER U3.46  /SWDIO
+.TER     J4.4
+.ADD_TER U3.26  /A0
+.TER     U1.Y
+.ADD_TER C8.1  Net-(C8-Pad1)
+.TER     U3.6
+         Y1.2
+.ADD_TER U3.5  Net-(C7-Pad2)
+.TER     C7.2
+         Y1.1
+.ADD_TER C1.1  +5V
+.TER     U1.2
+         U2.3
+         J1.1
+         U1.3
+.ADD_TER R5.2  /MENU
+.TER     U3.20
+         C16.1
+.ADD_TER C17.1  /SPECIAL
+.TER     U3.21
+         R6.2
+.ADD_TER C11.2  Net-(C11-Pad2)
+.TER     U3.31
+.ADD_TER C9.1  /~RST
+.TER     U3.7
+         SW1.2
+.ADD_TER C12.1  Net-(C12-Pad1)
+.TER     U3.47
+.ADD_TER J4.1  /BOOT0
+.TER     U3.60
+         R2.1
+.ADD_TER R2.2  GND
+.TER     J4.3
+         J2.5
+         J2.6
+         Q1.2
+         U1.A
+         U3.12
+         U3.63
+         U1.22
+         U3.18
+         U1.1
+         C11.1
+         C15.2
+         U2.1
+         C1.2
+         C2.2
+         C17.2
+         C3.2
+         C9.2
+         C14.2
+         XS1.6
+         U1.Z
+         C16.2
+         SW1.1
+         C13.2
+         C7.1
+         C8.2
+         C6.2
+         C12.2
+         C4.2
+         C5.2
+         C10.2
+.ADD_TER RN1.1  /CD7
+.TER     U1.14
+.ADD_TER RN1.2  /CD6
+.TER     U1.15
+.ADD_TER U1.16  /CD5
+.TER     RN1.3
+.ADD_TER U1.17  /CD4
+.TER     RN1.4
+.ADD_TER U1.18  /CD3
+.TER     RN2.1
+.ADD_TER U1.19  /CD2
+.TER     RN2.2
+.ADD_TER U1.20  /CD1
+.TER     RN2.3
+.ADD_TER U1.21  /CD0
+.TER     RN2.4
+.ADD_TER U1.R  /A7
+.TER     U3.59
+.ADD_TER U3.30  /A11
+.TER     U1.L
+.ADD_TER U1.K  /A12
+.TER     U3.33
+.ADD_TER U3.34  /A13
+.TER     U1.J
+.ADD_TER U1.H  /A14
+.TER     U3.35
+.ADD_TER U3.36  /A15
+.TER     U1.F
+.ADD_TER U1.V  /A3
+.TER     U3.55
+.ADD_TER U1.U  /A4
+.TER     U3.56
+.ADD_TER U3.57  /A5
+.TER     U1.T
+.ADD_TER U1.S  /A6
+.TER     U3.58
+.ADD_TER U3.29  /A10
+.TER     U1.M
+.ADD_TER U1.P  /A8
+.TER     U3.61
+.ADD_TER U3.62  /A9
+.TER     U1.N
+.ADD_TER U3.3  /~GAME
+.TER     U1.8
+.ADD_TER U1.10  /~IO2
+.TER     U3.16
+.ADD_TER U3.14  /R~W
+.TER     U1.5
+.ADD_TER U3.15  /~IO1
+.TER     U1.7
+.ADD_TER U3.43  /~NMI
+.TER     U1.D
+.ADD_TER U3.4  /~EXROM
+.TER     U1.9
+.ADD_TER U1.12  /BA
+.TER     U3.17
+.ADD_TER U3.22  /~ROML
+.TER     U1.11
+.ADD_TER U1.B  /~ROMH
+.TER     U3.23
+.ADD_TER U3.41  /PHI2
+.TER     U1.E
+.ADD_TER U1.4  /~IRQ
+.TER     U3.42
+.ADD_TER U3.27  /A1
+.TER     U1.X
+.ADD_TER U3.38  /D7
+.TER     RN1.8
+.ADD_TER SW3.2  Net-(R6-Pad1)
+.TER     R6.1
+.ADD_TER SW2.2  Net-(R5-Pad1)
+.TER     R5.1
+.ADD_TER Q1.1  Net-(Q1-Pad1)
+.TER     R4.1
+.ADD_TER R4.2  /~RST_O
+.TER     R3.2
+         U3.50
+.ADD_TER Q1.3  /~RESET
+.TER     U1.C
+
+.END
