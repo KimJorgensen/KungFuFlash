@@ -48,6 +48,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     if (len != sizeof(CRT_HEADER) ||
         memcmp("C64 CARTRIDGE   ", header->signature, sizeof(header->signature)) != 0)
     {
+        wrn("Unsupported CRT header\n");
         return false;
     }
 
@@ -55,9 +56,23 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     header->version = __REV16(header->version);
     header->cartridge_type = __REV16(header->cartridge_type);
 
-    if (header->header_length != sizeof(CRT_HEADER) ||
-        header->version != 0x0100)
+    if (header->header_length != sizeof(CRT_HEADER))
     {
+        if (header->header_length != 0x20)
+        {
+            wrn("Unsupported CRT header length: %u\n", header->header_length);
+            return false;
+        }
+        else
+        {
+            log("Ignoring non-standard CRT header length: %u\n",
+                header->header_length);
+        }
+    }
+
+    if (header->version != 0x0100)
+    {
+        wrn("Unsupported CRT version: %x\n", header->version);
         return false;
     }
 
