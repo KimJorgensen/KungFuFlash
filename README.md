@@ -17,6 +17,7 @@ The following cartridge types are currently supported:
 * Ocean type 1
 * Epyx Fastload
 * C64 Game System, System 3
+* Dinamic
 * Magic Desk, Domark, HES Australia
 * Super Snapshot v5
 * Comal-80

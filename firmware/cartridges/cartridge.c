@@ -24,6 +24,7 @@
 #include "simons_basic.c"
 #include "epyx_fastload.c"
 #include "c64gs_system_3.c"
+#include "dinamic.c"
 #include "magic_desk.c"
 #include "super_snapshot_5.c"
 #include "easyflash.c"
@@ -50,6 +51,9 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
 
         case CRT_C64_GAME_SYSTEM_SYSTEM_3:
             return c64gs_handler;
+
+        case CRT_DINAMIC:
+            return dinamic_handler;
 
         case CRT_FUN_PLAY_POWER_PLAY:
         case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
