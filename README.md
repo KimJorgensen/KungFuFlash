@@ -13,6 +13,7 @@ The following cartridge types are currently supported:
 * Action Replay v4.x/v5/v6
 * Final Cartridge III(+)
 * Simons' BASIC
+* Fun Play, Power Play
 * Ocean type 1
 * Epyx Fastload
 * C64 Game System, System 3

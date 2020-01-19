@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -51,6 +51,7 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
         case CRT_C64_GAME_SYSTEM_SYSTEM_3:
             return c64gs_handler;
 
+        case CRT_FUN_PLAY_POWER_PLAY:
         case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
             return magic_desk_handler;
 
@@ -80,6 +81,10 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 
         case CRT_EPYX_FASTLOAD:
             return epyx_init;
+
+        case CRT_FUN_PLAY_POWER_PLAY:
+        case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
+            return magic_desk_init;
 
         case CRT_SUPER_SNAPSHOT_V5:
             return ss5_init;
