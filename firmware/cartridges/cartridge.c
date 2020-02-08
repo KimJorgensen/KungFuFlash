@@ -20,6 +20,7 @@
 #include "cartridge.h"
 #include "crt_normal.c"
 #include "action_replay_4x.c"
+#include "kcs_power_cartridge.c"
 #include "final_cartridge_3.c"
 #include "simons_basic.c"
 #include "epyx_fastload.c"
@@ -39,6 +40,9 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
 
         case CRT_ACTION_REPLAY:
             return ar4x_handler;
+
+        case CRT_KCS_POWER_CARTRIDGE:
+            return kcs_handler;
 
         case CRT_FINAL_CARTRIDGE_III:
             return fc3_handler;
@@ -79,6 +83,9 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
     {
         case CRT_ACTION_REPLAY:
             return ar4x_init;
+
+        case CRT_KCS_POWER_CARTRIDGE:
+            return kcs_init;
 
         case CRT_FINAL_CARTRIDGE_III:
             return fc3_init;

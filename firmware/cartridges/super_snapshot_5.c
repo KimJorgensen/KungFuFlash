@@ -76,7 +76,7 @@ static inline bool ss5_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus write callback (early)
 *************************************************/
-static inline bool ss5_early_write_handler(void)
+static inline void ss5_early_write_handler(void)
 {
     // Use 3 consecutive writes to detect IRQ/NMI
     if (freezer_state && ++freezer_state == FREEZE_3_WRITES)
@@ -86,10 +86,7 @@ static inline bool ss5_early_write_handler(void)
 
         crt_rom_ptr = crt_banks[0];
         crt_ptr = crt_ram_banks[0];
-        return true;
     }
-
-    return false;
 }
 
 /*************************************************
