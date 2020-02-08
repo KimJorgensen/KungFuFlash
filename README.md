@@ -11,6 +11,7 @@ The following cartridge types are currently supported:
 
 * Normal cartridge (8k, 16k, Ultimax)
 * Action Replay v4.x/v5/v6
+* KCS Power Cartridge
 * Final Cartridge III(+)
 * Simons' BASIC
 * Fun Play, Power Play
