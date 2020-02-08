@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -84,6 +84,14 @@ static uint8_t get_file_type(FILINFO *info)
             if (d64_validate_size(info->fsize))
             {
                 return FILE_D64;
+            }
+        }
+        else if (compare_extension(filename, "ROM") ||
+                 compare_extension(filename, "BIN"))
+        {
+            if (info->fsize == 8*1024)
+            {
+                return FILE_ROM;
             }
         }
         else if (compare_extension(filename, "UPD"))

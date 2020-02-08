@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -39,13 +39,16 @@ static inline void invalidate_menu_signature(void)
 *************************************************/
 static inline volatile uint16_t c64_addr_read()
 {
-	return (volatile uint16_t)GPIOB->IDR;
+    return (volatile uint16_t)GPIOB->IDR;
 }
 
 static void c64_address_config(void)
 {
-	// Make GPIOB input
-	GPIOB->MODER = 0;
+    // Make GPIOB input
+    GPIOB->MODER = 0;
+
+    // Set output low
+    GPIOB->ODR = 0;
 
     // Set GPIOB to low speed
     GPIOB->OSPEEDR = 0;
@@ -59,27 +62,27 @@ static void c64_address_config(void)
 *************************************************/
 static inline volatile uint8_t c64_data_read()
 {
-	return (volatile uint8_t)GPIOC->IDR;
+    return (volatile uint8_t)GPIOC->IDR;
 }
 
 static inline void c64_data_write(uint8_t data)
 {
-	*((volatile uint8_t *)&GPIOC->ODR) = data;
+    *((volatile uint8_t *)&GPIOC->ODR) = data;
 
-	// Make PC0-PC7 outout
-	*((volatile uint16_t *)&GPIOC->MODER) = 0x5555;
+    // Make PC0-PC7 outout
+    *((volatile uint16_t *)&GPIOC->MODER) = 0x5555;
 }
 
 static inline void c64_data_input(void)
 {
-	// Make PC0-PC7 input
-	*((volatile uint16_t *)&GPIOC->MODER) = 0x0000;
+    // Make PC0-PC7 input
+    *((volatile uint16_t *)&GPIOC->MODER) = 0x0000;
 }
 
 static void c64_data_config(void)
 {
-	// Make PC0-PC7 input
-	c64_data_input();
+    // Make PC0-PC7 input
+    c64_data_input();
 }
 
 /*************************************************
@@ -97,13 +100,13 @@ static void c64_data_config(void)
 
 static inline volatile uint8_t c64_control_read()
 {
-	return (volatile uint8_t)GPIOA->IDR;
+    return (volatile uint8_t)GPIOA->IDR;
 }
 
 static void c64_control_config(void)
 {
     // Make PA0-PA3 and PA6-PA7 input
-	GPIOA->MODER &= ~(GPIO_MODER_MODER0|GPIO_MODER_MODER1|GPIO_MODER_MODER2|
+    GPIOA->MODER &= ~(GPIO_MODER_MODER0|GPIO_MODER_MODER1|GPIO_MODER_MODER2|
                       GPIO_MODER_MODER3|GPIO_MODER_MODER6|GPIO_MODER_MODER7);
 }
 
@@ -211,7 +214,7 @@ static void c64_irq_config(void)
 *************************************************/
 static void c64_clock_config()
 {
- 	// Enable TIM1 clock
+     // Enable TIM1 clock
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
     __DSB();
 
@@ -238,10 +241,10 @@ static void c64_clock_config()
     MODIFY_REG(TIM1->SMCR, TIM_SMCR_TS|TIM_SMCR_SMS, TIM_SMCR_TS_2|TIM_SMCR_TS_0);
 
     // Set reset mode
-	TIM1->SMCR |= TIM_SMCR_SMS_2;
+    TIM1->SMCR |= TIM_SMCR_SMS_2;
 
-	// Enable capture 1 and 2
-	TIM1->CCER |= TIM_CCER_CC1E|TIM_CCER_CC2E;
+    // Enable capture 1 and 2
+    TIM1->CCER |= TIM_CCER_CC1E|TIM_CCER_CC2E;
 
     // Enable counter
     TIM1->CR1 |= TIM_CR1_CEN;
@@ -252,14 +255,14 @@ static void c64_clock_config()
     // Ideally this should be calculated from the measured clock speed (PAL/NTSC)
     TIM1->CCR3 = 84 - 12; // Compensate for some of the interrupt delay
 
-	// Enable PWM mode 2. OC3 is low when TIM1_CNT < TIM1_CCR3
-	TIM1->CCMR2 |= TIM_CCMR2_OC3M;
+    // Enable PWM mode 2. OC3 is low when TIM1_CNT < TIM1_CCR3
+    TIM1->CCMR2 |= TIM_CCMR2_OC3M;
 
     // Capture/Compare 3 interrupt disable
     TIM1->DIER &= ~TIM_DIER_CC3IE;
 
     // Enable TIM1_CC_IRQn, highest priority
-	NVIC_SetPriority(TIM1_CC_IRQn, 0);
+    NVIC_SetPriority(TIM1_CC_IRQn, 0);
     NVIC_EnableIRQ(TIM1_CC_IRQn);
 }
 
@@ -275,15 +278,15 @@ static void c64_clock_config()
 #define C64_BUS_HANDLER_(name, read_handler, write_handler)                         \
 void name(void)                                                                     \
 {                                                                                   \
-	uint32_t sr = TIM1->SR;                                                         \
+    uint32_t sr = TIM1->SR;                                                         \
     if (sr & TIM_SR_CC3IF)                                                          \
-	{                                                                               \
+    {                                                                               \
         uint16_t addr = c64_addr_read();                                            \
         COMPILER_BARRIER();                                                         \
         uint8_t control = c64_control_read();                                       \
         /* R/W signal is stable before the other control signals */                 \
-		if(control & C64_WRITE)                                                     \
-		{                                                                           \
+        if(control & C64_WRITE)                                                     \
+        {                                                                           \
             COMPILER_BARRIER();                                                     \
             control = c64_control_read();                                           \
             if (read_handler(control, addr))                                        \
@@ -301,9 +304,9 @@ void name(void)                                                                 
             COMPILER_BARRIER();                                                     \
             uint8_t data = c64_data_read();                                         \
             write_handler(control, addr, data);                                     \
-		}                                                                           \
+        }                                                                           \
         TIM1->SR = sr & ~TIM_SR_CC3IF;                                              \
-	}                                                                               \
+    }                                                                               \
 }
 
 #define C64_VIC_BUS_HANDLER_EX(name)                                                \
@@ -336,7 +339,7 @@ void name(void)                                                                 
                                 early_write_handler, write_handler, vic_delay)      \
 void name(void)                                                                     \
 {                                                                                   \
-	uint32_t sr = TIM1->SR;                                                         \
+    uint32_t sr = TIM1->SR;                                                         \
     if (sr & TIM_SR_CC3IF)                                                          \
     {                                                                               \
         /* As we don't return from this handler, we need to do this here */         \
@@ -539,25 +542,25 @@ void EXTI4_IRQHandler(void)
 
 static void button_config(void)
 {
-	// Make PA4 and PA5 input
-	GPIOA->MODER &= ~(GPIO_MODER_MODER4|GPIO_MODER_MODER5);
+    // Make PA4 and PA5 input
+    GPIOA->MODER &= ~(GPIO_MODER_MODER4|GPIO_MODER_MODER5);
 
-	// Enable pull-down
+    // Enable pull-down
     MODIFY_REG(GPIOA->PUPDR, GPIO_PUPDR_PUPD4|GPIO_PUPDR_PUPD5,
                GPIO_PUPDR_PUPD4_1|GPIO_PUPDR_PUPD5_1);
 
-	// Enable EXTI4 interrupt on PA4
+    // Enable EXTI4 interrupt on PA4
     MODIFY_REG(SYSCFG->EXTICR[1], SYSCFG_EXTICR2_EXTI4, SYSCFG_EXTICR2_EXTI4_PA);
-	EXTI->IMR |= EXTI_IMR_MR4;
+    EXTI->IMR |= EXTI_IMR_MR4;
 
-	// Rising edge trigger on PA4
-	EXTI->RTSR |= EXTI_RTSR_TR4;
-	EXTI->FTSR &= ~EXTI_FTSR_TR4;
+    // Rising edge trigger on PA4
+    EXTI->RTSR |= EXTI_RTSR_TR4;
+    EXTI->FTSR &= ~EXTI_FTSR_TR4;
 
     // Enable EXTI4_IRQHandler, lowest priority
-	EXTI->PR = EXTI_PR_PR4;
-	NVIC_SetPriority(EXTI4_IRQn, 0x0f);
-	NVIC_EnableIRQ(EXTI4_IRQn);
+    EXTI->PR = EXTI_PR_PR4;
+    NVIC_SetPriority(EXTI4_IRQn, 0x0f);
+    NVIC_EnableIRQ(EXTI4_IRQn);
 }
 
 /*************************************************

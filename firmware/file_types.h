@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -119,7 +119,9 @@ typedef enum {
     FILE_CRT,
     FILE_PRG,
     FILE_D64,
-    FILE_UPD,
+    FILE_ROM,
+
+    FILE_UPD        = 0xfd,
     FILE_DAT,
     FILE_UNKNOWN
 } FILE_TYPE;
@@ -134,6 +136,7 @@ typedef enum {
     DAT_CRT,
     DAT_PRG,
     DAT_USB,
+    DAT_KERNAL,
     DAT_BASIC,
     DAT_KILL,
     DAT_KILL_C128
