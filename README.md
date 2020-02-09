@@ -32,6 +32,8 @@ There are three buttons on the cartridge; a reset button, a menu button for star
 The PCB will fit the Stumpy Cartridge Case from TFW8b, you just need to drill some holes for the buttons and make a cut for the microSD card.
 If you plan to use USB you will need to cut a hole for that as well.
 
+You can also 3D print a cartridge case as the one designed by bigby, [see here](https://www.thingiverse.com/thing:4153414).
+
 ![Kung Fu Flash prototype PCB](pics/pcb_rev1.jpg)
 
 The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.
