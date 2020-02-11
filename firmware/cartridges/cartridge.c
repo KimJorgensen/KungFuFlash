@@ -30,6 +30,7 @@
 #include "super_snapshot_5.c"
 #include "easyflash.c"
 #include "comal80.c"
+#include "zaxxon.c"
 
 static void (*crt_get_handler(uint16_t cartridge_type)) (void)
 {
@@ -72,6 +73,9 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
             return ef_handler;
+
+        case CRT_ZAXXON_SUPER_ZAXXON:
+            return zaxxon_handler;
     }
 
     return NULL;
@@ -105,6 +109,9 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 
         case CRT_EASYFLASH:
             return ef_init;
+
+        case CRT_ZAXXON_SUPER_ZAXXON:
+            return zaxxon_init;
     }
 
     return NULL;
