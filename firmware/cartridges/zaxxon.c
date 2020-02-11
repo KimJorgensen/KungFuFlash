@@ -26,11 +26,12 @@ static inline bool zaxxon_read_handler(uint8_t control, uint16_t addr)
 {
     if (!(control & C64_ROML))
     {
+        // lower bank is fixed and only 4k
+        c64_data_write(crt_rom_ptr[addr & 0x0fff]);
+
         // switch upper bank
         crt_ptr = crt_banks[addr & 0x1000 ? 1 : 0];
 
-        // lower bank is fixed and only 4k
-        c64_data_write(crt_banks[0][addr & 0x0fff]);
         return true;
     }
     else if (!(control & C64_ROMH))
@@ -38,7 +39,6 @@ static inline bool zaxxon_read_handler(uint8_t control, uint16_t addr)
         c64_data_write(crt_ptr[addr & 0x3fff]);
         return true;
     }
-
 
     return false;
 }
@@ -54,6 +54,7 @@ static inline void zaxxon_write_handler(uint8_t control, uint16_t addr, uint8_t 
 static void zaxxon_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
+    crt_rom_ptr = crt_banks[0];
 }
 
 C64_BUS_HANDLER(zaxxon)
