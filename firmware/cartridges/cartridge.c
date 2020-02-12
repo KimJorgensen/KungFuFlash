@@ -26,6 +26,7 @@
 #include "epyx_fastload.c"
 #include "c64gs_system_3.c"
 #include "dinamic.c"
+#include "zaxxon.c"
 #include "magic_desk.c"
 #include "super_snapshot_5.c"
 #include "easyflash.c"
@@ -58,6 +59,9 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
 
         case CRT_DINAMIC:
             return dinamic_handler;
+
+        case CRT_ZAXXON_SUPER_ZAXXON:
+            return zaxxon_handler;
 
         case CRT_FUN_PLAY_POWER_PLAY:
         case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
@@ -92,6 +96,9 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 
         case CRT_EPYX_FASTLOAD:
             return epyx_init;
+
+        case CRT_ZAXXON_SUPER_ZAXXON:
+            return zaxxon_init;
 
         case CRT_FUN_PLAY_POWER_PLAY:
         case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
