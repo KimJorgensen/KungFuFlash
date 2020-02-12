@@ -19,6 +19,7 @@ The following cartridge types are currently supported:
 * Epyx Fastload
 * C64 Game System, System 3
 * Dinamic
+* Zaxxon, Super Zaxxon
 * Magic Desk, Domark, HES Australia
 * Super Snapshot v5
 * Comal-80
