@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -442,7 +442,7 @@ static bool auto_boot(void)
     }
     file_close(&file);
 
-    if (menu_signature() || menu_button() || (dat_file.flags & DAT_FLAG_NO_AUTO_BOOT))
+    if (menu_signature() || menu_button())
     {
         menu_button_wait_release();
         invalidate_menu_signature();

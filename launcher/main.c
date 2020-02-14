@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -42,7 +42,7 @@
 #include "dir.h"
 #include "base.h"
 #include "kff_usb.h"
-#include "prg.h"
+#include "launcher_asm.h"
 
 /* declarations */
 static void mainLoop(void);
@@ -50,7 +50,7 @@ static void browserLoop(void);
 static void updateScreen(void);
 
 static void help(void);
-static bool handleCommand(uint8_t cmd, uint8_t last_selected);
+static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected);
 static void showDir(void);
 static void updateDir(uint8_t last_selected);
 static void printDirPage(void);
@@ -61,6 +61,10 @@ static void showMessage(const char *text, uint8_t color);
 
 /* definitions */
 #define EF3_USB_CMD_LEN 12
+#define LONG_PRESS 2000
+#define CH_SHIFT_ENTER (0x80|CH_ENTER)
+
+static bool isC128 = false;
 
 static char linebuffer[SCREENW+1];
 static uint8_t *bigBuffer = NULL;
@@ -100,6 +104,8 @@ int main(void)
         showMessage("Failed to install joystick driver.", errorc);
         while (true);
     }
+
+    isC128 = is_c128() != 0;
 
     mainLoop();
     free(dir);
@@ -206,10 +212,10 @@ static void updateScreen(void)
     showDir();
 }
 
-static bool handleCommand(uint8_t cmd, uint8_t last_selected)
+static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected)
 {
     bool quit_browser = false;
-    uint8_t reply;
+    uint8_t data, reply;
 
     if (cmd != CMD_SELECT)
     {
@@ -217,16 +223,22 @@ static bool handleCommand(uint8_t cmd, uint8_t last_selected)
     }
     else
     {
-        reply = kff_send_ext_command(cmd, dir->selected);
+        data = dir->selected;
+        if (isC128)
+        {
+            data |= SELECT_FLAG_C128;
+        }
+        if (options)
+        {
+            data |= SELECT_FLAG_OPTIONS;
+        }
+
+        reply = kff_send_ext_command(cmd, data);
     }
 
     switch (reply)
     {
         case REPLY_OK:
-            break;
-
-        case REPLY_EXIT_MENU:
-            quit_browser = true;
             break;
 
         case REPLY_READ_DIR:
@@ -245,7 +257,16 @@ static bool handleCommand(uint8_t cmd, uint8_t last_selected)
                 dir->selected = dir->no_of_elements ? dir->no_of_elements-1 : 0;
             }
 
+            if (dir->selected < dir->text_elements)
+            {
+                dir->selected = dir->text_elements;
+            }
+
             printDirPage();
+            break;
+
+        case REPLY_EXIT_MENU:
+            quit_browser = true;
             break;
 
         default:
@@ -258,10 +279,9 @@ static bool handleCommand(uint8_t cmd, uint8_t last_selected)
 static void browserLoop(void)
 {
     char *element = NULL;
-    uint8_t last_selected = 0;
-    uint16_t joy_cnt = 0;
-    bool joy_down = false;
-    uint8_t c, j;
+    uint8_t c, j, last_selected = 0;
+    uint16_t joy_cnt = 0, fire_cnt = 0;
+    bool options = false, joy_down = false;
     uint8_t kff_cmd = CMD_DIR;
 
     memset(dir, 0, sizeof(Directory));
@@ -277,7 +297,7 @@ static void browserLoop(void)
                 JOY_DOWN(j) ? CH_CURS_DOWN :
                 JOY_LEFT(j) ? CH_CURS_LEFT :
                 JOY_RIGHT(j) ? CH_CURS_RIGHT :
-                JOY_BTN_1(j) ? 13 : 0;
+                JOY_BTN_1(j) ? CH_ENTER : 0;
 
             if (c)
             {
@@ -285,8 +305,30 @@ static void browserLoop(void)
                 {
                     c = 0;
                 }
+                else if (c == CH_ENTER)
+                {
+                    if (fire_cnt < LONG_PRESS)
+                    {
+                        // wait for release or long press
+                        fire_cnt++;
+                        c = 0;
+                    }
+                    else if (fire_cnt == LONG_PRESS)
+                    {
+                        // long press
+                        fire_cnt++;
+                        joy_cnt = 30;
+                        c = CH_SHIFT_ENTER;
+                    }
+                    else
+                    {
+                        // wait for release
+                        c = 0;
+                    }
+                }
                 else
                 {
+                    fire_cnt = 0;
                     // TODO: Use timer for this?
                     joy_cnt = joy_down ? 120 : 1200;
                     joy_down = true;
@@ -294,6 +336,13 @@ static void browserLoop(void)
             }
             else
             {
+                if (fire_cnt && fire_cnt < LONG_PRESS)
+                {
+                    // short press
+                    c = CH_ENTER;
+                }
+
+                fire_cnt = 0;
                 joy_down = false;
                 joy_cnt = 30;
             }
@@ -305,11 +354,13 @@ static void browserLoop(void)
         }
 
         switch (c)
-          {
+        {
             // --- start / enter directory
             case CH_ENTER:
+            case CH_SHIFT_ENTER:
                 if (dir->no_of_elements)
                 {
+                    options = c == CH_SHIFT_ENTER;
                     kff_cmd = CMD_SELECT;
                 }
                 break;
@@ -345,7 +396,7 @@ static void browserLoop(void)
                 if (dir->no_of_elements)
                 {
                     last_selected = dir->selected;
-                    if (dir->selected)
+                    if (dir->selected > dir->text_elements)
                     {
                         dir->selected--;
                         updateDir(last_selected);
@@ -387,6 +438,10 @@ static void browserLoop(void)
                 help();
                 break;
 
+            case CH_F5:
+                kff_cmd = CMD_SETTINGS;
+                break;
+
             case CH_F6:
                 kff_cmd = CMD_KILL_C128;
                 break;
@@ -406,7 +461,7 @@ static void browserLoop(void)
 
         if (kff_cmd != CMD_NONE)
         {
-            if(handleCommand(kff_cmd, last_selected))
+            if(handleCommand(kff_cmd, options, last_selected))
             {
                 break;
             }
@@ -454,36 +509,40 @@ static void help(void)
 
     textcolor(textc);
     gotoxy(0, 5);
-    cputs("<CRSR> or Joy     Change selection");
+    cputs("<CRSR> or Joy       Change selection");
     gotoxy(0, 6);
-    cputs("<RETURN> or Fire  Run/Change Dir");
+    cputs("<RETURN> or Fire    Run/Change Dir");
     gotoxy(0, 7);
-    cputs("<HOME>            Root Dir");
+    cputs(" + <SHIFT> or Hold  Options");
     gotoxy(0, 8);
-    cputs("<DEL>             Dir Up");
+    cputs("<HOME>              Root Dir");
     gotoxy(0, 9);
-    cputs("<F1>              Help");
+    cputs("<DEL>               Dir Up");
     gotoxy(0, 10);
-    cputs("<F6>              C128 Mode");
+    cputs("<F1>                Help");
     gotoxy(0, 11);
-    cputs("<F7>              BASIC (Cart Active)");
+    cputs("<F5>                Settings");
     gotoxy(0, 12);
-    cputs("<F8>              Kill");
+    cputs("<F6>                C128 Mode");
     gotoxy(0, 13);
-    cputs("<RUN/STOP>        Reset");
-
+    cputs("<F7>                BASIC (Cart Active)");
+    gotoxy(0, 14);
+    cputs("<F8>                Kill");
     gotoxy(0, 15);
+    cputs("<RUN/STOP>          Reset");
+
+    gotoxy(0, 17);
     cputs("Use joystick in port 2");
 
     textcolor(COLOR_RED);
-    gotoxy(0, 17);
-    cputs("KUNG FU FLASH IS PROVIDED WITH NO");
-    gotoxy(0, 18);
-    cputs("WARRANTY OF ANY KIND.");
     gotoxy(0, 19);
+    cputs("KUNG FU FLASH IS PROVIDED WITH NO");
+    gotoxy(0, 20);
+    cputs("WARRANTY OF ANY KIND.");
+    gotoxy(0, 21);
     textcolor(COLOR_LIGHTRED);
     cputs("USE IT AT YOUR OWN RISK!");
-    gotoxy(0, 22);
+    gotoxy(0, 24);
     waitKey();
     updateScreen();
 }
@@ -496,23 +555,11 @@ static void updateDir(uint8_t last_selected)
 
 static void printDirPage()
 {
-    char *element;
     uint8_t element_no = 0;
-
-    textcolor(textc);
-    revers(0);
 
     for (;element_no < dir->no_of_elements; element_no++)
     {
-        gotoxy(1, 1+element_no);
-        if (element_no == dir->selected)
-        {
-            revers(1);
-        }
-
-        element = dir->elements[element_no];
-        cputs(element);
-        revers(0);
+        printElement(element_no);
     }
 
     // clear empty lines
@@ -527,21 +574,28 @@ static void printElement(uint8_t element_no)
 {
     char *element;
 
-    if (dir->no_of_elements)
+    element = dir->elements[element_no];
+    if (element[0] == TEXT_ELEMENT)
+    {
+        textcolor(warnc);
+    }
+    else
     {
         textcolor(textc);
-        revers(0);
+    }
 
-        gotoxy(1, 1+element_no);
-        if (element_no == dir->selected)
-        {
-            revers(1);
-        }
-
-        element = dir->elements[element_no];
-        cputs(element);
+    if (element_no == dir->selected)
+    {
+        revers(1);
+    }
+    else
+    {
         revers(0);
     }
+
+    gotoxy(1, 1+element_no);
+    cputs(element);
+    revers(0);
 }
 
 static void showMessage(const char *text, uint8_t color)

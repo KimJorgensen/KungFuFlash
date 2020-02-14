@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -146,7 +146,7 @@ static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
 
         if (element == selected_element)
         {
-            scratch_buf[0] = 0xa0;  // Non-breaking space
+            scratch_buf[0] = SELECTED_ELEMENT;
         }
 
         c64_send_data(scratch_buf, ELEMENT_LENGTH);
@@ -261,23 +261,33 @@ static void d64_prev_page(D64_STATE *state)
     }
 }
 
-static bool d64_select(D64_STATE *state, uint8_t element)
+static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 {
-    if (state->page == 0)
+    uint8_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
+    if (element == 0)
     {
-        if (element == 0)
+        if (flags & SELECT_FLAG_OPTIONS)
+        {
+            dat_file.prg.element = element;
+            handle_file_options("..", FILE_NONE, element);
+        }
+        else
         {
             d64_dir_up(state, false);
+        }
+
+        return false;
+    }
+    else if (element == 1)
+    {
+        if (flags & SELECT_FLAG_OPTIONS)
+        {
+            dat_file.prg.element = element;
+            handle_file_options("*", FILE_PRG, element);
             return false;
         }
-        else if (element == 1)
-        {
-            element = 0xff; // Find first PRG
-        }
-    }
-    else
-    {
-        element += state->page * MAX_ELEMENTS_PAGE;
+
+        element = 0xff; // Find first PRG
     }
 
     d64_rewind(&state->d64);
@@ -302,11 +312,7 @@ static bool d64_select(D64_STATE *state, uint8_t element)
         if (element == 1 || element == 0xff)
         {
             dat_file.prg.element = 1;
-            c64_send_exit_menu();
-
-            sprint(scratch_buf, "No PRG files was found on disk\r\n\r\n%s", dat_file.file);
-            c64_send_warning(scratch_buf);
-            c64_send_reset_to_menu();
+            handle_unsupported_ex("Not Found", "No PRG files was found on disk", dat_file.file);
         }
         else
         {
@@ -322,6 +328,12 @@ static bool d64_select(D64_STATE *state, uint8_t element)
     d64_sanitize_name(dat_file.prg.name, state->d64.entry->filename, 16);
     dat_file.prg.name[16] = 0;
 
+    if (flags & SELECT_FLAG_OPTIONS)
+    {
+        handle_file_options(dat_file.prg.name, FILE_PRG, element_no);
+        return false;
+    }
+
     dat_file.prg.size = d64_read_prg(&state->file, &state->d64, dat_buffer, sizeof(dat_buffer));
     if (!prg_size_valid(dat_file.prg.size))
     {
@@ -334,7 +346,7 @@ static bool d64_select(D64_STATE *state, uint8_t element)
     return true;
 }
 
-static MENU_STATE * d64_menu_init(FILINFO *info)
+static MENU_STATE * d64_menu_init(const char *file_name)
 {
     if (!d64_state.menu.dir)
     {
@@ -342,10 +354,10 @@ static MENU_STATE * d64_menu_init(FILINFO *info)
         d64_state.menu.dir_up = (void (*)(MENU_STATE *, bool))d64_dir_up;
         d64_state.menu.prev_page = (void (*)(MENU_STATE *))d64_prev_page;
         d64_state.menu.next_page = (void (*)(MENU_STATE *))d64_next_page;
-        d64_state.menu.select = (bool (*)(MENU_STATE *, uint8_t))d64_select;
+        d64_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))d64_select;
     }
 
-    if (!file_open(&d64_state.file, info->fname, FA_READ))
+    if (!file_open(&d64_state.file, file_name, FA_READ))
     {
         handle_failed_to_read_sd();
     }

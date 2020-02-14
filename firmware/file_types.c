@@ -46,6 +46,11 @@ static uint8_t get_file_type(FILINFO *info)
     uint8_t length = 0;
     uint8_t extension = FF_LFN_BUF-1;
 
+    if (info->fattrib & AM_DIR)
+    {
+        return FILE_NONE;
+    }
+
     for (; length < FF_LFN_BUF; length++)
     {
         uint8_t chr = filename[length];

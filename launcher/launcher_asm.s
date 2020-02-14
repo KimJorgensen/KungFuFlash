@@ -1,7 +1,7 @@
 ;
-; Copyright (c) 2019 Kim Jørgensen
+; Copyright (c) 2019-2020 Kim Jørgensen
 ;
-; Derived from EasyFlash 3 Boot Image
+; Derived from EasyFlash 3 Boot Image and EasyFash 3 Menu
 ; Copyright (c) 2012-2013 Thomas Giesel
 ;
 ; This software is provided 'as-is', without any express or implied
@@ -316,3 +316,17 @@ ef3usb_get_cmd:
 
         jmp *
 .endproc
+
+; =============================================================================
+;
+; uint8_t is_c128(void);
+;
+; Return 0 if we're on a C64, other values for a C128.
+;
+; =============================================================================
+.export _is_c128
+_is_c128:
+        ldx $d030
+        inx
+        txa
+        rts

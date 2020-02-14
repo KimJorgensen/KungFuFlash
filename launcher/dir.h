@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -38,6 +38,7 @@
 typedef struct {
   char name[DIR_NAME_LENGTH+1];
   uint8_t no_of_elements;
+  uint8_t text_elements;
   uint8_t selected;
   char elements[MAX_ELEMENTS_PAGE][ELEMENT_LENGTH+1];
 } Directory;

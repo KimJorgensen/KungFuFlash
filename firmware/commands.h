@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -24,6 +24,10 @@
 #define ELEMENT_LENGTH 38
 #define MAX_ELEMENTS_PAGE 22
 
+// Use non-breaking spaces as first character for element type
+#define SELECTED_ELEMENT 0xa0
+#define TEXT_ELEMENT     0xe0
+
 typedef enum {
     CMD_NONE = 0x00,
 
@@ -34,12 +38,18 @@ typedef enum {
     CMD_DIR_NEXT_PAGE,
 
     CMD_SELECT,
+    CMD_SETTINGS,
     CMD_BASIC,
     CMD_KILL,
     CMD_KILL_C128,
 
     CMD_RESET
 } COMMAND_TYPE;
+
+typedef enum {
+    SELECT_FLAG_OPTIONS = 0x40,
+    SELECT_FLAG_C128    = 0x80
+} SELECT_FLAGS;
 
 typedef enum {
     REPLY_OK = 0x00,        // No action on C64

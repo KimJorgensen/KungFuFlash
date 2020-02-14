@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
- * Derived from EasyFlash 3 Boot Image
+ * Derived from EasyFlash 3 Boot Image and EasyFash 3 Menu
  * Copyright (c) 2012-2013 Thomas Giesel
  *
  * This software is provided 'as-is', without any express or implied
@@ -26,5 +26,6 @@
 void usbtool_prg_load_and_run(void);
 char* __fastcall__ ef3usb_get_cmd(bool send_fclose);
 void wait_for_reset(void);
+uint8_t is_c128(void);
 
 #endif /* PRG_H_ */

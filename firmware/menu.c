@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,9 +20,17 @@
 #include "menu.h"
 #include "menu_sd.h"
 #include "menu_d64.h"
+#include "menu_options.h"
 #include "loader.c"
 #include "menu_sd.c"
 #include "menu_d64.c"
+#include "menu_options.c"
+#include "menu_settings.c"
+
+static inline bool persist_basic_selection(void)
+{
+    return (dat_file.flags & DAT_FLAG_PERSIST_BASIC) != 0;
+}
 
 static void menu_loop()
 {
@@ -38,7 +46,7 @@ static void menu_loop()
     bool exit_loop = false;
     while (!exit_loop)
     {
-        uint8_t element_no;
+        uint8_t data;
         uint8_t command = c64_got_command() ?
                           c64_receive_command() : CMD_NONE;
         switch (command)
@@ -74,25 +82,33 @@ static void menu_loop()
                 break;
 
             case CMD_SELECT:
-                c64_receive_data(&element_no, 1);
-                exit_loop = menu_state->select(menu_state, element_no);
+                c64_receive_data(&data, 1);
+                exit_loop = menu_state->select(menu_state, data & 0xc0,
+                                               data & 0x3f);
+                break;
+
+            case CMD_SETTINGS:
+                handle_settings();
                 break;
 
             case CMD_BASIC:
                 c64_send_exit_menu();
                 dat_file.boot_type = DAT_BASIC;
+                should_save_dat = persist_basic_selection();
                 exit_loop = true;
                 break;
 
             case CMD_KILL:
                 c64_send_exit_menu();
                 dat_file.boot_type = DAT_KILL;
+                should_save_dat = persist_basic_selection();
                 exit_loop = true;
                 break;
 
             case CMD_KILL_C128:
                 c64_send_exit_menu();
                 dat_file.boot_type = DAT_KILL_C128;
+                should_save_dat = persist_basic_selection();
                 exit_loop = true;
                 break;
 
@@ -122,16 +138,73 @@ static void handle_failed_to_read_sd(void)
     restart_to_menu();
 }
 
-static void handle_unsupported(const char *file_name)
+static OPTIONS_STATE * build_options(const char *title, const char *message)
 {
-    c64_send_exit_menu();
+    OPTIONS_STATE *options = options_init(title);
+    options_add_empty(options);
+    options_add_text_block(options, message);
 
-    sprint(scratch_buf, "File is not supported or invalid\r\n\r\n%s", file_name);
-    c64_send_warning(scratch_buf);
-    c64_send_reset_to_menu();
+    return options;
 }
 
-static void to_petscii_pad(char *dest, const char *src, uint8_t size)
+static void handle_unsupported_ex(const char *title, const char *message, const char *file_name)
+{
+    OPTIONS_STATE *options = build_options(title, message);
+
+    options_add_text_block(options, file_name);
+    options_add_dir(options, "OK");
+
+    handle_options(options);
+}
+
+static void handle_unsupported(const char *file_name)
+{
+    handle_unsupported_ex("Unsupported", "File is not supported or invalid", file_name);
+}
+
+static void handle_file_options(const char *file_name, uint8_t file_type, uint8_t element_no)
+{
+    const char *title = "File Options";
+    const char *select_text;
+    switch (file_type)
+    {
+        case FILE_CRT:
+            select_text = "Run";
+            break;
+
+        case FILE_PRG:
+            select_text = "Load";
+            break;
+
+        case FILE_NONE:
+            title = "Directory Options";
+        case FILE_D64:
+            select_text = "Open";
+            break;
+
+        default:
+            select_text = "Select";
+            break;
+    }
+
+    OPTIONS_STATE *options = build_options(title, file_name);
+    options_add_select(options, select_text, 0, element_no);
+    options_add_dir(options, "Cancel");
+
+    handle_options(options);
+}
+
+static void handle_upgrade_menu(const char *firmware, uint8_t element_no)
+{
+    OPTIONS_STATE *options = build_options("Firmware Upgrade",
+                                "This will upgrade the firmware to");
+    options_add_text_block(options, firmware);
+    options_add_select(options, "Upgrade", SELECT_FLAG_ACCEPTED, element_no);
+    options_add_dir(options, "Cancel");
+    handle_options(options);
+}
+
+static const char * to_petscii_pad(char *dest, const char *src, uint8_t size)
 {
     for(uint8_t i=0; i<size; i++)
     {
@@ -146,6 +219,8 @@ static void to_petscii_pad(char *dest, const char *src, uint8_t size)
             *dest++ = ' ';  // Pad with space
         }
     }
+
+    return src;
 }
 
 static bool format_path(char *buf, bool include_file)
@@ -198,4 +273,10 @@ static void send_page_end(void)
 {
     scratch_buf[0] = 0;
     c64_send_data(scratch_buf, ELEMENT_LENGTH);
+}
+
+static void reply_page_end(void)
+{
+    c64_send_reply(REPLY_READ_DIR_PAGE);
+    send_page_end();
 }

@@ -127,8 +127,7 @@ typedef enum {
 } FILE_TYPE;
 
 typedef enum {
-    DAT_FLAG_NO_AUTO_BOOT   = 0x01,
-    DAT_FLAG_NO_AUTO_SELECT = 0x02
+    DAT_FLAG_PERSIST_BASIC = 0x01
 } DAT_FLAGS;
 
 typedef enum {

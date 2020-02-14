@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -35,7 +35,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <conio.h>
-#include <6502.h>
 #include "dir.h"
 #include "kff_usb.h"
 
@@ -47,6 +46,7 @@ void readDir(Directory *dir)
     // Initialize directory
     dir->name[0] = 0;
     dir->no_of_elements = 0;
+    dir->text_elements = 0;
     dir->selected = 0;
 
     ef3usb_receive_data(dir->name, DIR_NAME_LENGTH);
@@ -68,7 +68,12 @@ uint8_t readDirPage(Directory *dir)
             break;
         }
 
-        if (element[0] != ' ')
+        if (element[0] == TEXT_ELEMENT)
+        {
+            // assume that text is always before actionable elements
+            dir->text_elements++;
+        }
+        else if (element[0] == SELECTED_ELEMENT)
         {
             dir->selected = element_no;
         }

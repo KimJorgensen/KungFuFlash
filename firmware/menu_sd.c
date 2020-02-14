@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -100,7 +100,7 @@ static uint8_t sd_send_page(SD_STATE *state, uint8_t selected_element)
         sd_format_element(scratch_buf, &file_info);
         if (element == selected_element)
         {
-            scratch_buf[0] = 0xa0;  // Non-breaking space
+            scratch_buf[0] = SELECTED_ELEMENT;
         }
 
         c64_send_data(scratch_buf, ELEMENT_LENGTH);
@@ -186,7 +186,7 @@ static void handle_dir_command(SD_STATE *state)
 
     if (found && get_file_type(&file_info) == FILE_D64 && dat_file.prg.element != 0xff)
     {
-        menu_state = d64_menu_init(&file_info);
+        menu_state = d64_menu_init(file_info.fname);
         menu_state->dir(menu_state);
         return;
     }
@@ -297,8 +297,7 @@ static void handle_dir_prev_page_command(SD_STATE *state)
     }
     else
     {
-        c64_send_reply(REPLY_READ_DIR_PAGE);
-        send_page_end();
+        reply_page_end();
     }
 }
 
@@ -310,19 +309,16 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
-static bool handle_load_file(SD_STATE *state, FILINFO *info)
+static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t flags, uint8_t element)
 {
     bool exit_menu = false;
-    strcpy(dat_file.file, info->fname);
-    dat_file.boot_type = DAT_NONE;
 
-    uint8_t file_type = get_file_type(info);
     switch (file_type)
     {
         case FILE_PRG:
         {
             FIL file;
-            handle_file_open(&file, info->fname);
+            handle_file_open(&file, file_name);
 
             bool prg_loaded = prg_load_file(&file);
             if (prg_loaded)
@@ -335,7 +331,7 @@ static bool handle_load_file(SD_STATE *state, FILINFO *info)
             }
             else
             {
-                handle_unsupported(info->fname);
+                handle_unsupported(file_name);
             }
 
             file_close(&file);
@@ -345,24 +341,23 @@ static bool handle_load_file(SD_STATE *state, FILINFO *info)
         case FILE_CRT:
         {
             FIL file;
-            handle_file_open(&file, info->fname);
+            handle_file_open(&file, file_name);
 
             CRT_HEADER header;
             if (!crt_load_header(&file, &header))
             {
-                handle_unsupported(info->fname);
+                handle_unsupported(file_name);
+                break;
+            }
+
+            if (!crt_is_supported(header.cartridge_type))
+            {
+                sprint(scratch_buf, "Unsupported CRT type (%u)", header.cartridge_type);
+                handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
                 break;
             }
 
             c64_send_exit_menu();
-            if (!crt_is_supported(header.cartridge_type))
-            {
-                sprint(scratch_buf, "Unsupported CRT type (%u)\r\n\r\n%s", header.cartridge_type, info->fname);
-                c64_send_warning(scratch_buf);
-                c64_send_reset_to_menu();
-                break;
-            }
-
             c64_send_prg_message("Programming flash memory.");
             c64_interface(false);
 
@@ -370,7 +365,7 @@ static bool handle_load_file(SD_STATE *state, FILINFO *info)
             if (!banks)
             {
                 c64_interface(true);
-                sprint(scratch_buf, "Failed to read CRT file\r\n\r\n%s", info->fname);
+                sprint(scratch_buf, "Failed to read CRT file\r\n\r\n%s", file_name);
                 c64_send_warning(scratch_buf);
                 c64_send_reset_to_menu();
                 break;
@@ -390,49 +385,52 @@ static bool handle_load_file(SD_STATE *state, FILINFO *info)
         case FILE_D64:
         {
             dat_file.prg.element = 0;
-            menu_state = d64_menu_init(info);
+            menu_state = d64_menu_init(file_name);
             menu_state->dir(menu_state);
         }
         break;
 
         case FILE_UPD:
         {
-            FIL file;
-            handle_file_open(&file, info->fname);
-
-            char firmware[FW_NAME_SIZE];
-            if (upd_load(&file, firmware))
+            if (!(flags & SELECT_FLAG_ACCEPTED))
             {
-                sprint(scratch_buf, "This will upgrade the firmware to\r\n\r\n\"%s\""
-                                    "\r\n\r\n\r\nPress Menu or Reset button to cancel",
-                                    firmware);
+                FIL file;
+                handle_file_open(&file, file_name);
+
+                char firmware[FW_NAME_SIZE];
+                if (upd_load(&file, firmware))
+                {
+                    handle_upgrade_menu(firmware, element);
+                }
+                else
+                {
+                    handle_unsupported(file_name);
+                }
+
+                file_close(&file);
+            }
+            else
+            {
                 c64_send_exit_menu();
-                c64_send_warning(scratch_buf);
-                c64_send_prg_message("Upgrading firmware");
+                c64_send_prg_message("Upgrading firmware.");
                 c64_interface(false);
 
                 upd_program();
                 save_dat();
                 restart_to_menu();
             }
-
-            handle_unsupported(info->fname);
-            file_close(&file);
         }
         break;
 
         case FILE_DAT:
         {
-            c64_send_exit_menu();
-            sprint(scratch_buf, "This file is used by Kung Fu Flash\r\n\r\n%s", info->fname);
-            c64_send_warning(scratch_buf);
-            c64_send_reset_to_menu();
+            handle_unsupported_ex("System File", "This file is used by Kung Fu Flash", file_name);
         }
         break;
 
         default:
         {
-            handle_unsupported(info->fname);
+            handle_unsupported(file_name);
         }
         break;
     }
@@ -440,15 +438,28 @@ static bool handle_load_file(SD_STATE *state, FILINFO *info)
     return exit_menu;
 }
 
-static bool handle_select_command(SD_STATE *state, uint8_t element_no)
+static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t element)
 {
     bool exit_menu = false;
+    uint8_t element_no = element;
+
+    dat_file.boot_type = DAT_NONE;
+    dat_file.prg.element = 0xff; // don't auto open D64
+    dat_file.file[0] = 0;
 
     if (!state->in_root && state->page_no == 0)
     {
         if (element_no == 0)
         {
-            handle_change_dir(state, "..", true);
+            if (flags & SELECT_FLAG_OPTIONS)
+            {
+                handle_file_options("..", FILE_NONE, element);
+            }
+            else
+            {
+                handle_change_dir(state, "..", true);
+            }
+
             return exit_menu;
         }
 
@@ -476,14 +487,23 @@ static bool handle_select_command(SD_STATE *state, uint8_t element_no)
     {
         // File not not found
         handle_dir_command(state);
+        return exit_menu;
     }
-    else if (file_info.fattrib & AM_DIR)
+
+    uint8_t file_type = get_file_type(&file_info);
+    strcpy(dat_file.file, file_info.fname);
+
+    if (flags & SELECT_FLAG_OPTIONS)
+    {
+        handle_file_options(file_info.fname, file_type, element);
+    }
+    else if (file_type == FILE_NONE)
     {
         handle_change_dir(state, file_info.fname, false);
     }
     else
     {
-        exit_menu = handle_load_file(state, &file_info);
+        exit_menu = handle_load_file(file_info.fname, file_type, flags, element);
     }
 
     return exit_menu;
@@ -509,7 +529,7 @@ static MENU_STATE *sd_menu_init(void)
         sd_state.menu.dir_up = (void (*)(MENU_STATE *, bool))handle_dir_up_command;
         sd_state.menu.prev_page = (void (*)(MENU_STATE *))handle_dir_prev_page_command;
         sd_state.menu.next_page = (void (*)(MENU_STATE *))handle_dir_next_page_command;
-        sd_state.menu.select = (bool (*)(MENU_STATE *, uint8_t))handle_select_command;
+        sd_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))handle_select_command;
     }
 
     chdir_last();
