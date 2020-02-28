@@ -28,9 +28,12 @@
 #define SELECTED_ELEMENT 0xa0
 #define TEXT_ELEMENT     0xe0
 
+#define BASIC_CMD_BUF_SIZE 80
+
 typedef enum {
     CMD_NONE = 0x00,
 
+    // Menu commands
     CMD_DIR,
     CMD_DIR_ROOT,
     CMD_DIR_UP,
@@ -43,7 +46,11 @@ typedef enum {
     CMD_KILL,
     CMD_KILL_C128,
 
-    CMD_RESET
+    CMD_RESET,
+
+    // Disk commands
+    CMD_LOAD = 0x80,
+    CMD_LOAD_NEXT_BANK
 } COMMAND_TYPE;
 
 typedef enum {
@@ -54,10 +61,18 @@ typedef enum {
 typedef enum {
     REPLY_OK = 0x00,        // No action on C64
 
+    // Menu replies
     REPLY_READ_DIR,
     REPLY_READ_DIR_PAGE,
 
-    REPLY_EXIT_MENU         // Exit menu and wait for EFSTART:xxx command
+    REPLY_EXIT_MENU,        // Exit menu and wait for EFSTART:xxx command
+
+    // Disk replies
+    REPLY_READ_DONE = 0x80,
+    REPLY_READ_BANK,
+
+    REPLY_NOT_FOUND,
+    REPLY_READ_ERROR
 } REPLY_TYPE;
 
 #endif

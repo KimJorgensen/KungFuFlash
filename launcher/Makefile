@@ -15,6 +15,7 @@ obj += build/base.o
 obj += build/screen.o
 obj += build/dir.o
 obj += build/kff_usb.o
+obj += build/disk.o
 obj += build/launcher_asm.o
 
 inc      := .

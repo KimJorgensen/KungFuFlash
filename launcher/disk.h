@@ -17,17 +17,9 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+#ifndef _DISK_H_
+#define _DISK_H_
 
-static MENU_STATE * d64_menu_init(const char *file_name);
+void disk_mount_and_load(void);
 
-typedef struct
-{
-    MENU_STATE menu;
-
-    D64 d64;
-
-    uint8_t page;
-    bool dir_end;
-} D64_STATE;
-
-static D64_STATE d64_state;
+#endif /* _DISK_H_ */

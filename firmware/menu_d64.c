@@ -17,9 +17,6 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-#include "d64_reader.c"
-
-static const char *d64_types[6] = {"DEL", "SEQ", "PRG", "USR", "REL", "???"};
 
 static void sprint_u16_left(char *buffer, uint16_t val)
 {
@@ -44,7 +41,28 @@ static void sprint_u16_left(char *buffer, uint16_t val)
     }
 }
 
-static void d64_sanitize_name(char *dest, const char *src, uint8_t size)
+static char d64_sanitize_char(char c)
+{
+    if (c == '\r' || c == '\n')
+    {
+        c = '_';
+    }
+
+    return c;
+}
+
+static void d64_sanitize_filename(char *dest, const char *src)
+{
+    char c;
+    while ((c = *src++) && c != 0xa0)
+    {
+        *dest++ = d64_sanitize_char(c);
+    }
+
+    *dest = 0;
+}
+
+static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
 {
     for(uint8_t i=0; i<size; i++)
     {
@@ -52,11 +70,7 @@ static void d64_sanitize_name(char *dest, const char *src, uint8_t size)
         if (c)
         {
             src++;
-            if (c == '\r' || c == '\n')
-            {
-                c = '_';
-            }
-            *dest++ = c;
+            *dest++ = d64_sanitize_char(c);
         }
         else
         {
@@ -73,7 +87,7 @@ static void d64_format_diskname(char *buffer, char *diskname)
 
     // Diskname
     const uint8_t diskname_len = (ELEMENT_LENGTH-7)-5;
-    d64_sanitize_name(buffer, diskname, diskname_len);
+    d64_sanitize_name_pad(buffer, diskname, diskname_len);
     buffer += diskname_len;
 
     // Entry type
@@ -90,7 +104,7 @@ static void d64_format_entry(char *buffer, D64_DIR_ENTRY *entry)
 
     // Filename
     const uint8_t filename_len = (ELEMENT_LENGTH-7)-5;
-    d64_sanitize_name(buffer, entry->filename, filename_len);
+    d64_sanitize_name_pad(buffer, entry->filename, filename_len);
     buffer += filename_len;
 
     // Entry type
@@ -103,9 +117,7 @@ static void d64_format_entry(char *buffer, D64_DIR_ENTRY *entry)
         *buffer++ = ' ';
     }
 
-    uint8_t type = entry->type & 7;
-    if (type > 4) type = 5;
-    strcpy(buffer, d64_types[type]);
+    strcpy(buffer, d64_types[entry->type & 7]);
     buffer += 3;
 
     if(entry->type & 0x40)
@@ -133,7 +145,7 @@ static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
         }
         else
         {
-            if (!d64_read_dir(&state->file, &state->d64))
+            if (!d64_read_dir(&state->d64))
             {
                 state->d64.diskname[0] = 0;
                 state->dir_end = true;
@@ -163,7 +175,7 @@ static bool d64_skip_to_page(D64_STATE *state, uint8_t page)
     uint8_t skip = state->page * MAX_ELEMENTS_PAGE;
     for (uint8_t i=2; i<skip; i++)
     {
-        if (!d64_read_dir(&state->file, &state->d64))
+        if (!d64_read_dir(&state->d64))
         {
             page_found = false;
             break;
@@ -172,7 +184,11 @@ static bool d64_skip_to_page(D64_STATE *state, uint8_t page)
 
     if (!page_found)
     {
-        d64_open(&state->file, &state->d64);
+        if (!d64_read_bam(&state->d64))
+        {
+            handle_failed_to_read_sd();
+        }
+
         state->page = 0;
     }
 
@@ -183,7 +199,11 @@ static void d64_dir(D64_STATE *state)
 {
     c64_send_reply(REPLY_READ_DIR);
 
-    d64_open(&state->file, &state->d64);
+    if (!d64_read_bam(&state->d64))
+    {
+        handle_failed_to_read_sd();
+    }
+
     format_path(scratch_buf, true);
     c64_send_data(scratch_buf, DIR_NAME_LENGTH);
     state->dir_end = false;
@@ -214,6 +234,8 @@ static void d64_dir(D64_STATE *state)
 static void d64_dir_up(D64_STATE *state, bool root)
 {
     dat_file.prg.element = 0xff;   // Do not auto open D64 again
+    d64_close(&d64_state.d64);
+
     menu_state = &sd_state.menu;
     if (root)
     {
@@ -249,7 +271,11 @@ static void d64_prev_page(D64_STATE *state)
 
     if (state->page)
     {
-        d64_open(&state->file, &state->d64);
+        if (!d64_read_bam(&state->d64))
+        {
+            handle_failed_to_read_sd();
+        }
+
         state->dir_end = false;
 
         d64_skip_to_page(state, state->page-1);
@@ -264,11 +290,15 @@ static void d64_prev_page(D64_STATE *state)
 static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 {
     uint8_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
+
+    dat_file.prg.element = element;
+    dat_file.boot_type = DAT_NONE;
+    dat_file.prg.name[0] = 0;
+
     if (element == 0)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            dat_file.prg.element = element;
             handle_file_options("..", FILE_NONE, element);
         }
         else
@@ -282,18 +312,24 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            dat_file.prg.element = element;
-            handle_file_options("*", FILE_PRG, element);
+            handle_file_options("*", FILE_D64_PRG, element);
             return false;
+        }
+        else if (!(flags & SELECT_FLAG_MOUNT))
+        {
+            basic_load("*");
+            dat_file.boot_type = DAT_DISK;
+            d64_close(&d64_state.d64);
+            return true;
         }
 
         element = 0xff; // Find first PRG
     }
 
-    d64_rewind(&state->d64);
+    d64_rewind_dir(&state->d64);
     for (uint8_t i=2; i<=element; i++)
     {
-        if (!d64_read_dir(&state->file, &state->d64))
+        if (!d64_read_dir(&state->d64))
         {
             state->d64.entry->filename[0] = 0;
             break;
@@ -317,24 +353,29 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
         else
         {
             dat_file.prg.element = 0;
-            dat_file.prg.name[0] = 0;
             d64_dir(state);
         }
 
         return false;
     }
 
-    dat_file.prg.element = element;
-    d64_sanitize_name(dat_file.prg.name, state->d64.entry->filename, 16);
+    d64_sanitize_filename(dat_file.prg.name, state->d64.entry->filename);
     dat_file.prg.name[16] = 0;
 
     if (flags & SELECT_FLAG_OPTIONS)
     {
-        handle_file_options(dat_file.prg.name, FILE_PRG, element_no);
+        handle_file_options(dat_file.prg.name, FILE_D64_PRG, element_no);
         return false;
     }
+    else if (!(flags & SELECT_FLAG_MOUNT))
+    {
+        basic_load(dat_file.prg.name);
+        dat_file.boot_type = DAT_DISK;
+        d64_close(&d64_state.d64);
+        return true;
+    }
 
-    dat_file.prg.size = d64_read_prg(&state->file, &state->d64, dat_buffer, sizeof(dat_buffer));
+    dat_file.prg.size = d64_read_prg(&state->d64, dat_buffer, sizeof(dat_buffer));
     if (!prg_size_valid(dat_file.prg.size))
     {
         handle_unsupported(dat_file.prg.name);
@@ -343,6 +384,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 
     c64_send_exit_menu();
     dat_file.boot_type = DAT_PRG;
+    d64_close(&d64_state.d64);
     return true;
 }
 
@@ -357,7 +399,7 @@ static MENU_STATE * d64_menu_init(const char *file_name)
         d64_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))d64_select;
     }
 
-    if (!file_open(&d64_state.file, file_name, FA_READ))
+    if (!d64_open(&d64_state.d64, file_name))
     {
         handle_failed_to_read_sd();
     }

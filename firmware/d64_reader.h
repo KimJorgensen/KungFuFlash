@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -22,7 +22,8 @@
  * Original source (C) Covert Bitops
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
-#define DIRSECTS  19
+
+#define D64_SECTOR_DATA_LEN 254
 
 static const uint16_t d64_track_offset[42] =
 {
@@ -34,13 +35,27 @@ static const uint16_t d64_track_offset[42] =
     0x0300, 0x0311
 };
 
+static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "???", "???", "???"};
+
+typedef enum
+{
+  D64_FILE_DEL = 0,
+  D64_FILE_SEQ,
+  D64_FILE_PRG,
+  D64_FILE_USR,
+  D64_FILE_REL,
+  D64_FILE_CBM,
+  D64_FILE_DIR
+} D64_FILE_TYPE;
+
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
 {
     uint8_t next_track;
     uint8_t next_sector;
-} D64_SECTOR_HEADER;
+    uint8_t data[D64_SECTOR_DATA_LEN];
+} D64_SECTOR;
 
 typedef struct
 {
@@ -57,16 +72,17 @@ typedef struct
 
 typedef struct
 {
-    bool visited[DIRSECTS];
+    FIL file;
+    uint8_t visited_dir_sectors;
     union
     {
-        uint8_t sector[256];
+        D64_SECTOR sector;
         D64_DIR_ENTRY entries[8];
     };
 
-    char *diskname;         // valid after d64_open
+    char *diskname;         // valid after d64_read_bam
     D64_DIR_ENTRY *entry;   // valid after d64_read_dir
-} D64_DIR;
+} D64;
 
 static bool d64_validate_size(FSIZE_t imgsize)
 {

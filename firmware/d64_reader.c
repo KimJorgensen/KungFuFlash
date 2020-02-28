@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -22,8 +22,12 @@
  * Original source (C) Covert Bitops
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
-static bool d64_seek_and_read(FIL *file, uint8_t track, uint8_t sector, void *buf, size_t buf_size)
+
+static bool d64_read_next_sector(D64 *d64)
 {
+    uint8_t track = d64->sector.next_track;
+    uint8_t sector = d64->sector.next_sector;
+
     if (!track || track > ARRAY_COUNT(d64_track_offset))
     {
         wrn("Invalid track %d sector %d\n", track, sector);
@@ -31,8 +35,8 @@ static bool d64_seek_and_read(FIL *file, uint8_t track, uint8_t sector, void *bu
     }
 
     FSIZE_t offset = (FSIZE_t)(d64_track_offset[track-1] + sector) * 256;
-    if (!file_seek(file, offset) ||
-        file_read(file, buf, buf_size) != buf_size)
+    if (!file_seek(&d64->file, offset) ||
+        file_read(&d64->file, &d64->sector, sizeof(d64->sector)) != sizeof(d64->sector))
     {
         err("Failed to read track %d sector %d\n", track, sector);
         return false;
@@ -41,102 +45,99 @@ static bool d64_seek_and_read(FIL *file, uint8_t track, uint8_t sector, void *bu
     return true;
 }
 
-static void d64_rewind(D64_DIR *dir)
+static void d64_rewind_dir(D64 *d64)
 {
-    memset(dir->visited, 0, sizeof(dir->visited));
-    dir->entries[0].next_track = 18;
-    dir->entries[0].next_sector = 1;
-    dir->entry = &dir->entries[8];
+    d64->visited_dir_sectors = 0;
+    d64->sector.next_track = 18;
+    d64->sector.next_sector = 1;
+    d64->entry = &d64->entries[8];
 }
 
-static bool d64_open(FIL *file, D64_DIR *dir)
+static bool d64_read_bam(D64 *d64)
 {
-    if (!d64_seek_and_read(file, 18, 0, dir->sector, sizeof(dir->sector)))
+    d64->sector.next_track = 18;
+    d64->sector.next_sector = 0;
+
+    if (!d64_read_next_sector(d64))
     {
-        dir->diskname[0] = 0;
+        d64->sector.next_track = 0;
         return false;
     }
 
-    dir->diskname = (char *)&dir->sector[0x90];
-    for (uint8_t c=0; c<23; c++)    // fix 0s in diskname -> a0
-    {
-        if (dir->diskname[c] == '\x00')
-        {
-            dir->diskname[c] = '\xa0';
-        }
-    }
-    dir->diskname[23] = 0;  // null terminate
-
-    d64_rewind(dir);
+    d64->diskname = (char *)&d64->sector.data[0x8e];
+    d64->diskname[23] = 0;  // null terminate
+    d64_rewind_dir(d64);
     return true;
 }
 
-static bool d64_read_dir(FIL *file, D64_DIR *dir)
+static bool d64_open(D64 *d64, const char *filename)
+{
+    if (!file_open(&d64->file, filename, FA_READ))
+    {
+        return false;
+    }
+
+    if (!d64_validate_size(f_size(&d64->file)))
+    {
+        file_close(&d64->file);
+        return false;
+    }
+
+    d64_rewind_dir(d64);
+    return true;
+}
+
+static bool d64_close(D64 *d64)
+{
+    return file_close(&d64->file);
+}
+
+static bool d64_read_dir(D64 *d64)
 {
     while (true)
     {
-        D64_DIR_ENTRY *entry = ++dir->entry;
-        if (entry > &dir->entries[7])
+        D64_DIR_ENTRY *entry = ++d64->entry;
+        if (entry > &d64->entries[7])
         {
-            entry = dir->entry = dir->entries;
+            entry = d64->entry = d64->entries;
             if (!entry->next_track)
             {
                 return false;   // end of dir
             }
 
-            // No support for non-standard long directories that extends from
-            // track 18 to other tracks
-            if(entry->next_track != 18 || entry->next_sector >= DIRSECTS)
+            // Allow up to 248 dir entries. 144 is max for a standard disk
+            if (d64->visited_dir_sectors > 30)
             {
-                wrn("Invalid link: %02d;%02d\n", entry->next_track, entry->next_sector);
+                wrn("Directory too big or there is a recursive link\n");
                 return false;
             }
+            d64->visited_dir_sectors++;
 
-            if (!dir->visited[entry->next_sector])
-            {
-                dir->visited[entry->next_sector] = true;
-            }
-            else
-            {
-                // this sector was already parsed, recursive directory!
-                entry->next_track = 0;
-                wrn("Recursive dir: %02d\n", entry->next_sector);
-                return false;
-            }
-
-            if (!d64_seek_and_read(file, entry->next_track, entry->next_sector,
-                                   dir->sector, sizeof(dir->sector)))
+            if (!d64_read_next_sector(d64))
             {
                 return false;
             }
         }
 
         bool has_filename = false;
-        for (uint8_t c=0; c<16; c++)    // fix 0s in filename -> a0
+        if (entry->filename[0] != '\xa0' && entry->filename[0] != '\x00')
         {
-            if (entry->filename[c] == '\x00')
-            {
-                entry->filename[c] = '\xa0';
-            }
-            else if (entry->filename[c] != '\xa0')
-            {
-                has_filename = true;
-            }
+            has_filename = true;
         }
 
-        entry->ignored[0] = 0;  // null terminate filename
+        entry->ignored[0] = 0;              // null terminate filename
 
-        if(has_filename)        // skip empty entries
+        if (has_filename && entry->type)    // skip empty and scratched entries
         {
             return true;
         }
     }
 }
 
-static bool d64_is_valid_prg(D64_DIR *dir)
+static bool d64_is_valid_prg(D64 *d64)
 {
-    D64_DIR_ENTRY *entry = dir->entry;
-    if ((entry->type & 7) == 2 && entry->blocks && entry->track)
+    D64_DIR_ENTRY *entry = d64->entry;
+    if ((entry->type & 7) == D64_FILE_PRG && entry->track)
     {
         return true;
     }
@@ -144,53 +145,71 @@ static bool d64_is_valid_prg(D64_DIR *dir)
     return false;
 }
 
-static size_t d64_read_prg(FIL *file, D64_DIR *dir, uint8_t *buf, size_t buf_size)
+static bool d64_read_prg_start(D64 *d64)
 {
-    if (!d64_is_valid_prg(dir)) // Only PRGs are supported
+    if (!d64_is_valid_prg(d64)) // Only PRGs are supported
+    {
+        return false;
+    }
+
+    D64_SECTOR *sector = &d64->sector;
+
+    sector->next_track = d64->entry->track;
+    sector->next_sector = d64->entry->sector;
+    dbg("Reading PRG from track %d sector %d\n", sector->next_track, sector->next_sector);
+
+    return true;
+}
+
+static uint8_t d64_read_prg_sector(D64 *d64, uint8_t *buf)
+{
+    uint8_t len = 0;
+    D64_SECTOR *sector = &d64->sector;
+
+    if (!sector->next_track || !d64_read_next_sector(d64))
+    {
+        return len;
+    }
+
+    if (sector->next_track)
+    {
+        len = D64_SECTOR_DATA_LEN;
+    }
+    else
+    {
+        if (!sector->next_sector)
+        {
+            return len;
+        }
+
+        len = sector->next_sector - 1;
+    }
+
+    memcpy(buf, sector->data, len);
+    return len;
+}
+
+static size_t d64_read_prg(D64 *d64, uint8_t *buf, size_t buf_size)
+{
+    if (!d64_read_prg_start(d64))
     {
         return 0;
     }
 
-    D64_SECTOR_HEADER header = {dir->entry->track, dir->entry->sector};
-    dbg("Reading PRG from track %d sector %d\n", header.next_track, header.next_sector);
-
     size_t prg_len = 0;
-    while (header.next_track)
+    uint8_t sector_len = 0;
+
+    while ((prg_len + D64_SECTOR_DATA_LEN) <= buf_size &&
+           (sector_len = d64_read_prg_sector(d64, buf)))
     {
-        if (!d64_seek_and_read(file, header.next_track, header.next_sector,
-                               &header, sizeof(header)))
-        {
-            return 0;
-        }
+        prg_len += sector_len;
+        buf += sector_len;
+    }
 
-        uint8_t bytes_to_read;
-        if (header.next_track)
-        {
-            bytes_to_read = 254;
-        }
-        else
-        {
-            if(!header.next_sector)
-            {
-                return prg_len;
-            }
-
-            bytes_to_read = header.next_sector-1;
-        }
-
-        if((prg_len + bytes_to_read) > buf_size)
-        {
-            wrn("File too big to fit buffer or there is a recursive link\n");
-            return 0;
-        }
-
-        if (file_read(file, buf, bytes_to_read) != bytes_to_read)
-        {
-            return 0;
-        }
-
-        prg_len += bytes_to_read;
-        buf += bytes_to_read;
+    if ((prg_len + D64_SECTOR_DATA_LEN) > buf_size)
+    {
+        wrn("File too big to fit buffer or there is a recursive link\n");
+        return 0;
     }
 
     return prg_len;

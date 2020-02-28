@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -30,8 +30,8 @@
 #include "cartridge.c"
 #include "commands.c"
 #include "menu.c"
+#include "disk.c"
 
-/************************************************/
 int main(void)
 {
     configure_system();
@@ -57,12 +57,20 @@ int main(void)
         menu_loop();
     }
 
-    filesystem_unmount();
-    if (dat_file.boot_type == DAT_CRT)
+    if (dat_file.boot_type != DAT_DISK)
     {
-        // Disable all interrupts besides the C64 bus handler beyond this point
-        // to ensure consistent response times
-        systick_disable();
+        filesystem_unmount();
+
+        if (dat_file.boot_type == DAT_CRT)
+        {
+            // Disable all interrupts besides the C64 bus handler beyond this point
+            // to ensure consistent response times
+            systick_disable();
+            usb_disable();
+        }
+    }
+    else
+    {
         usb_disable();
     }
 
@@ -72,7 +80,12 @@ int main(void)
         restart_to_menu();
     }
 
-    dbg("In idle loop...\n");
+    if (dat_file.boot_type == DAT_DISK)
+    {
+        disk_loop();
+    }
+
+    dbg("In main loop...\n");
     while (true)
     {
         // Forward data from USB to C64

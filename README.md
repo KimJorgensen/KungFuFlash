@@ -3,7 +3,7 @@ Cartridge for the Commodore 64 that packs a punch.
 
 ![Kung Fu Launcher](pics/launcher.jpg)
 
-Kung Fu Flash can emulate different cartridge types and load PRG files and single-load files from D64 images.
+Kung Fu Flash can emulate different cartridge types, load PRG files and files from D64 images.
 Just place your desired CRT, PRG or D64 files on a FAT formatted microSD card and use the built-in launcher to execute them.
 
 ## Supported Cartridges
@@ -56,6 +56,7 @@ Even though Kung Fu Flash has been tested on different models of the Commodore 6
 Use it at your own risk!
 
 Kung Fu Flash will only work with the PAL version of the Commodore 64 or Commodore 128. The NTSC version is currently not supported.
+Disk drive emulation is limited to the ILOAD kernal vector, only supporting PRG files and there is no write support.
 
 ## Thanks
 Kung Fu Flash was based on or uses other open source projects:
@@ -68,6 +69,7 @@ Kung Fu Flash was based on or uses other open source projects:
 * [stm32f4-bare-metal](https://github.com/fcayci/stm32f4-bare-metal) by Furkan Cayci
 * [OpenC64Cart](https://github.com/SukkoPera/OpenC64Cart) by Giorgioggì
 * [EasyFlash 3 USB Utilities](https://csdb.dk/release/?id=150097) by Tomaz Kac
+* [Disk2easyflash](https://csdb.dk/release/?id=150323) by ALeX Kazik
 
 and a few others. Please check the individual files for their license.
 

@@ -20,12 +20,12 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-#ifndef PRG_H_
-#define PRG_H_
+#ifndef _LAUNCHER_ASM_H_
+#define _LAUNCHER_ASM_H_
 
 void usbtool_prg_load_and_run(void);
 char* __fastcall__ ef3usb_get_cmd(bool send_fclose);
 void wait_for_reset(void);
 uint8_t is_c128(void);
 
-#endif /* PRG_H_ */
+#endif /* _LAUNCHER_ASM_H_ */

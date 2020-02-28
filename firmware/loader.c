@@ -215,6 +215,18 @@ static uint32_t crt_calc_flash_crc(uint8_t crt_banks)
     return crc_get();
 }
 
+static void basic_load(const char *filename)
+{
+    // BASIC commands to run at start-up
+    sprint((char *)dat_buffer, "LOAD\"%s\",8,1%cRUN%c", filename, 0, 0);
+}
+
+static void basic_no_commands(void)
+{
+    // No BASIC commands at start-up
+    sprint((char *)dat_buffer, "%c", 0);
+}
+
 static bool upd_load(FIL *file, char *firmware_name)
 {
     uint32_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
@@ -280,6 +292,74 @@ static bool mount_sd_card(void)
     return dir_change("/");
 }
 
+static bool auto_boot(void)
+{
+    FIL file;
+    if (!file_open(&file, DAT_FILENAME, FA_READ) ||
+        file_read(&file, &dat_file, sizeof(dat_file)) != sizeof(dat_file) ||
+        file_read(&file, dat_buffer, sizeof(dat_buffer)) != sizeof(dat_buffer) ||
+        memcmp(DAT_SIGNATURE, dat_file.signature, sizeof(dat_file.signature)) != 0)
+    {
+        wrn(DAT_FILENAME " file not found or invalid\n");
+        memset(&dat_file, 0, sizeof(dat_file));
+        memcpy(dat_file.signature, DAT_SIGNATURE, sizeof(dat_file.signature));
+    }
+    file_close(&file);
+
+    if (menu_signature() || menu_button())
+    {
+        menu_button_wait_release();
+        invalidate_menu_signature();
+        return false;
+    }
+
+    return true;
+}
+
+static bool save_dat(void)
+{
+    dbg("Saving " DAT_FILENAME " file\n");
+
+    FIL file;
+    if (!file_open(&file, DAT_FILENAME, FA_WRITE|FA_CREATE_ALWAYS))
+    {
+        wrn("Could not open " DAT_FILENAME " for writing\n");
+        return false;
+    }
+
+    bool file_saved = false;
+    if (file_write(&file, &dat_file, sizeof(dat_file)) == sizeof(dat_file) &&
+        file_write(&file, &dat_buffer, sizeof(dat_buffer)) == sizeof(dat_buffer))
+    {
+        file_saved = true;
+    }
+
+    file_close(&file);
+    return file_saved;
+}
+
+static bool chdir_last(void)
+{
+    bool res = false;
+
+    // Change to last selected dir if any
+    if (dat_file.path[0])
+    {
+        res = dir_change(dat_file.path);
+        if (!res)
+        {
+            dat_file.path[0] = 0;
+            dat_file.file[0] = 0;
+        }
+    }
+    else
+    {
+        dat_file.file[0] = 0;
+    }
+
+    return res;
+}
+
 static void send_prg(void)
 {
     const char *name;
@@ -299,6 +379,21 @@ static void send_prg(void)
     {
         system_restart();
     }
+}
+
+static bool load_d64(void)
+{
+    if (!chdir_last())
+    {
+        return false;
+    }
+
+    if (!d64_open(&d64_state.d64, dat_file.file))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 static void c64_launcher_mode(void)
@@ -391,6 +486,31 @@ static bool c64_set_mode(void)
         }
         break;
 
+        case DAT_DISK:
+        {
+            if (!load_d64())
+            {
+                break;
+            }
+
+            c64_disable();
+            ef_init();
+
+            // Copy Launcher to memory to allow bank switching in EasyFlash emulation
+            // BASIC commands to run are placed at the start of flash ($8000)
+            uint32_t offset = BASIC_CMD_BUF_SIZE;
+            memcpy(crt_banks[0] + offset, CRT_LAUNCHER_BANK + offset, 16*1024 - offset);
+            crt_ptr = crt_banks[0];
+
+            c64_enable();
+            if (!c64_send_mount_disk())
+            {
+                system_restart();
+            }
+            result = true;
+        }
+        break;
+
         case DAT_BASIC:
         {
             c64_disable();
@@ -426,72 +546,4 @@ static bool c64_set_mode(void)
     }
 
     return result;
-}
-
-static bool auto_boot(void)
-{
-    FIL file;
-    if (!file_open(&file, DAT_FILENAME, FA_READ) ||
-        file_read(&file, &dat_file, sizeof(dat_file)) != sizeof(dat_file) ||
-        file_read(&file, dat_buffer, sizeof(dat_buffer)) != sizeof(dat_buffer) ||
-        memcmp(DAT_SIGNATURE, dat_file.signature, sizeof(dat_file.signature)) != 0)
-    {
-        wrn(DAT_FILENAME " file not found or invalid\n");
-        memset(&dat_file, 0, sizeof(dat_file));
-        memcpy(dat_file.signature, DAT_SIGNATURE, sizeof(dat_file.signature));
-    }
-    file_close(&file);
-
-    if (menu_signature() || menu_button())
-    {
-        menu_button_wait_release();
-        invalidate_menu_signature();
-        return false;
-    }
-
-    return true;
-}
-
-static bool save_dat(void)
-{
-    dbg("Saving " DAT_FILENAME " file\n");
-
-    FIL file;
-    if (!file_open(&file, DAT_FILENAME, FA_WRITE|FA_CREATE_ALWAYS))
-    {
-        wrn("Could not open " DAT_FILENAME " for writing\n");
-        return false;
-    }
-
-    bool file_saved = false;
-    if (file_write(&file, &dat_file, sizeof(dat_file)) == sizeof(dat_file) &&
-        file_write(&file, &dat_buffer, sizeof(dat_buffer)) == sizeof(dat_buffer))
-    {
-        file_saved = true;
-    }
-
-    file_close(&file);
-    return file_saved;
-}
-
-static bool chdir_last(void)
-{
-    bool res = false;
-
-    // Change to last selected dir if any
-    if (dat_file.path[0])
-    {
-        res = dir_change(dat_file.path);
-        if (!res)
-        {
-            dat_file.path[0] = 0;
-            dat_file.file[0] = 0;
-        }
-    }
-    else
-    {
-        dat_file.file[0] = 0;
-    }
-
-    return res;
 }

@@ -21,6 +21,7 @@
 #include "menu_sd.h"
 #include "menu_d64.h"
 #include "menu_options.h"
+#include "d64_reader.c"
 #include "loader.c"
 #include "menu_sd.c"
 #include "menu_d64.c"
@@ -166,8 +167,15 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 {
     const char *title = "File Options";
     const char *select_text;
+    const char *mount_text = NULL;
+
     switch (file_type)
     {
+        case FILE_NONE:
+            title = "Directory Options";
+            select_text = "Open";
+            break;
+
         case FILE_CRT:
             select_text = "Run";
             break;
@@ -176,10 +184,14 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
             select_text = "Load";
             break;
 
-        case FILE_NONE:
-            title = "Directory Options";
         case FILE_D64:
             select_text = "Open";
+            mount_text = "Mount";
+            break;
+
+        case FILE_D64_PRG:
+            select_text = "Mount and load";
+            mount_text = "Load"; // No mount
             break;
 
         default:
@@ -189,6 +201,10 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 
     OPTIONS_STATE *options = build_options(title, file_name);
     options_add_select(options, select_text, 0, element_no);
+    if (mount_text)
+    {
+        options_add_select(options, mount_text, SELECT_FLAG_MOUNT, element_no);
+    }
     options_add_dir(options, "Cancel");
 
     handle_options(options);

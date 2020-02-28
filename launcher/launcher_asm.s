@@ -24,6 +24,7 @@
 .importzp   tmp1, tmp2, tmp3, tmp4
 .import     popa, popax
 
+.import init_system_constants_light
 .import _ef3usb_fload
 .import _ef3usb_fclose
 
@@ -65,39 +66,6 @@ dump_mem:
         jmp *
 .endif
 
-; ------------------------------------------------------------------------
-; faster replacement for $ff87
-init_system_constants_light:
-        ; from KERNAL @ FD50:
-        lda #$00
-        tay
-:
-        sta $0002,y
-        sta $0200,y
-        sta $0300,y
-        iny
-        bne :-
-        ldx #$3c
-        ldy #$03
-        stx $b2
-        sty $b3
-        tay
-
-        ; result from loop KERNAL @ FD6C:
-        lda #$00
-        sta $c1
-        sta $0283
-        lda #$a0
-        sta $c2
-        sta $0284
-
-        ; from KERNAL @ FD90:
-        lda #$08
-        sta $0282       ; pointer: bottom of memory for operating system
-        lda #$04
-        sta $0288       ; high byte of screen memory address
-        rts
-
 ; =============================================================================
 ;
 ; void usbtool_prg_load_and_run(void);
@@ -128,7 +96,7 @@ _usbtool_prg_load_and_run:
         sta start_addr
         stx start_addr + 1
 
-		; set end addr + 1 to $2d and $ae
+        ; set end addr + 1 to $2d and $ae
         clc
         adc ptr1
         sta $2d

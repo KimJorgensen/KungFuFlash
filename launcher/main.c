@@ -42,6 +42,7 @@
 #include "dir.h"
 #include "base.h"
 #include "kff_usb.h"
+#include "disk.h"
 #include "launcher_asm.h"
 
 /* declarations */
@@ -81,6 +82,9 @@ static const uint8_t errorc = COLOR_LIGHTRED;
 // so it can be read by the firmware
 #pragma rodata-name (push, "LOWCODE")
 const char programNameVer[] = KUNG_FU_FLASH_VER;
+
+// Area used by firmware for placing BASIC commands to run at start-up
+const char padding[BASIC_CMD_BUF_SIZE] = {};
 #pragma rodata-name (pop)
 
 static const char programBar[] = {"          " KUNG_FU_FLASH_VER "           "};
@@ -169,6 +173,11 @@ static void mainLoop(void)
         {
             ef3usb_send_str("done");
             wait_for_reset();
+        }
+        else if (strcmp(cmd, "mnt") == 0)           // Mount disk
+        {
+            ef3usb_send_str("done");
+            disk_mount_and_load();
         }
         else if (strcmp(cmd, "prg") == 0)           // Load PRG
         {

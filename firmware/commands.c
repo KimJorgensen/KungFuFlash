@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -98,6 +98,12 @@ static bool c64_send_prg(const void *data, uint16_t size)
     }
 
     return tx_size == size;
+}
+
+static inline bool c64_send_mount_disk(void)
+{
+    dbg("Sending mount disk\n");
+    return c64_send_command("MNT", "DONE");
 }
 
 static inline bool c64_send_reset_to_menu(void)

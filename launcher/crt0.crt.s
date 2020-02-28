@@ -1,4 +1,6 @@
 ;
+; Copyright (c) 2019-2020 Kim Jørgensen
+;
 ; Derived from EasyFlash 3 Boot Image
 ; Copyright (c) 2012-2013 Thomas Giesel
 ;
@@ -18,22 +20,23 @@
 ;    misrepresented as being the original software.
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
-; Startup code for cc65 (C64 EasyFlash CRT)
+; Startup code for cc65
 ; No IRQ support at the moment
 ;
 
-        .export _exit
-        .export __STARTUP__ : absolute = 1      ; Mark as startup
+.export _exit
+.export __STARTUP__ : absolute = 1      ; Mark as startup
+.export init_system_constants_light
 
-        .import _main
+.import _main
 
-        .import initlib, donelib, copydata
-        .import zerobss
-        .import BSOUT
-        .import __RAM_START__, __RAM_SIZE__     ; Linker generated
+.import initlib, donelib, copydata
+.import zerobss
+.import BSOUT
+.import __RAM_START__, __RAM_SIZE__     ; Linker generated
 
-        .include "zeropage.inc"
-        .include "c64.inc"
+.include "zeropage.inc"
+.include "c64.inc"
 
 EASYFLASH_BANK    = $DE00
 EASYFLASH_CONTROL = $DE02

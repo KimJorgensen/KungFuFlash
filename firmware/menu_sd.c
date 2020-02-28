@@ -384,9 +384,18 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
 
         case FILE_D64:
         {
-            dat_file.prg.element = 0;
-            menu_state = d64_menu_init(file_name);
-            menu_state->dir(menu_state);
+            if (flags & SELECT_FLAG_MOUNT)
+            {
+                basic_no_commands();
+                dat_file.boot_type = DAT_DISK;
+                exit_menu = true;
+            }
+            else
+            {
+                dat_file.prg.element = 0;
+                menu_state = d64_menu_init(file_name);
+                menu_state->dir(menu_state);
+            }
         }
         break;
 

@@ -119,6 +119,7 @@ typedef enum {
     FILE_CRT,
     FILE_PRG,
     FILE_D64,
+    FILE_D64_PRG,
     FILE_ROM,
 
     FILE_UPD        = 0xfd,
@@ -135,6 +136,7 @@ typedef enum {
     DAT_CRT,
     DAT_PRG,
     DAT_USB,
+    DAT_DISK,
     DAT_KERNAL,
     DAT_BASIC,
     DAT_KILL,
