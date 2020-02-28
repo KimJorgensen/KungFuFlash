@@ -59,6 +59,26 @@ typedef struct
 
 typedef struct
 {
+    uint8_t free_sectors;
+    uint8_t data[3];
+} D64_BAM_ENTRY;
+
+typedef struct
+{
+    uint8_t next_track;
+    uint8_t next_sector;
+    uint8_t dos_version;
+    uint8_t unused;
+    D64_BAM_ENTRY entries[35];
+    char diskname[27];
+    uint8_t unused2;
+    D64_BAM_ENTRY dolphin_dos[5];
+    D64_BAM_ENTRY speed_dos[5];
+    uint8_t unused3[44];
+} D64_BAM_SECTOR;
+
+typedef struct
+{
     uint8_t next_track;
     uint8_t next_sector;
     uint8_t type;
@@ -77,6 +97,7 @@ typedef struct
     union
     {
         D64_SECTOR sector;
+        D64_BAM_SECTOR bam;
         D64_DIR_ENTRY entries[8];
     };
 

@@ -170,6 +170,8 @@ static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr, const char *filenam
     put_diskname(ptr, d64->diskname);
     put_u8(ptr, 0);                     // end of line
 
+    uint16_t blocks_free = d64_blocks_free(d64);
+
     while (d64_read_dir(d64))
     {
         if (disk_filename_match(d64->entry, filename))
@@ -181,7 +183,7 @@ static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr, const char *filenam
     }
 
     put_u16(ptr, link_addr);
-    put_u16(ptr, 0);                    // blocks free - TODO: calculate this
+    put_u16(ptr, blocks_free);
     put_string(ptr, "BLOCKS FREE.");
     put_u8_times(ptr, ' ', 13);
     put_u8(ptr, 0);                     // end of line

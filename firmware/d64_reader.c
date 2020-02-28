@@ -64,7 +64,7 @@ static bool d64_read_bam(D64 *d64)
         return false;
     }
 
-    d64->diskname = (char *)&d64->sector.data[0x8e];
+    d64->diskname = d64->bam.diskname;
     d64->diskname[23] = 0;  // null terminate
     d64_rewind_dir(d64);
     return true;
@@ -90,6 +90,20 @@ static bool d64_open(D64 *d64, const char *filename)
 static bool d64_close(D64 *d64)
 {
     return file_close(&d64->file);
+}
+
+static uint16_t d64_blocks_free(D64 *d64)
+{
+    uint16_t blocks_free = 0;
+    for (uint8_t i=0; i<ARRAY_COUNT(d64->bam.entries); i++)
+    {
+        if (i != 17)    // Skip track 18 (directory)
+        {
+            blocks_free += d64->bam.entries[i].free_sectors;
+        }
+    }
+
+    return blocks_free;
 }
 
 static bool d64_read_dir(D64 *d64)
