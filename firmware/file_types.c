@@ -84,9 +84,11 @@ static uint8_t get_file_type(FILINFO *info)
                 return FILE_CRT;
             }
         }
-        else if (compare_extension(filename, "D64"))
+        else if (compare_extension(filename, "D64") ||
+                 compare_extension(filename, "D71") ||
+                 compare_extension(filename, "D81"))
         {
-            if (d64_validate_size(info->fsize))
+            if (d64_image_type(info->fsize) != D64_IMAGE_UNKNOWN)
             {
                 return FILE_D64;
             }

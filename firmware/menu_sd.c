@@ -184,7 +184,8 @@ static void handle_dir_command(SD_STATE *state)
         }
     }
 
-    if (found && get_file_type(&file_info) == FILE_D64 && dat_file.prg.element != 0xff)
+    if (found && get_file_type(&file_info) == FILE_D64 &&
+        dat_file.prg.element != ELEMENT_NOT_SELECTED)
     {
         menu_state = d64_menu_init(file_info.fname);
         menu_state->dir(menu_state);
@@ -453,7 +454,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     uint8_t element_no = element;
 
     dat_file.boot_type = DAT_NONE;
-    dat_file.prg.element = 0xff; // don't auto open D64
+    dat_file.prg.element = ELEMENT_NOT_SELECTED;    // don't auto open D64
     dat_file.file[0] = 0;
 
     if (!state->in_root && state->page_no == 0)

@@ -143,6 +143,8 @@ typedef enum {
     DAT_KILL_C128
 } DAT_BOOT_TYPE;
 
+#pragma pack(push)
+#pragma pack(1)
 typedef struct
 {
     uint16_t type;          // CRT_TYPE
@@ -155,12 +157,10 @@ typedef struct
 typedef struct
 {
     uint16_t size;
-    uint8_t element;        // Used if file is a D64
+    uint16_t element;       // Used if file is a D64
     char name[17];          // Used if file is a D64
 } DAT_PRG_HEADER;
 
-#pragma pack(push)
-#pragma pack(1)
 typedef struct
 {
     uint8_t signature[8];   // DAT_SIGNATURE
@@ -175,11 +175,12 @@ typedef struct
         DAT_PRG_HEADER prg; // boot_type == DAT_PRG
     };
 
-    char path[737];
+    char path[736];
     char file[256];
 } DAT_HEADER;
 #pragma pack(pop)
 
+#define ELEMENT_NOT_SELECTED 0xffff
 #define DAT_SIGNATURE "KungFu:\1"
 
 DAT_HEADER dat_file;

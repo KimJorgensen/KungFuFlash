@@ -23,48 +23,117 @@
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
 
-static bool d64_read_next_sector(D64 *d64)
+static FSIZE_t d64_get_offset(D64 *d64, uint8_t track, uint8_t sector)
 {
-    uint8_t track = d64->sector.next_track;
-    uint8_t sector = d64->sector.next_sector;
+    FSIZE_t offset = 0;
+    uint8_t track_on_side = track;
 
-    if (!track || track > ARRAY_COUNT(d64_track_offset))
+    if (track > 35 && d64->image_type == D64_IMAGE_D71)
+    {
+        offset = (FSIZE_t)d64_track_offset[35] * 256;
+        track_on_side -= 35;
+    }
+
+    if (!track_on_side || track_on_side > ARRAY_COUNT(d64_track_offset))
     {
         wrn("Invalid track %d sector %d\n", track, sector);
         return false;
     }
 
-    FSIZE_t offset = (FSIZE_t)(d64_track_offset[track-1] + sector) * 256;
+    offset += (FSIZE_t)(d64_track_offset[track_on_side-1] + sector) * 256;
+    return offset;
+}
+
+static FSIZE_t d81_get_offset(D64 *d64, uint8_t track, uint8_t sector)
+{
+    if (!track || track > 80)
+    {
+        wrn("Invalid track %d sector %d\n", track, sector);
+        return false;
+    }
+
+    FSIZE_t offset = (FSIZE_t)(((track - 1) * 40) + sector) * 256;
+    return offset;
+}
+
+static bool d64_read_next_sector(D64 *d64)
+{
+    uint8_t track = d64->sector.next_track;
+    uint8_t sector = d64->sector.next_sector;
+
+    FSIZE_t offset;
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        offset = d81_get_offset(d64, track, sector);
+    }
+    else
+    {
+        offset = d64_get_offset(d64, track, sector);
+    }
+
     if (!file_seek(&d64->file, offset) ||
         file_read(&d64->file, &d64->sector, sizeof(d64->sector)) != sizeof(d64->sector))
     {
         err("Failed to read track %d sector %d\n", track, sector);
+        d64->sector.next_track = 0;
         return false;
     }
 
     return true;
 }
 
+static void d64_set_next_sector(D64 *d64, uint8_t track, uint8_t sector)
+{
+    d64->sector.next_track = track;
+    d64->sector.next_sector = sector;
+}
+
+static bool d64_read_sector(D64 *d64, uint8_t track, uint8_t sector)
+{
+    d64_set_next_sector(d64, track, sector);
+    return d64_read_next_sector(d64);
+}
+
 static void d64_rewind_dir(D64 *d64)
 {
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        d64_set_next_sector(d64, 40, 3);
+    }
+    else
+    {
+        d64_set_next_sector(d64, 18, 1);
+    }
+
     d64->visited_dir_sectors = 0;
-    d64->sector.next_track = 18;
-    d64->sector.next_sector = 1;
     d64->entry = &d64->entries[8];
 }
 
-static bool d64_read_bam(D64 *d64)
+static bool d64_read_disk_header(D64 *d64)
 {
-    d64->sector.next_track = 18;
-    d64->sector.next_sector = 0;
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        d64_set_next_sector(d64, 40, 0);
+    }
+    else
+    {
+        d64_set_next_sector(d64, 18, 0);
+    }
 
     if (!d64_read_next_sector(d64))
     {
-        d64->sector.next_track = 0;
         return false;
     }
 
-    d64->diskname = d64->bam.diskname;
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        d64->diskname = d64->d81_header.diskname;
+    }
+    else
+    {
+        d64->diskname = d64->d64_header.diskname;
+    }
+
     d64->diskname[23] = 0;  // null terminate
     d64_rewind_dir(d64);
     return true;
@@ -77,7 +146,8 @@ static bool d64_open(D64 *d64, const char *filename)
         return false;
     }
 
-    if (!d64_validate_size(f_size(&d64->file)))
+    d64->image_type = d64_image_type(f_size(&d64->file));
+    if (d64->image_type == D64_IMAGE_UNKNOWN)
     {
         file_close(&d64->file);
         return false;
@@ -92,18 +162,71 @@ static bool d64_close(D64 *d64)
     return file_close(&d64->file);
 }
 
-static uint16_t d64_blocks_free(D64 *d64)
+static uint16_t d64_calc_blocks_free(D64 *d64)
 {
     uint16_t blocks_free = 0;
-    for (uint8_t i=0; i<ARRAY_COUNT(d64->bam.entries); i++)
+    for (uint8_t i=0; i<ARRAY_COUNT(d64->d64_header.entries); i++)
     {
-        if (i != 17)    // Skip track 18 (directory)
+        if (i != 17)    // Skip track 18 (header/directory)
         {
-            blocks_free += d64->bam.entries[i].free_sectors;
+            blocks_free += d64->d64_header.entries[i].free_sectors;
+        }
+    }
+
+    if (d64->image_type == D64_IMAGE_D71 && d64->d64_header.double_sided)
+    {
+        for (uint8_t i=0; i<ARRAY_COUNT(d64->d64_header.free_sectors_36_70); i++)
+        {
+            if (i != 17)    // Skip track 53 (bam)
+            {
+                blocks_free += d64->d64_header.free_sectors_36_70[i];
+            }
         }
     }
 
     return blocks_free;
+}
+
+static uint16_t d81_calc_blocks_free(D64 *d64, bool side2)
+{
+    uint16_t blocks_free = 0;
+    for (uint8_t i=0; i<ARRAY_COUNT(d64->d81_bam.entries); i++)
+    {
+        if (i != 39 || side2)   // Skip track 40 (header/bam/directory)
+        {
+            blocks_free += d64->d81_bam.entries[i].free_sectors;
+        }
+    }
+
+    return blocks_free;
+}
+
+static bool d64_read_bam(D64 *d64, uint16_t *blocks_free)
+{
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        if (!d64_read_sector(d64, 40, 1))
+        {
+            return false;
+        }
+
+        *blocks_free = d81_calc_blocks_free(d64, false);
+
+        if (!d64_read_sector(d64, 40, 2))
+        {
+            return false;
+        }
+
+        *blocks_free += d81_calc_blocks_free(d64, true);
+        d64_rewind_dir(d64);
+    }
+    else
+    {
+        // d64_read_disk_header must be called before this method
+        *blocks_free = d64_calc_blocks_free(d64);
+    }
+
+    return true;
 }
 
 static bool d64_read_dir(D64 *d64)
@@ -119,8 +242,8 @@ static bool d64_read_dir(D64 *d64)
                 return false;   // end of dir
             }
 
-            // Allow up to 248 dir entries. 144 is max for a standard disk
-            if (d64->visited_dir_sectors > 30)
+            // Allow up to 320 dir entries. 144 is max for a standard D64/D71 disk
+            if (d64->visited_dir_sectors >= 40)
             {
                 wrn("Directory too big or there is a recursive link\n");
                 return false;
@@ -166,11 +289,8 @@ static bool d64_read_prg_start(D64 *d64)
         return false;
     }
 
-    D64_SECTOR *sector = &d64->sector;
-
-    sector->next_track = d64->entry->track;
-    sector->next_sector = d64->entry->sector;
-    dbg("Reading PRG from track %d sector %d\n", sector->next_track, sector->next_sector);
+    d64_set_next_sector(d64, d64->entry->track, d64->entry->sector);
+    dbg("Reading PRG from track %d sector %d\n", d64->entry->track, d64->entry->sector);
 
     return true;
 }

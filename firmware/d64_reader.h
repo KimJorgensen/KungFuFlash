@@ -35,7 +35,7 @@ static const uint16_t d64_track_offset[42] =
     0x0300, 0x0311
 };
 
-static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "???", "???", "???"};
+static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "CBM", "???", "???"};
 
 typedef enum
 {
@@ -47,6 +47,14 @@ typedef enum
   D64_FILE_CBM,
   D64_FILE_DIR
 } D64_FILE_TYPE;
+
+typedef enum
+{
+  D64_IMAGE_UNKNOWN = 0,
+  D64_IMAGE_D64,
+  D64_IMAGE_D71,
+  D64_IMAGE_D81
+} D64_IMAGE_TYPE;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -68,14 +76,43 @@ typedef struct
     uint8_t next_track;
     uint8_t next_sector;
     uint8_t dos_version;
-    uint8_t unused;
+    uint8_t double_sided;           // Only used by D71
     D64_BAM_ENTRY entries[35];
     char diskname[27];
-    uint8_t unused2;
+    uint8_t unused;
     D64_BAM_ENTRY dolphin_dos[5];
     D64_BAM_ENTRY speed_dos[5];
-    uint8_t unused3[44];
-} D64_BAM_SECTOR;
+    uint8_t unused2[9];
+    uint8_t free_sectors_36_70[35]; // Only used by D71
+} D64_HEADER_SECTOR;
+
+typedef struct
+{
+    uint8_t free_sectors;
+    uint8_t data[5];
+} D81_BAM_ENTRY;
+
+typedef struct
+{
+    uint8_t next_track;
+    uint8_t next_sector;
+    uint16_t version;
+    uint16_t disk_id;
+    uint8_t io_byte;
+    uint8_t auto_boot;
+    uint8_t reserved[8];
+    D81_BAM_ENTRY entries[40];
+} D81_BAM_SECTOR;
+
+typedef struct
+{
+    uint8_t next_track;
+    uint8_t next_sector;
+    uint8_t dos_version;
+    uint8_t unused;
+    char diskname[27];
+    uint8_t unused2[225];
+} D81_HEADER_SECTOR;
 
 typedef struct
 {
@@ -93,30 +130,45 @@ typedef struct
 typedef struct
 {
     FIL file;
+    uint8_t image_type;
+
     uint8_t visited_dir_sectors;
     union
     {
         D64_SECTOR sector;
-        D64_BAM_SECTOR bam;
+        D64_HEADER_SECTOR d64_header;
+        D81_HEADER_SECTOR d81_header;
+        D81_BAM_SECTOR d81_bam;
         D64_DIR_ENTRY entries[8];
     };
 
-    char *diskname;         // valid after d64_read_bam
+    char *diskname;         // valid after d64_read_disk_header
     D64_DIR_ENTRY *entry;   // valid after d64_read_dir
 } D64;
 
-static bool d64_validate_size(FSIZE_t imgsize)
+static uint8_t d64_image_type(FSIZE_t imgsize)
 {
     switch (imgsize)
     {
+        // D64
         case 174848:  // 35 tracks no errors
         case 175531:  // 35 w/ errors
         case 196608:  // 40 tracks no errors
         case 197376:  // 40 w/ errors
         case 205312:  // 42 tracks no errors
         case 206114:  // 42 w/ errors
-            return true;
+            return D64_IMAGE_D64;
+
+        // D71
+        case 349696:  // 70 tracks no errors
+        case 351062:  // 70 w/ errors
+            return D64_IMAGE_D71;
+
+        // D81
+        case 819200:  // 80 tracks no errors
+        case 822400:  // 80 w/ errors
+            return D64_IMAGE_D81;
     }
 
-    return false;
+    return D64_IMAGE_UNKNOWN;
 }

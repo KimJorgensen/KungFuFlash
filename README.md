@@ -3,7 +3,7 @@ Cartridge for the Commodore 64 that packs a punch.
 
 ![Kung Fu Launcher](pics/launcher.jpg)
 
-Kung Fu Flash can emulate different cartridge types, load PRG files and files from D64 images.
+Kung Fu Flash can emulate different cartridge types, load PRG files and use D64/D71/D81 images.
 Just place your desired CRT, PRG or D64 files on a FAT formatted microSD card and use the built-in launcher to execute them.
 
 ## Supported Cartridges

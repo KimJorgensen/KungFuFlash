@@ -172,8 +172,8 @@ static bool d64_skip_to_page(D64_STATE *state, uint8_t page)
     bool page_found = true;
     state->page = page;
 
-    uint8_t skip = state->page * MAX_ELEMENTS_PAGE;
-    for (uint8_t i=2; i<skip; i++)
+    uint16_t skip = state->page * MAX_ELEMENTS_PAGE;
+    for (uint16_t i=2; i<skip; i++)
     {
         if (!d64_read_dir(&state->d64))
         {
@@ -184,7 +184,7 @@ static bool d64_skip_to_page(D64_STATE *state, uint8_t page)
 
     if (!page_found)
     {
-        if (!d64_read_bam(&state->d64))
+        if (!d64_read_disk_header(&state->d64))
         {
             handle_failed_to_read_sd();
         }
@@ -199,7 +199,7 @@ static void d64_dir(D64_STATE *state)
 {
     c64_send_reply(REPLY_READ_DIR);
 
-    if (!d64_read_bam(&state->d64))
+    if (!d64_read_disk_header(&state->d64))
     {
         handle_failed_to_read_sd();
     }
@@ -210,7 +210,7 @@ static void d64_dir(D64_STATE *state)
 
     // Search for last selected element
     uint8_t selected_element;
-    if (dat_file.prg.element == 0xff)
+    if (dat_file.prg.element == ELEMENT_NOT_SELECTED)
     {
         state->page = 0;
         dat_file.prg.element = 0;
@@ -233,7 +233,7 @@ static void d64_dir(D64_STATE *state)
 
 static void d64_dir_up(D64_STATE *state, bool root)
 {
-    dat_file.prg.element = 0xff;   // Do not auto open D64 again
+    dat_file.prg.element = ELEMENT_NOT_SELECTED;    // Do not auto open D64 again
     d64_close(&d64_state.d64);
 
     menu_state = &sd_state.menu;
@@ -271,7 +271,7 @@ static void d64_prev_page(D64_STATE *state)
 
     if (state->page)
     {
-        if (!d64_read_bam(&state->d64))
+        if (!d64_read_disk_header(&state->d64))
         {
             handle_failed_to_read_sd();
         }
@@ -289,7 +289,7 @@ static void d64_prev_page(D64_STATE *state)
 
 static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 {
-    uint8_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
+    uint16_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
 
     dat_file.prg.element = element;
     dat_file.boot_type = DAT_NONE;
@@ -299,7 +299,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            handle_file_options("..", FILE_NONE, element);
+            handle_file_options("..", FILE_NONE, element_no);
         }
         else
         {
@@ -312,7 +312,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            handle_file_options("*", FILE_D64_PRG, element);
+            handle_file_options("*", FILE_D64_PRG, element_no);
             return false;
         }
         else if (!(flags & SELECT_FLAG_MOUNT))
@@ -323,11 +323,11 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
             return true;
         }
 
-        element = 0xff; // Find first PRG
+        element = ELEMENT_NOT_SELECTED; // Find first PRG
     }
 
     d64_rewind_dir(&state->d64);
-    for (uint8_t i=2; i<=element; i++)
+    for (uint16_t i=2; i<=element; i++)
     {
         if (!d64_read_dir(&state->d64))
         {
@@ -335,7 +335,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
             break;
         }
 
-        if (element == 0xff && d64_is_valid_prg(&state->d64))
+        if (element == ELEMENT_NOT_SELECTED && d64_is_valid_prg(&state->d64))
         {
             element = 1;
             break;
@@ -345,10 +345,11 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     if (!state->d64.entry->filename[0])
     {
         // File not not found
-        if (element == 1 || element == 0xff)
+        if (element == 1 || element == ELEMENT_NOT_SELECTED)
         {
             dat_file.prg.element = 1;
-            handle_unsupported_ex("Not Found", "No PRG files was found on disk", dat_file.file);
+            handle_unsupported_ex("Not Found", "No PRG files was found on disk",
+                                  dat_file.file);
         }
         else
         {
@@ -369,6 +370,12 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     }
     else if (!(flags & SELECT_FLAG_MOUNT))
     {
+        if (!d64_is_valid_prg(&state->d64))
+        {
+            handle_unsupported(dat_file.prg.name);
+            return false;
+        }
+
         basic_load(dat_file.prg.name);
         dat_file.boot_type = DAT_DISK;
         d64_close(&d64_state.d64);

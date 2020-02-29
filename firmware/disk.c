@@ -159,7 +159,7 @@ static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr, const char *filenam
     uint16_t start_addr = 0x0401;       // Start of BASIC (for the PET)
     const uint16_t link_addr = 0x0101;
 
-    if (!d64_read_bam(d64))
+    if (!d64_read_disk_header(d64))
     {
         return start_addr;
     }
@@ -170,7 +170,8 @@ static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr, const char *filenam
     put_diskname(ptr, d64->diskname);
     put_u8(ptr, 0);                     // end of line
 
-    uint16_t blocks_free = d64_blocks_free(d64);
+    uint16_t blocks_free = 0;
+    d64_read_bam(d64, &blocks_free);
 
     while (d64_read_dir(d64))
     {
