@@ -134,7 +134,7 @@ static void mainLoop(void)
 
         if (cmd == NULL)
         {
-            showMessage("Kung Fu Flash cartridge not detected.", errorc);
+            showMessage("Communication with cartridge failed.", errorc);
         }
         else if (cmd[0] == 'm' && cmd[1] == 's')    // Show message
         {
