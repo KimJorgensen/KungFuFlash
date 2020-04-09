@@ -41,6 +41,28 @@ static bool prg_load_file(FIL *file)
     return false;
 }
 
+static bool p00_load_file(FIL *file)
+{
+    P00_HEADER header;
+    uint16_t len = file_read(file, &header, sizeof(P00_HEADER));
+
+    if (len != sizeof(P00_HEADER) ||
+        memcmp("C64File", header.signature, sizeof(header.signature)) != 0)
+    {
+        wrn("Unsupported P00 header\n");
+        return false;
+    }
+
+    if (prg_load_file(file))
+    {
+        memcpy(dat_file.prg.name, header.filename, sizeof(header.filename));
+        dat_file.prg.name[16] = 0; // Null terminate
+        return true;
+    }
+
+    return false;
+}
+
 static bool crt_load_header(FIL *file, CRT_HEADER *header)
 {
     uint32_t len = file_read(file, header, sizeof(CRT_HEADER));

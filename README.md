@@ -3,8 +3,20 @@ Cartridge for the Commodore 64 that packs a punch.
 
 ![Kung Fu Launcher](pics/launcher.jpg)
 
-Kung Fu Flash can emulate different cartridge types, load PRG files and use D64/D71/D81 images.
+Kung Fu Flash can emulate different cartridge types, load PRG files and use D64 disk images.
 Just place your desired CRT, PRG or D64 files on a FAT formatted microSD card and use the built-in launcher to execute them.
+
+## Hardware
+There are three buttons on the cartridge; a reset button, a menu button for starting the launcher, and a special button that is used by the freezer cartridges.
+
+![Cartridge Case](pics/cartridge_case2.jpg)
+
+The PCB will fit the Stumpy Cartridge Case from TFW8b, you just need to drill some holes for the buttons and make a cut for the microSD card.
+If you plan to use USB you will need to cut a hole for that as well.
+
+You can also 3D print a cartridge case as the one designed by bigby, [see here](https://www.thingiverse.com/thing:4153414).
+
+![Kung Fu Flash prototype PCB](pics/pcb_rev1.jpg)
 
 ## Supported Cartridges
 The following cartridge types are currently supported:
@@ -25,18 +37,15 @@ The following cartridge types are currently supported:
 * Comal-80
 * EasyFlash
 
-## Hardware
-There are three buttons on the cartridge; a reset button, a menu button for starting the launcher, and a special button that is used by the freezer cartridges.
+## Supported File Types
+The following file types are currently supported:
 
-![Cartridge Case](pics/cartridge_case2.jpg)
+* Cartridge (CRT)
+* Disk image (D64, D71, D81)
+* Program (PRG, P00)
+* Firmware update (UPD)
 
-The PCB will fit the Stumpy Cartridge Case from TFW8b, you just need to drill some holes for the buttons and make a cut for the microSD card.
-If you plan to use USB you will need to cut a hole for that as well.
-
-You can also 3D print a cartridge case as the one designed by bigby, [see here](https://www.thingiverse.com/thing:4153414).
-
-![Kung Fu Flash prototype PCB](pics/pcb_rev1.jpg)
-
+## USB Port
 The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.
 Kung Fu Flash shows up as a standard serial port when connected to a PC not requiring any custom drivers to be installed.
 This means, however, that the program on the PC side must be modified to support Kung Fu Flash.
@@ -56,7 +65,7 @@ Even though Kung Fu Flash has been tested on different models of the Commodore 6
 Use it at your own risk!
 
 Kung Fu Flash will only work with the PAL version of the Commodore 64 or Commodore 128. The NTSC version is currently not supported.
-Disk drive emulation is limited to the ILOAD kernal vector, only supporting PRG files and there is no write support.
+Disk drive emulation is using kernal vectors and will not work with fast loaders. Currently REL files are not supported and there is no write support.
 
 ## Thanks
 Kung Fu Flash was based on or uses other open source projects:

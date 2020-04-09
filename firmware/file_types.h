@@ -85,7 +85,7 @@ typedef enum {
 
 typedef enum {
     CRT_CHIP_ROM = 0x00,
-    CRT_CHIP_RAN,
+    CRT_CHIP_RAM,
     CRT_CHIP_FLASH
 } CRT_CHIP_TYPE;
 
@@ -112,12 +112,20 @@ typedef struct
     uint16_t start_address;
     uint16_t image_size;
 } CRT_CHIP_HEADER;
+
+typedef struct
+{
+    char signature[8];
+    char filename[17];
+    uint8_t rel_record_size;
+} P00_HEADER;
 #pragma pack(pop)
 
 typedef enum {
     FILE_NONE       = 0x00,
     FILE_CRT,
     FILE_PRG,
+    FILE_P00,
     FILE_D64,
     FILE_D64_PRG,
     FILE_ROM,
@@ -158,7 +166,7 @@ typedef struct
 {
     uint16_t size;
     uint16_t element;       // Used if file is a D64
-    char name[17];          // Used if file is a D64
+    char name[17];          // Used if file is a P00 or D64
 } DAT_PRG_HEADER;
 
 typedef struct

@@ -181,6 +181,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
             break;
 
         case FILE_PRG:
+        case FILE_P00:
             select_text = "Load";
             break;
 

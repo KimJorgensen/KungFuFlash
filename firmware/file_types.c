@@ -77,6 +77,13 @@ static uint8_t get_file_type(FILINFO *info)
                 return FILE_PRG;
             }
         }
+        else if (compare_extension(filename, "P00"))
+        {
+            if (info->fsize > sizeof(P00_HEADER))
+            {
+                return FILE_P00;
+            }
+        }
         else if (compare_extension(filename, "CRT"))
         {
             if (info->fsize > sizeof(CRT_HEADER))

@@ -317,16 +317,26 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
     switch (file_type)
     {
         case FILE_PRG:
+        case FILE_P00:
         {
             FIL file;
             handle_file_open(&file, file_name);
+            dat_file.prg.name[0] = 0;
 
-            bool prg_loaded = prg_load_file(&file);
+            bool prg_loaded;
+            if (file_type == FILE_PRG)
+            {
+                prg_loaded = prg_load_file(&file);
+            }
+            else
+            {
+                prg_loaded = p00_load_file(&file);
+            }
+
             if (prg_loaded)
             {
                 c64_send_exit_menu();
                 dat_file.prg.element = 0;
-                dat_file.prg.name[0] = 0;
                 dat_file.boot_type = DAT_PRG;
                 exit_menu = true;
             }
