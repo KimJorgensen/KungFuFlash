@@ -30,7 +30,7 @@
 #include "cartridge.c"
 #include "commands.c"
 #include "menu.c"
-#include "disk.c"
+#include "disk_drive.c"
 
 int main(void)
 {

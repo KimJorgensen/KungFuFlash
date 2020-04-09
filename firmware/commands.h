@@ -50,7 +50,12 @@ typedef enum {
 
     // Disk commands
     CMD_LOAD = 0x80,
-    CMD_LOAD_NEXT_BANK
+    CMD_LOAD_NEXT_BANK,
+    CMD_OPEN,
+    CMD_CLOSE,
+    CMD_TALK,
+    CMD_UNTALK,
+    CMD_GET_BYTE
 } COMMAND_TYPE;
 
 typedef enum {
@@ -72,7 +77,8 @@ typedef enum {
     REPLY_READ_BANK,
 
     REPLY_NOT_FOUND,
-    REPLY_READ_ERROR
+    REPLY_READ_ERROR,
+    REPLY_END_OF_FILE
 } REPLY_TYPE;
 
 #endif

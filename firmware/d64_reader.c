@@ -56,10 +56,10 @@ static FSIZE_t d81_get_offset(D64 *d64, uint8_t track, uint8_t sector)
     return offset;
 }
 
-static bool d64_read_next_sector(D64 *d64)
+static bool d64_read_next_sector(D64 *d64, D64_SECTOR *d64_sector)
 {
-    uint8_t track = d64->sector.next_track;
-    uint8_t sector = d64->sector.next_sector;
+    uint8_t track = d64_sector->next_track;
+    uint8_t sector = d64_sector->next_sector;
 
     FSIZE_t offset;
     if (d64->image_type == D64_IMAGE_D81)
@@ -72,10 +72,10 @@ static bool d64_read_next_sector(D64 *d64)
     }
 
     if (!file_seek(&d64->file, offset) ||
-        file_read(&d64->file, &d64->sector, sizeof(d64->sector)) != sizeof(d64->sector))
+        file_read(&d64->file, d64_sector, sizeof(D64_SECTOR)) != sizeof(D64_SECTOR))
     {
         err("Failed to read track %d sector %d\n", track, sector);
-        d64->sector.next_track = 0;
+        d64_sector->next_track = 0;
         return false;
     }
 
@@ -91,7 +91,7 @@ static void d64_set_next_sector(D64 *d64, uint8_t track, uint8_t sector)
 static bool d64_read_sector(D64 *d64, uint8_t track, uint8_t sector)
 {
     d64_set_next_sector(d64, track, sector);
-    return d64_read_next_sector(d64);
+    return d64_read_next_sector(d64, &d64->sector);
 }
 
 static void d64_rewind_dir(D64 *d64)
@@ -120,7 +120,7 @@ static bool d64_read_disk_header(D64 *d64)
         d64_set_next_sector(d64, 18, 0);
     }
 
-    if (!d64_read_next_sector(d64))
+    if (!d64_read_next_sector(d64, &d64->sector))
     {
         return false;
     }
@@ -250,7 +250,7 @@ static bool d64_read_dir(D64 *d64)
             }
             d64->visited_dir_sectors++;
 
-            if (!d64_read_next_sector(d64))
+            if (!d64_read_next_sector(d64, &d64->sector))
             {
                 return false;
             }
@@ -282,25 +282,18 @@ static bool d64_is_valid_prg(D64 *d64)
     return false;
 }
 
-static bool d64_read_prg_start(D64 *d64)
+static void d64_read_file_start(D64 *d64, D64_SECTOR *sector)
 {
-    if (!d64_is_valid_prg(d64)) // Only PRGs are supported
-    {
-        return false;
-    }
-
-    d64_set_next_sector(d64, d64->entry->track, d64->entry->sector);
-    dbg("Reading PRG from track %d sector %d\n", d64->entry->track, d64->entry->sector);
-
-    return true;
+    sector->next_track = d64->entry->track;
+    sector->next_sector = d64->entry->sector;
+    dbg("Reading file from track %d sector %d\n", sector->next_track, sector->next_sector);
 }
 
-static uint8_t d64_read_prg_sector(D64 *d64, uint8_t *buf)
+static uint8_t d64_read_file_sector(D64 *d64, D64_SECTOR *sector)
 {
     uint8_t len = 0;
-    D64_SECTOR *sector = &d64->sector;
 
-    if (!sector->next_track || !d64_read_next_sector(d64))
+    if (!sector->next_track || !d64_read_next_sector(d64, sector))
     {
         return len;
     }
@@ -319,23 +312,25 @@ static uint8_t d64_read_prg_sector(D64 *d64, uint8_t *buf)
         len = sector->next_sector - 1;
     }
 
-    memcpy(buf, sector->data, len);
     return len;
 }
 
 static size_t d64_read_prg(D64 *d64, uint8_t *buf, size_t buf_size)
 {
-    if (!d64_read_prg_start(d64))
+    if (!d64_is_valid_prg(d64)) // Only PRGs are supported
     {
         return 0;
     }
+
+    d64_read_file_start(d64, &d64->sector);
 
     size_t prg_len = 0;
     uint8_t sector_len = 0;
 
     while ((prg_len + D64_SECTOR_DATA_LEN) <= buf_size &&
-           (sector_len = d64_read_prg_sector(d64, buf)))
+           (sector_len = d64_read_file_sector(d64, &d64->sector)))
     {
+        memcpy(buf, d64->sector.data, sector_len);
         prg_len += sector_len;
         buf += sector_len;
     }
