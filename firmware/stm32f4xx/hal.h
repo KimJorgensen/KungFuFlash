@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -40,7 +40,10 @@ static bool filesystem_unmount(void);
 static void system_restart(void);
 static void restart_to_menu(void);
 
-static inline void delay_ms(uint32_t ms);
-static volatile uint32_t ticks;
-static inline uint32_t tick_add_ms(uint32_t ms);
-static inline void delay_us(uint32_t us);
+static void delay_us(uint32_t us);
+static void delay_ms(uint32_t ms);
+
+static void timer_start_us(uint32_t us);
+static void timer_start_ms(uint32_t ms);
+static void timer_reset(void);
+static bool timer_elapsed(void);

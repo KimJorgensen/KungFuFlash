@@ -539,7 +539,7 @@ static bool c64_set_mode(void)
             // Unstoppable reset! - https://www.c64-wiki.com/wiki/Reset_Button
             c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
             c64_enable();
-            delay_us(300*1000);
+            delay_ms(300);
             c64_crt_control(CRT_PORT_NONE);
             result = true;
         }
@@ -551,7 +551,7 @@ static bool c64_set_mode(void)
             // Also unstoppable!
             c64_crt_control(STATUS_LED_OFF|CRT_PORT_8K);
             c64_reset(false);
-            delay_us(300*1000);
+            delay_ms(300);
             c64_crt_control(CRT_PORT_NONE);
             result = true;
         }

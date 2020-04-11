@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -71,52 +71,56 @@ static void sysclk_config(void)
 }
 
 /*************************************************
-* SysTick interrupt handler
+* System tick timer
 *************************************************/
-static volatile uint32_t ticks;
-
-void SysTick_Handler(void)
+static inline void timer_reset(void)
 {
-	ticks++;
+    SysTick->VAL = 0;
 }
 
-static inline uint32_t elapsed_ms(uint32_t tprev)
+static inline void timer_start_us(uint32_t us)
 {
-	return ticks - tprev;
+    SysTick->LOAD = (168 / 8) * us;
+    timer_reset();
 }
 
-static inline uint32_t tick_add_ms(uint32_t ms)
+// Max supported value is 798 ms
+static inline void timer_start_ms(uint32_t ms)
 {
-	return ticks + ms;
+	timer_start_us(1000 * ms);
 }
 
-static inline void delay_ms(uint32_t ms)
+static inline bool timer_elapsed()
 {
-	uint32_t wait_until = tick_add_ms(ms);
-	while (ticks < wait_until);
+    return (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk);
 }
 
-static void systick_disable(void)
+static inline void delay_us(uint32_t us)
 {
-    SysTick->CTRL = 0;
+    timer_start_us(us);
+	while(!timer_elapsed());
+}
+
+static void delay_ms(uint32_t ms)
+{
+    for (uint32_t i=0; i<ms; i++)
+    {
+        delay_us(1000);
+    }
+}
+
+static void systick_config(void)
+{
+    // Stop timer
+    timer_start_us(0);
+
+    // Enable SysTick timer and use HCLK/8 as clock source
+    SysTick->CTRL = SysTick_CTRL_ENABLE_Msk;
 }
 
 /*************************************************
 * Debug cycle counter
-* Based on https://stackoverflow.com/questions/23612296/how-to-obtain-reliable-cortex-m4-short-delays
 *************************************************/
-static inline void delay_us(uint32_t us)
-{
-    DWT->CYCCNT = 0;
-	while(DWT->CYCCNT < (168 * us));
-}
-
-static inline void delay_50ns()
-{
-    DWT->CYCCNT = 0;
-	while(DWT->CYCCNT < 9);  // 9 / 168 MHz = 53.6 ns
-}
-
 static void dwt_cyccnt_config(void)
 {
     // Enable DWT
@@ -182,12 +186,7 @@ static void configure_system(void)
 {
     sysclk_config();
     dwt_cyccnt_config();
-    // SysTick will be running at 168MHz
-    // passing 168000 here will give us 1ms ticks
-    SysTick_Config(168000);
-
-    // Just higher priority than menu button interrupt
-    NVIC_SetPriority(SysTick_IRQn, 0xe);
+    systick_config();
 
 	// Enable system configuration controller clock
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;

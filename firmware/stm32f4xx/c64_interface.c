@@ -113,12 +113,12 @@ static void c64_control_config(void)
 // Wait until the raster beam is in the upper or lower border (if VIC-II is enabled)
 static void c64_sync_with_vic(void)
 {
-    DWT->CYCCNT = 0;
-    while (DWT->CYCCNT < (168 * 1000))
+    timer_start_us(1000);
+    while (!timer_elapsed())
     {
         if (!(c64_control_read() & C64_BA))
         {
-            DWT->CYCCNT = 0;
+            timer_reset();
         }
     }
 }
@@ -135,37 +135,24 @@ static void c64_sync_with_vic(void)
 #define STATUS_LED_ON   GPIO_BSRR_BR13
 #define STATUS_LED_OFF  GPIO_BSRR_BS13
 
-static uint32_t led_next_activity = 0;
-
 static inline void c64_crt_control(uint32_t state)
 {
     GPIOC->BSRR = state;
 }
 
-static void led_off(void)
+static inline void led_off(void)
 {
     c64_crt_control(STATUS_LED_OFF);
-    led_next_activity = 0;
 }
 
-static void led_on(void)
+static inline void led_on(void)
 {
     c64_crt_control(STATUS_LED_ON);
-    led_next_activity = 0;
 }
 
 static inline void led_toggle(void)
 {
     GPIOC->ODR ^= GPIO_ODR_OD13;
-}
-
-static void led_activity(void)
-{
-    if (ticks > led_next_activity)
-    {
-        led_next_activity = tick_add_ms(20);
-        led_toggle();
-    }
 }
 
 static void c64_crt_config(void)
@@ -436,13 +423,21 @@ static inline void c64_interface(bool state)
     {
         if (!(TIM1->DIER & TIM_DIER_CC3IE))
         {
+            uint32_t led_activity = 0;
+
             // Wait for a valid C64 PAL clock signal
             while (c64_valid_clock_count < 3)
             {
                 if(TIM1->CCR1 < 168 || TIM1->CCR1 > 169)
                 {
                     c64_valid_clock_count = 0;
-                    led_activity();
+
+                    // Fast blink if no valid clock
+                    if (led_activity++ > 30000)
+                    {
+                        led_activity = 0;
+                        led_toggle();
+                    }
                 }
                 else
                 {

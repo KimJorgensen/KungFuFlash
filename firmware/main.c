@@ -65,7 +65,6 @@ int main(void)
         {
             // Disable all interrupts besides the C64 bus handler beyond this point
             // to ensure consistent response times
-            systick_disable();
             usb_disable();
         }
     }
