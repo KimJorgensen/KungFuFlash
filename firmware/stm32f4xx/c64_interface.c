@@ -265,8 +265,7 @@ static void c64_clock_config()
 #define C64_BUS_HANDLER_(name, read_handler, write_handler)                         \
 void name(void)                                                                     \
 {                                                                                   \
-    uint32_t sr = TIM1->SR;                                                         \
-    if (sr & TIM_SR_CC3IF)                                                          \
+    if (TIM1->SR & TIM_SR_CC3IF)                                                    \
     {                                                                               \
         uint16_t addr = c64_addr_read();                                            \
         COMPILER_BARRIER();                                                         \
@@ -292,7 +291,7 @@ void name(void)                                                                 
             uint8_t data = c64_data_read();                                         \
             write_handler(control, addr, data);                                     \
         }                                                                           \
-        TIM1->SR = sr & ~TIM_SR_CC3IF;                                              \
+        TIM1->SR = ~TIM_SR_CC3IF;                                                   \
     }                                                                               \
 }
 
@@ -326,8 +325,7 @@ void name(void)                                                                 
                                 early_write_handler, write_handler, vic_delay)      \
 void name(void)                                                                     \
 {                                                                                   \
-    uint32_t sr = TIM1->SR;                                                         \
-    if (sr & TIM_SR_CC3IF)                                                          \
+    if (TIM1->SR & TIM_SR_CC3IF)                                                    \
     {                                                                               \
         /* As we don't return from this handler, we need to do this here */         \
         c64_reset(false);                                                           \
@@ -404,7 +402,7 @@ void name(void)                                                                 
             /* Wait for CPU cycle */                                                \
             while (DWT->CYCCNT < 97);                                               \
         }                                                                           \
-        TIM1->SR = sr & ~TIM_SR_CC3IF;                                              \
+        TIM1->SR = ~TIM_SR_CC3IF;                                                   \
     }                                                                               \
 }
 
@@ -449,7 +447,7 @@ static inline void c64_interface(bool state)
             }
 
             // Capture/Compare 3 interrupt enable
-            TIM1->SR &= ~TIM_SR_CC3IF;
+            TIM1->SR = ~TIM_SR_CC3IF;
             TIM1->DIER |= TIM_DIER_CC3IE;
         }
     }
@@ -457,7 +455,7 @@ static inline void c64_interface(bool state)
     {
         // Capture/Compare 3 interrupt disable
         TIM1->DIER &= ~TIM_DIER_CC3IE;
-        TIM1->SR &= ~TIM_SR_CC3IF;
+        TIM1->SR = ~TIM_SR_CC3IF;
         c64_valid_clock_count = 0;
     }
 }
