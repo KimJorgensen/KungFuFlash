@@ -278,10 +278,7 @@ static usbd_respond cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_cal
 static void usb_putc(char ch)
 {
     // Wait for room in the fifo
-    while (utx_pos >= (sizeof(utx_fifo) - 1))
-    {
-        __WFI();
-    }
+    while (utx_pos >= (sizeof(utx_fifo) - 1));
 
     _BCL(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
     __DSB();
@@ -301,10 +298,7 @@ static inline bool usb_gotc(void)
 static char usb_getc(void)
 {
     // wait for data
-    while (!usb_gotc())
-    {
-        __WFI();
-    }
+    while (!usb_gotc());
 
     _BCL(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
     __DSB();

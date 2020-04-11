@@ -93,10 +93,7 @@ static inline uint32_t tick_add_ms(uint32_t ms)
 static inline void delay_ms(uint32_t ms)
 {
 	uint32_t wait_until = tick_add_ms(ms);
-	while (ticks < wait_until)
-	{
-		__WFI();
-	}
+	while (ticks < wait_until);
 }
 
 static void systick_disable(void)
