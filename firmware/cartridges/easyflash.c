@@ -83,18 +83,22 @@ static inline bool ef_read_handler(uint8_t control, uint16_t addr)
 
     if (!(control & C64_IO1))
     {
-        switch (addr & 0xff)
+        switch (addr)
         {
             // $de09 EF3 USB Control register
-            case 0x09:
+            case 0xde09:
+            {
                 c64_data_write(ef3_usb_rx_rdy | ef3_usb_tx_rdy);
                 return true;
+            }
 
             // $de0a EF3 USB Data register
-            case 0x0a:
+            case 0xde0a:
+            {
                 c64_data_write(ef3_usb_rx_data);
                 ef3_usb_rx_rdy = EF3_NOT_RDY;
                 return true;
+            }
         }
 
         return false;
@@ -124,7 +128,7 @@ static inline void ef_write_handler(uint8_t control, uint16_t addr, uint8_t data
             {
                 crt_ptr = crt_banks[data & 0x3f];
             }
-            break;
+            return;
 
             /* $de02 EF Control register. Set to $00 on reset.
                 Bit 7: Status LED, 1 = on
@@ -143,7 +147,7 @@ static inline void ef_write_handler(uint8_t control, uint16_t addr, uint8_t data
                                         (((data >> 2) & 0x01) & ~data)];
                 c64_crt_control(mode);
             }
-            break;
+            return;
 
             // $de0a EF3 USB Data register
             case 0x0a:
@@ -151,13 +155,17 @@ static inline void ef_write_handler(uint8_t control, uint16_t addr, uint8_t data
                 ef3_usb_tx_data = data;
                 ef3_usb_tx_rdy = EF3_NOT_RDY;
             }
-            break;
+            return;
         }
+
+        return;
     }
-    else if (!(control & C64_IO2))
+
+    if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
         crt_ram_buf[addr & 0xff] = data;
+        return;
     }
 }
 
