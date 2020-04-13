@@ -17,7 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-static const uint32_t ar4x_mode[4] =
+static uint32_t const ar4x_mode[4] =
 {
     STATUS_LED_ON|CRT_PORT_8K,
     STATUS_LED_ON|CRT_PORT_16K,

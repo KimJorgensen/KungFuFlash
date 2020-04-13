@@ -34,7 +34,7 @@ static uint8_t *crt_ptr;        // Current ROM or RAM bank pointer
 static uint8_t *crt_rom_ptr;    // Current ROM bank pointer (only used by some cartridges)
 
 // Fast look-up of 8k RAM bank address
-static uint8_t *crt_ram_banks[4] =
+static uint8_t * const crt_ram_banks[4] =
 {
     CRT_RAM1_BANK(0),
     CRT_RAM1_BANK(1),
@@ -43,7 +43,7 @@ static uint8_t *crt_ram_banks[4] =
 };
 
 // Fast look-up of 16k ROM bank address
-static uint8_t *crt_banks[64] =
+static uint8_t * const crt_banks[64] =
 {
     CRT_DAT_BANK(0),
     CRT_DAT_BANK(1),

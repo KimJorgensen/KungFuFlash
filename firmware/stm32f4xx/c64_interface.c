@@ -413,22 +413,21 @@ void name(void)                                                                 
 /*************************************************
 * C64 interface status
 *************************************************/
-static uint8_t c64_valid_clock_count;
-
 static inline void c64_interface(bool state)
 {
     if (state)
     {
         if (!(TIM1->DIER & TIM_DIER_CC3IE))
         {
+            uint8_t valid_clock_count = 0;
             uint32_t led_activity = 0;
 
             // Wait for a valid C64 PAL clock signal
-            while (c64_valid_clock_count < 3)
+            while (valid_clock_count < 3)
             {
                 if(TIM1->CCR1 < 168 || TIM1->CCR1 > 169)
                 {
-                    c64_valid_clock_count = 0;
+                    valid_clock_count = 0;
 
                     // Fast blink if no valid clock
                     if (led_activity++ > 30000)
@@ -439,7 +438,7 @@ static inline void c64_interface(bool state)
                 }
                 else
                 {
-                    c64_valid_clock_count++;
+                    valid_clock_count++;
                     led_on();
                 }
 
@@ -456,7 +455,6 @@ static inline void c64_interface(bool state)
         // Capture/Compare 3 interrupt disable
         TIM1->DIER &= ~TIM_DIER_CC3IE;
         TIM1->SR = ~TIM_SR_CC3IF;
-        c64_valid_clock_count = 0;
     }
 }
 

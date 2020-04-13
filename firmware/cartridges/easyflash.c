@@ -17,7 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-static const uint32_t ef_mode[8] =
+static uint32_t const ef_mode[8] =
 {
     STATUS_LED_OFF|CRT_PORT_ULTIMAX,
     STATUS_LED_OFF|CRT_PORT_NONE,

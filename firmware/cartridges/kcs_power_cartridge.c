@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static const uint32_t kcs_mode[4] =
+static uint32_t const kcs_mode[4] =
 {
     STATUS_LED_ON|CRT_PORT_16K,
     STATUS_LED_ON|CRT_PORT_8K,
