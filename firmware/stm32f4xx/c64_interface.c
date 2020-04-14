@@ -240,13 +240,18 @@ static void c64_clock_config()
 
     // Generate OC3 after 0.5 of the C64 clock cycle (just before phi2 is high)
     // Ideally this should be calculated from the measured clock speed (PAL/NTSC)
-    TIM1->CCR3 = 84 - 12; // Compensate for some of the interrupt delay
+    TIM1->CCR3 = 84 - 17; // Compensate for some of the interrupt delay
 
-    // Enable PWM mode 2. OC3 is low when TIM1_CNT < TIM1_CCR3
-    TIM1->CCMR2 |= TIM_CCMR2_OC3M;
+    // Generate OC4 just before a full C64 clock cycle (just before phi2 is low)
+    TIM1->CCR4 = 168 - 20;
 
-    // Capture/Compare 3 interrupt disable
-    TIM1->DIER &= ~TIM_DIER_CC3IE;
+    // Enable compare mode 1. OC3 and OC4 are high when TIM1_CNT == TIM1_CCR
+    MODIFY_REG(TIM1->CCMR2,
+               TIM_CCMR2_OC3M|TIM_CCMR2_OC4M,
+               TIM_CCMR2_OC3M_0|TIM_CCMR2_OC4M_0);
+
+    // Disable all TIM1 (and TIM8) interrupts
+    TIM1->DIER = 0;
 
     // Enable TIM1_CC_IRQn, highest priority
     NVIC_SetPriority(TIM1_CC_IRQn, 0);
@@ -267,6 +272,7 @@ void name(void)                                                                 
 {                                                                                   \
     if (TIM1->SR & TIM_SR_CC3IF)                                                    \
     {                                                                               \
+        TIM1->SR = ~(TIM_SR_CC3IF|TIM_SR_CC4IF);                                    \
         uint16_t addr = c64_addr_read();                                            \
         COMPILER_BARRIER();                                                         \
         uint8_t control = c64_control_read();                                       \
@@ -278,7 +284,7 @@ void name(void)                                                                 
             if (read_handler(control, addr))                                        \
             {                                                                       \
                 /* Wait for phi2 to go low (compensated for delay) */               \
-                while (TIM1->CNT < (168 - 20));                                     \
+                while (!(TIM1->SR & TIM_SR_CC4IF));                                 \
                 /* We releases the bus as fast as possible when phi2 is low */      \
                 c64_data_input();                                                   \
             }                                                                       \
@@ -291,7 +297,6 @@ void name(void)                                                                 
             uint8_t data = c64_data_read();                                         \
             write_handler(control, addr, data);                                     \
         }                                                                           \
-        TIM1->SR = ~TIM_SR_CC3IF;                                                   \
     }                                                                               \
 }
 
