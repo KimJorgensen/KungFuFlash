@@ -1,7 +1,7 @@
 # Kung Fu Flash
 Cartridge for the Commodore 64 that packs a punch.
 
-![Kung Fu Launcher](pics/launcher.jpg)
+![Kung Fu Flash Launcher](pics/launcher.jpg)
 
 Kung Fu Flash can emulate different cartridge types, load PRG files and use D64 disk images.
 Just place your desired CRT, PRG or D64 files on a FAT formatted microSD card and use the built-in launcher to execute them.
@@ -16,7 +16,9 @@ If you plan to use USB you will need to cut a hole for that as well.
 
 You can also 3D print a cartridge case as the one designed by bigby, [see here](https://www.thingiverse.com/thing:4153414).
 
-![Kung Fu Flash prototype PCB](pics/pcb_rev1.jpg)
+![Kung Fu Flash PCB](pics/pcb_rev1.jpg)
+
+The gerber files and BOM can be found [here](releases/tag/v1.00).
 
 ## Supported Cartridges
 The following cartridge types are currently supported:
@@ -53,6 +55,7 @@ For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3u
 
 ## Firmware Update
 Just place the KungFuFlash_v1.xx.upd file on the SD card and select the file in the launcher to initiate the firmware update.
+The newest firmware can be found [here](releases/).
 
 For initial firmware installation, [see here](firmware/README.md).
 
@@ -84,4 +87,4 @@ and a few others. Please check the individual files for their license.
 
 Thanks to Bjørn N. Jørgensen for giving this project its name.
 
-Special thanks to the author of [RasPIC64](https://github.com/frntc/RasPIC64) Carsten Dachsbacher for his support and inspiration.
+Special thanks to the author of [Sidekick64](https://github.com/frntc/Sidekick64) Carsten Dachsbacher for his support and inspiration.
