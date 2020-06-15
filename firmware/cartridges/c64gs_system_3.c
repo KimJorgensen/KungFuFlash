@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -32,6 +32,7 @@ static inline bool c64gs_read_handler(uint8_t control, uint16_t addr)
     if (!(control & C64_IO1))
     {
         crt_ptr = crt_banks[0];
+        return false;
     }
 
     return false;
@@ -45,6 +46,7 @@ static inline void c64gs_write_handler(uint8_t control, uint16_t addr, uint8_t d
     if (!(control & C64_IO1))
     {
         crt_ptr = crt_banks[addr & 0x3f];
+        return;
     }
 }
 

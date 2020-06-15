@@ -30,44 +30,44 @@
 *************************************************/
 static void sysclk_config(void)
 {
-	// Enable HSE
-	RCC->CR |= RCC_CR_HSEON;
-	// Wait till HSE is ready
-	while(!(RCC->CR & RCC_CR_HSERDY));
+    // Enable HSE
+    RCC->CR |= RCC_CR_HSEON;
+    // Wait till HSE is ready
+    while(!(RCC->CR & RCC_CR_HSERDY));
 
-	// Enable power interface clock
-	RCC->APB1ENR |= RCC_APB1ENR_PWREN;
+    // Enable power interface clock
+    RCC->APB1ENR |= RCC_APB1ENR_PWREN;
     __DSB();
 
-	// set voltage scale to 1 for max frequency
-	PWR->CR |= PWR_CR_VOS;
+    // set voltage scale to 1 for max frequency
+    PWR->CR |= PWR_CR_VOS;
 
-	// set AHB prescaler to /1, APB1 prescaler to /4 and ABP2 prescaper to /2
-	RCC->CFGR |= ((0 << RCC_CFGR_HPRE_Pos) |
+    // set AHB prescaler to /1, APB1 prescaler to /4 and ABP2 prescaper to /2
+    RCC->CFGR |= ((0 << RCC_CFGR_HPRE_Pos) |
                  (0x5 << RCC_CFGR_PPRE1_Pos) |
                  (0x4 << RCC_CFGR_PPRE2_Pos));
 
-	// Set M, N, P and Q PLL dividers and PLL source to HSE
-	RCC->PLLCFGR = (PLL_M << RCC_PLLCFGR_PLLM_Pos) |
+    // Set M, N, P and Q PLL dividers and PLL source to HSE
+    RCC->PLLCFGR = (PLL_M << RCC_PLLCFGR_PLLM_Pos) |
                    (PLL_N << RCC_PLLCFGR_PLLN_Pos) |
                    (((PLL_P >> 1) -1) << RCC_PLLCFGR_PLLP_Pos) |
-				   (PLL_Q << RCC_PLLCFGR_PLLQ_Pos) |
+                   (PLL_Q << RCC_PLLCFGR_PLLQ_Pos) |
                    RCC_PLLCFGR_PLLSRC;
 
-	// Enable the main PLL
-	RCC->CR |= RCC_CR_PLLON;
-	// Wait till the main PLL is ready
-	while(!(RCC->CR & RCC_CR_PLLRDY));
+    // Enable the main PLL
+    RCC->CR |= RCC_CR_PLLON;
+    // Wait till the main PLL is ready
+    while(!(RCC->CR & RCC_CR_PLLRDY));
 
-	// Enable prefetch, instruction cache and data cache
-	// Set latency to 5 wait states
-	FLASH->ACR = FLASH_ACR_PRFTEN|FLASH_ACR_ICEN|FLASH_ACR_DCEN|
+    // Enable prefetch, instruction cache and data cache
+    // Set latency to 5 wait states
+    FLASH->ACR = FLASH_ACR_PRFTEN|FLASH_ACR_ICEN|FLASH_ACR_DCEN|
                  FLASH_ACR_LATENCY_5WS;
 
-	// Select the main PLL as system clock source
+    // Select the main PLL as system clock source
     MODIFY_REG(RCC->CFGR, RCC_CFGR_SWS, RCC_CFGR_SW_PLL);
-	// Wait till the main PLL is used as system clock source
-	while(!(RCC->CFGR & RCC_CFGR_SWS_PLL));
+    // Wait till the main PLL is used as system clock source
+    while(!(RCC->CFGR & RCC_CFGR_SWS_PLL));
 }
 
 /*************************************************
@@ -87,7 +87,7 @@ static inline void timer_start_us(uint32_t us)
 // Max supported value is 798 ms
 static inline void timer_start_ms(uint32_t ms)
 {
-	timer_start_us(1000 * ms);
+    timer_start_us(1000 * ms);
 }
 
 static inline bool timer_elapsed()
@@ -98,7 +98,7 @@ static inline bool timer_elapsed()
 static inline void delay_us(uint32_t us)
 {
     timer_start_us(us);
-	while(!timer_elapsed());
+    while(!timer_elapsed());
 }
 
 static void delay_ms(uint32_t ms)
@@ -188,8 +188,8 @@ static void configure_system(void)
     dwt_cyccnt_config();
     systick_config();
 
-	// Enable system configuration controller clock
-	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    // Enable system configuration controller clock
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
     __DSB();
 
     // Enable GPIOA, GPIOB, GPIOC, and GPIOD clock
@@ -199,6 +199,6 @@ static void configure_system(void)
 
     crc_config();
 
-	usb_config();
-	c64_interface_config();
+    usb_config();
+    c64_interface_config();
 }

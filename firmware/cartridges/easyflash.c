@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -83,22 +83,22 @@ static inline bool ef_read_handler(uint8_t control, uint16_t addr)
 
     if (!(control & C64_IO1))
     {
-        switch (addr)
+        switch (addr & 0xff)
         {
             // $de09 EF3 USB Control register
-            case 0xde09:
+            case 0x09:
             {
                 c64_data_write(ef3_usb_rx_rdy | ef3_usb_tx_rdy);
-                return true;
             }
+            return true;
 
             // $de0a EF3 USB Data register
-            case 0xde0a:
+            case 0x0a:
             {
                 c64_data_write(ef3_usb_rx_data);
                 ef3_usb_rx_rdy = EF3_NOT_RDY;
-                return true;
             }
+            return true;
         }
 
         return false;

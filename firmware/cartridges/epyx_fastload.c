@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -51,9 +51,17 @@ static inline bool epyx_read_handler(uint8_t control, uint16_t addr)
     return false;
 }
 
+/*************************************************
+* C64 bus write callback
+*************************************************/
+static inline void epyx_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+{
+    // No write support
+}
+
 static void epyx_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }
 
-C64_BUS_HANDLER_WRITE(epyx, crt_write_handler)
+C64_BUS_HANDLER(epyx)

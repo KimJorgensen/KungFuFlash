@@ -396,7 +396,7 @@ DSTATUS disk_initialize(BYTE pdrv)
         clkcr = (clkcr & ~SDIO_CLKCR_WIDBUS) | SDIO_CLKCR_WIDBUS_0;
     }
 
-    // Increase clock up to 9.6MHz
+    // Increase clock up to 9.6MHz (SDIOCLK / [CLKDIV + 2])
     // We will get timeouts at higher frequencies when the C64 bus interface is active
     SDIO->CLKCR = (clkcr & ~SDIO_CLKCR_CLKDIV) | 3;
     delay_us(9);  // Wait for 80 cycles at 9.6MHz

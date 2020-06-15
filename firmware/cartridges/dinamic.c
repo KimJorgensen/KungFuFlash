@@ -32,6 +32,7 @@ static inline bool dinamic_read_handler(uint8_t control, uint16_t addr)
     if (!(control & C64_IO1))
     {
         crt_ptr = crt_banks[addr & 0x3f];
+        return false;
     }
 
     return false;
