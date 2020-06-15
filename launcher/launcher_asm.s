@@ -273,6 +273,8 @@ ef3usb_get_cmd:
 .export _wait_for_reset
         sei
         lda #0
+        sta $b2                         ; clear pointer to datasette buffer
+        sta $b3                         ; Needed for Jumpman Junior
         sta $d011                       ; disable output (needed for FC-III)
         sta $d016                       ; 38 columns
 
