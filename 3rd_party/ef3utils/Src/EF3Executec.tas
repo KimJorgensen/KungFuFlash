@@ -1,0 +1,306 @@
+;=======================================================
+;     *********************************************
+;      Execute any program over EF3 USB Connection
+;     *********************************************
+;           4 and 8 bit transfer with checksum
+;
+;                     tomcat@sgn.net
+;=======================================================
+
+USBStatus       = $DE09
+USBData         = $DE0A
+
+temp            = $f0
+len_lo          = $f1
+len_hi          = $f2
+adr_lo          = $f3
+adr_hi          = $f4
+
+checksum        = $f5
+checkcalc       = $f6
+
+tmpalo          = $fb
+tmpahi          = $fc
+tmpclo          = $fd
+tmpchi          = $fe
+
+        * = $0400+40         ; loader addr
+        sei
+                        
+; synced here, check 4 or 8 bit transfer
+
+        jsr get_byte            ; 4 or 8 bit transfer check bytes - should be $FF, $00
+        sta tmpalo
+        jsr get_byte
+        sta tmpahi
+        
+        lda tmpalo
+        cmp #$FF
+        bne transfer4bit        ; go to 4 bit if the bytes do not match
+        lda tmpahi
+        bne transfer4bit
+
+transfer8bit
+        lda #$10
+        jsr send_byte           ; indicate 8 bit transfer
+
+        lda #<loading8_msg
+        sta tmpalo
+        lda #>loading8_msg
+        sta tmpahi
+        jsr write_message       
+
+        lda #$b
+        sta $d020
+
+        jsr get_byte            ; checksum
+        sta checksum
+        
+        jsr get_byte            ; low len
+        eor #$ff
+        sta len_lo
+        jsr get_byte            ; hi len
+        eor #$ff
+        sta len_hi              ; these two are eor-ed so that easier check can be done for eof
+
+        jsr get_byte            ; low addr
+        sta adr_lo
+        jsr get_byte            ; hi addr
+        sta adr_hi
+        
+        jsr fix_start
+        
+        jsr declen
+        jsr declen
+        jsr declen              ; proper len
+
+        ldy #$00
+        sty checkcalc
+        
+next_data8
+        bit USBStatus
+        bpl next_data8
+        lda USBData
+        
+        inc $01                 ; $38
+        sta (adr_lo),y
+        dec $01                 ; $37
+        
+        clc                     ; checksum
+        adc checkcalc
+        sta checkcalc
+        
+        inc adr_lo              ; increase load address
+        bne aeof8
+        inc adr_hi
+aeof8
+        inc len_lo              ; decrease length
+        bne next_data8
+        inc len_hi
+        bne next_data8
+
+        jmp execute
+
+transfer4bit        
+
+        lda #$F0
+        jsr send_byte           ; indicate 4 bit transfer
+
+        lda #<loading4_msg
+        sta tmpalo
+        lda #>loading4_msg
+        sta tmpahi
+        jsr write_message       
+
+        lda #$b
+        sta $d020
+
+        jsr get_full_byte       ; checksum
+        sta checksum
+        
+        jsr get_full_byte       ; low len
+        eor #$ff
+        sta len_lo
+        jsr get_full_byte       ; hi len
+        eor #$ff
+        sta len_hi              ; these two are eor-ed so that easier check can be done for eof
+
+        jsr get_full_byte       ; low addr
+        sta adr_lo
+        jsr get_full_byte       ; hi addr
+        sta adr_hi
+        
+        jsr fix_start
+        
+        jsr declen
+        jsr declen
+        jsr declen              ; proper len
+
+        ldy #$00
+        
+next_data
+        bit USBStatus
+        bpl next_data
+        lda USBData
+        and #$f0                ; only upper 4 bits are used
+        sta temp
+next_data2        
+        bit USBStatus           ; lower 4 bits
+        bpl next_data2
+        lda USBData
+        lsr
+        lsr
+        lsr
+        lsr
+        ora temp        
+        
+        inc $01                 ; $38
+        sta (adr_lo),y
+        dec $01                 ; $37
+
+        clc                     ; calc checksum
+        adc checkcalc
+        sta checkcalc
+        
+        inc adr_lo              ; increase load address
+        bne aeof
+        inc adr_hi
+aeof
+        inc len_lo              ; decrease length
+        bne next_data
+        inc len_hi
+        bne next_data
+
+execute
+        ; load done, execute
+        
+        lda checksum            ; check crc
+        cmp checkcalc
+        beq checkok
+
+        lda #<error_msg         ; checksum error
+        sta tmpalo
+        lda #>error_msg
+        sta tmpahi
+        jsr write_message  
+        
+errormsg
+        inc $d020
+
+	lda $dc01
+	and $dc00
+	and #$10
+	beq restart
+        
+        jmp errormsg        
+        
+restart
+        lda #$00
+        sta $d020
+        lda #$ae
+        sta start_prog+1
+        lda #$a7
+        sta start_prog+2        ; restore basic start vector
+        jmp $0400+40
+
+checkok                         ; checksum OK
+        lda #$0
+        sta $d020
+        
+        lda #<executing_msg
+        sta tmpalo
+        lda #>executing_msg
+        sta tmpahi
+        jsr write_message  
+
+        lda adr_lo              ; store end address of loading
+        sta $2d
+        sta $ae
+        lda adr_hi
+        sta $2e
+        sta $af
+
+        ldy #$00                ; restore ZP $F0 - $FF
+restzp  lda zptemp2,y   
+        sta $F0,y
+        iny
+        cpy #$10
+        bne restzp
+        
+        cli     
+        
+        jsr $a659               ; reset pointers
+start_prog
+        jmp $a7ae               ; BASIC warm start (or JMP to load address if not $0801)
+        rts
+
+declen                          ; decrease length
+        inc len_lo
+        bne ceof       
+        inc len_hi            
+ceof        
+        rts
+
+fix_start                       ; check if not $0801 and jmp to load addr
+        lda adr_lo
+        cmp #$01
+        bne fix_it
+        lda adr_hi
+        cmp #$08
+        beq fix_out
+fix_it
+        lda adr_lo              ; jmp to load address if not $0801 load address
+        sta start_prog+1
+        lda adr_hi
+        sta start_prog+2
+fix_out
+        rts
+
+send_byte
+	bit USBStatus
+	bvc send_byte           ; check if ready to send a byte
+        sta USBData             ; send back the byte
+        rts
+
+get_full_byte                   ; gets one full byte from usb combined from 2 real bytes
+        jsr get_byte
+        and #$f0                ; only upper 4 bits are used
+        sta temp
+        jsr get_byte
+        lsr
+        lsr
+        lsr
+        lsr
+        ora temp
+        rts
+
+get_byte                        ; gets one byte from usb
+        bit USBStatus
+        bpl get_byte
+        lda USBData
+        rts
+        
+write_message
+        ldy #$00
+writeloop
+        lda (tmpalo),y
+        sta $0400,y
+        iny
+        cpy #40
+        bne writeloop
+        rts
+
+              ;1234567890123456789012345678901234567890
+        .enc screen
+waiting_msg
+        .text "EF3 USB TRANSFER. WAITING FOR DATA...   "
+loading8_msg
+        .text "LOADING DATA WITH 8-BIT LOADER...       "
+loading4_msg
+        .text "LOADING DATA WITH 4-BIT LOADER...       "
+executing_msg
+        .text "EXECUTING PROGRAM...                    "
+error_msg
+        .text "CHECKSUM ERROR! PRESS SPACE TO RELOAD..."
+
+zptemp2

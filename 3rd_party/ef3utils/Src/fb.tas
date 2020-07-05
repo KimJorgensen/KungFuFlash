@@ -1,0 +1,533 @@
+;-------------------------------------------------------------------------------
+;
+; FileBrowser - "fb" by SAILOR / TRIAD
+;
+; CRSR UP    = Up one position
+; CRSR DOWN  = Down one position
+; CRSR LEFT  = Up 10 positions
+; CRSR RIGHT = Down 10 positions
+; F1         = Go to First entry
+; F3         = Go to Last entry
+; F7         = Quit
+; RETURN     = Load & Run / Enter dir / Mount image
+; Backspace  = Exit dir / Unmount image
+;
+;-------------------------------------------------------------------------------
+
+pblue   = $1f
+plblue  = $9a
+plgray  = $9b
+
+keyF1   = $85
+keyF2   = $89
+keyF3   = $86
+keyF4   = $8a
+keyF5   = $87
+keyF6   = $8b
+keyF7   = $88
+keyF8   = $8c
+
+listen   = $ffb1
+unlisten = $ffae
+closeall = $ffe7
+close    = $ffc3   ;$ffc3 / f291
+setlfs   = $ffba   ;$ffba
+setnam   = $ffbd   ;$ffbd
+open     = $ffc0   ;$ffc0 / f34a
+chkin    = $ffc6   ;$ffc6 / f20e
+
+
+screen             = $0400
+filenames          = $1E00
+FNAMELEN_TBL       = $1D00
+DIRFLAG_TBL        = $1C00
+device             = $BA                ;device ($BA)
+zpFNAM             = $BB                ;filenamepointer ($BB/BC)
+zpFNLEN            = $B7                ;filenamelength of file ($B7)
+zpFNRcurrentmem    = $F9
+zpMEMprevious      = $FA
+zpFNRcurrent       = $FB                ;filenumber below cursor
+zpFNRprocessed     = $FC                ;filenumber being processed
+zpFNRcounter       = $FD                ;counter
+zpC1    = $FE
+zpC2    = $FF
+
+upperfname_loc     = screen+$00a0       ;uppermostfname
+selrow_loc         = screen+$0118       ;selectrow
+numberofrows       = 16                 ;# of entries visible below divider
+
+;-------------------------------------------------------------------------------
+
+start_tool         lda #$0c             ;ltblue = $0e
+                   sta $0286            ;chr
+                   JSR clrscreen
+
+                   clc
+                   ldx #24
+                   ldy #0
+                   jsr $e50a
+                   ldy len_hi
+                   lda len_lo
+                   jsr $ab1e
+
+
+                   lda #$15
+                   sta $d018
+                   
+                   ldx #6               ;clear zp$f9-$ff
+clrzps             lda #0
+                   sta zpFNRcurrentmem,x
+                   dex
+                   bpl clrzps
+
+RESTART_tool
+                   ldx #$ff
+                   stx $3a              ;current basic line #. (suppress "in 0" msgs)
+                   inx                  ;0
+clrtblss           lda #0
+                   sta DIRFLAG_TBL,x    ;0=DIR.1=PRG
+                   sta FNAMELEN_TBL,x
+                   lda #" "
+                   sta filenames,x
+                   inx
+                   bne clrtblss
+                   inc FNAMELEN_TBL     ;1 > table
+
+
+                   ldy #8               ;x
+                   ldx #2               ;y
+                   jsr $e50c            ;read / set cursor x/y position
+                   lda #plgray
+                   jsr $ffd2
+
+                   LDX device
+                   TXA
+                   LDY #$00
+                   jsr setlfs
+
+                   LDA #$01
+                   sta zpFNRcounter     ;reset counter
+                   LDX #<DIRCMD
+                   LDY #>DIRCMD
+                   JSR setnam
+                   JSR open
+                   LDX device
+                   JSR chkin
+
+
+                                        ;disk header/id
+                   LDX #$06
+hid_skip           JSR $FFCF            ;Input Vector, chrin
+                   DEX
+                   BNE hid_skip
+                   ldx #16+9            ;maxlength name and id 
+hid_loop           JSR $FFCF            ;Input Vector, chrin
+
+                   JSR $FFD2            ;Output Vector, chrout. PRINT DISKNAME/HEADER
+                   BEQ DISKNAME_END
+                   dex
+                   bne hid_loop
+hid_skip2          JSR $FFCF            ;Input Vector, chrin
+                   BNE hid_skip2        ;pull out rest if corrupt header or obscure filesystem
+DISKNAME_END
+
+                                        ;-- read in dir
+
+                   LDA #<(filenames+16) ;filenames into memorylocation
+                   STA zpC1
+                   LDA #>(filenames+16)
+                   STA zpC2
+
+                                       ;-- patch in <- as first entry. static entry
+                   lda #$1F             ;+1 entry. 1F = leftarrow. 0x5F in loadname
+                   sta filenames        ;
+
+                                        ;-pull names here
+
+get_dirloop
+                   LDA #$A0             ;clr actual name
+                   LDY #$10
+get_clrnloop       STA (zpC1),Y
+                   DEY
+                   BPL get_clrnloop                   
+                   iny                  ;0
+                   sty zpFNLEN          ;fnamelength of file (is zp$b7)
+
+
+                   ldy #4
+skip4              jsr $ffcf
+                   dey
+                   bne skip4            ;blocks lsb,msb
+
+gfn_start          JSR $FFCF
+                   cmp #$20             ;skip spaces
+                   beq gfn_start
+
+;----
+                                        ;start of name "
+getfname_loop      JSR $FFCF            ;start of name chars
+                   cmp #$0d             ;cr. end
+                   beq DIR_end          ;DIR ended
+
+                   CMP #$22             ;end of name "
+                   BEQ getfname_endn
+                   LDY zpFNLEN          ;filenamelength of file (is zp$b7)
+                   STA (zpC1),Y         ;store name
+                   INC zpFNLEN          ;filenamelength of file (is zp$b7)
+                   BNE getfname_loop
+
+getfname_endn      LDX zpFNRcounter     ;filenumber/files on disk
+                   LDA zpFNLEN          ;filenamelength of file (is zp$b7)
+                   CMP #16+1            ;maxlen...
+                   BCC less16chrs       ;...needed?
+                   LDA #16              ;force 16 if > 16
+less16chrs         STA FNAMELEN_TBL,X   ;fname length
+                   INC DIRFLAG_TBL,X    ;0=DIR.1=PRG      
+
+fn_endloop         JSR $FFCF
+                   beq fn_endloop2
+                                        ;Look for DIR PRG SEQ REL USR DEL
+                   cmp #"i"             ;D-i-R. crude but works(?)
+                   bne fn_endloop
+
+                   LDX zpFNRcounter
+                   lda #0
+                   sta DIRFLAG_TBL,x    ;0=DIR.1=PRG
+                   BEQ fn_endloop       ;jmp
+fn_endloop2
+
+                   ldx #16              ;+16 chars. next fname
+                   jsr adder
+
+                   INC zpFNRcounter     ;filenumber/files on disk
+                   lda zpFNRcounter
+                   cmp #240+2
+                   BNE get_dirloop      ;max # entries
+                   DEC zpFNRcounter     ;filenumber/files on disk
+
+
+DIR_end            LDA device
+                   JSR close
+                   JSR closeall
+                   
+                   lda #$0d
+                   jsr $ffd2            ;needed !
+
+                                        ;-- createdir end
+
+
+set_selector_row
+                   ldx #$27             ;put selector row out
+pselro             lda #1               ;selectrow col
+                   sta selrow_loc+$d400,x
+                   dex
+                   bpl pselro
+                   lda #">"
+                   sta selrow_loc+6+2
+                   lda #"<"
+                   sta selrow_loc+33-2
+
+                   lda zpFNRcurrentmem  ;cd "up"
+                   .byte $2c
+LIST_TOP           lda #0               ;0
+keyupd             STA zpFNRcurrent 
+                   JSR update_screen    ;update screen
+keychk_loop        CLI
+                   JSR $FFE4            ;keycheck
+                   BEQ keychk_loop
+
+                   CMP #$91             ;CRSR UP
+                   BEQ UP_ONE
+                   CMP #$11             ;CRSR DOWN
+                   BEQ DOWN_ONE
+                   cmp #29              ;CRSR RIGHT
+                   BEQ DOWN_PAGE
+                   cmp #157             ;CRSR LEFT
+                   BEQ UP_PAGE
+                   CMP #$0D             ;RETURN
+                   BEQ RETURN_PRESSED
+                   CMP #keyF1           ;TOP     - F1
+                   BEQ LIST_TOP
+                   CMP #keyF3           ;BOTTOM  - F3
+                   BEQ LIST_BOTTOM
+                   cmp #20              ;EXITDIR - BACKSPACE
+                   BEQ EXIT_DIR
+                   cmp #KeyF7           ;QUIT    - F7
+                   BEQ QUIT_PRG
+                   cmp #$03             ;R/S
+                   BNE keychk_loop
+                   
+QUIT_PRG
+                   lda #$ff             ; we pressed R/S
+                   sta len_lo
+
+clrscreen          lda #$93
+                   jsr $FFD2
+                   lda #plblue
+                   jmp $ffd2
+
+DOWN_PAGE          LDA #$10
+                   .byte $2c
+DOWN_ONE           LDA #1
+                   STA zpFNAM+1
+                   LDA zpFNRcurrent
+                   CLC
+                   ADC zpFNAM+1
+                   CMP zpFNRcounter
+                   BCS MAX_NR_DOWN
+                   JMP MOV_COMMON_EXIT
+
+LIST_BOTTOM
+MAX_NR_DOWN        LDA zpFNRcounter     ;max
+                   SEC
+                   SBC #1
+                   BNE MOV_COMMON_EXIT  ;always BNE
+
+UP_PAGE            LDA #$10
+                   .byte $2c
+UP_ONE             LDA #1
+                   sta zpFNAM+1
+                   LDA zpFNRcurrent 
+                   SEC
+                   SBC zpFNAM+1
+                   BCC LIST_TOP
+MOV_COMMON_EXIT    jmp keyupd
+
+;-------------------------------------------------------------------------------
+EXIT_DIR           LDA #$00
+                   STA zpFNRcurrent
+
+RETURN_PRESSED
+                   sei
+                   LDX zpFNRcurrent     ;actual file.
+process_file                            ;x = fnumber
+                   TXA                  ;A
+                   LDY #$00             ;Y
+                   sty $c6              ;clear keyb buffer so tool wont loop with several return presses
+                   STY zpFNRprocessed
+pro_nloop          ASL
+                   ROL zpFNRprocessed
+                   INY
+                   CPY #$04
+                   BNE pro_nloop
+                   sta zpFNAM+0
+                   LDA zpFNRprocessed
+                   CLC
+                   ADC #>filenames      ;mem location high
+                   sta zpFNAM+1
+
+
+                                        ;x = filenumber
+                   lda FNAMELEN_TBL,x
+                   sta zpFNLEN          ;(is zp$b7)
+
+;---
+
+check_if_diskimage                      ;if diskimage do "@cd:"
+                   ldx zpFNRcurrent 
+                   beq do_cddotdot      ;"cd:". 0 = "<-" static entry
+                   stx zpMEMprevious    ;before CD [image/dir] store previous CRSR position
+
+                   LDA DIRFLAG_TBL,X    ;0=DIR.1=PRG
+                   beq mnt_directory
+
+                                        ;check if .d64/.d71/.d81/.m2i/.dnp
+                   ldy zpFNLEN          ;fnlen
+namedotloop        lda (zpFNAM+0),y
+                   cmp #"."
+                   beq namedotfound
+                   dey
+                   bne namedotloop
+no_diskimage0      
+                   ; File selected
+                   lda #$00             ; we selected a file
+                   sta len_lo
+                   rts
+                   ;jmp no_diskimage     ;branch is out
+namedotfound       lda zpFNAM+0
+                   sta ext_srcname+1
+                   lda zpFNAM+1
+                   sta ext_srcname+2                   
+                   lda #<imageext
+                   sta zpC1
+                   lda #>imageext
+                   sta zpC2
+                   iny
+                   sty zpFNRprocessed
+ext_id_loop        ldy #$ff
+                   ldx zpFNRprocessed
+ext_id_loop2       iny
+                   lda (zpC1),y         ;extensionlist
+                   beq mnt_diskimage    ;3 chrs parsed ok
+                   cmp #$ff
+                   beq no_diskimage0    ;list of diskimage-types ended
+ext_srcname        lda $ffff,x          ;SMC
+                   and #%01111111       ;"A" - "a"
+                   cmp (zpC1),y         ;extensionlist
+                   bne no_ext_byte
+                   inx
+                   jmp ext_id_loop2
+no_ext_byte        ldx #4               ;4
+                   jsr adder
+                   jmp ext_id_loop
+
+imageext           .text "d64",0        ;.d64
+                   .text "d71",0        ;.d71
+                   .text "d81",0        ;.d81
+                   .text "m2i",0        ;.m2i
+                   .text "dnp",0        ;.dnp
+                   .byte $ff            ;list end marker
+
+do_cddotdot        ldy zpMEMprevious    ;cd [..]
+                   stx zpMEMprevious    ;=0. clear mem
+                   .byte $2c            ;skip ldy below
+mnt_directory
+mnt_diskimage      ldy #0               ;cd [image/dir]
+                   sty zpFNRcurrentmem
+                   sty $90
+                   lda device
+                   jsr listen
+                   lda #$6f
+                   sta $b9
+                   jsr $ff93            ;sa
+
+                   lda #"c"             ;"cd:"
+                   jsr $ffa8
+                   lda #"d"
+                   jsr $ffa8
+                   lda #":"
+                   jsr $ffa8
+                   ldy #0
+sendmnt            lda (zpFNAM+0),y     ;name
+                   cmp #$1f
+                   bne not_larr
+                   lda #$5f             ;leftarrow is "0x5F" in fname.
+not_larr           jsr $ffa8
+                   iny
+                   cpy zpFNLEN
+                   bne sendmnt
+
+                   jsr unlisten
+                   jsr closeall
+                   jmp restart_tool     ;mounted. refresh dir
+
+;-------------------------------------------------------------------------------
+
+update_screen      lda #<upperfname_loc ; below divider line
+                   sta zpC1
+                   lda #>upperfname_loc
+                   sta zpC2
+
+                   lda #$fb+2
+                   sta zpFNRprocessed
+fn_screenloop0     lda zpFNRcurrent     ;filenumber below cursor
+                   clc
+                   adc zpFNRprocessed
+                   cmp zpFNRcounter     ;filenumber/files on disk
+                   bcs fn_screenl1
+                   sta zpFNAM+0         ;#
+
+
+                                        ; insert "/" in front of dir
+                   tax
+                   lda #" "
+                   ldy dirflag_tbl,x
+                   bne fn_noslash
+                   lda #"/"
+fn_noslash         ldy #11              ;xpos for "/" on screen
+                   sta (zpC1),y
+
+
+                   lda #$00
+                   ldx #$04
+fn_screenl2        asl zpFNAM+0
+                   rol
+                   dex
+                   bne fn_screenl2
+                   clc
+                   adc #>filenames      ;filenames mem (filenames dir)
+                   sta zpFNAM+1
+      
+                   ldx #12              ;fname x centering. +here
+                   jsr adder
+
+                   ldy #$0f             ;16=fnamelength on screen
+fn_screenloop      lda (zpFNAM+0),y
+;                   and #$7f
+
+;                   cmp #$40
+;                   bcc noneed
+;                   cmp #$60
+;                   bcc lower1
+;                   cmp #$80
+;                   bcs lower1
+;                   sec
+;                   sbc #$20
+;                   jmp noneed
+;lower1             cmp #$c0
+;                   bcs higher1
+;                   sec
+;                   sbc #$40
+;                   jmp noneed
+;higher1            sec
+;                   sbc #$80
+                   
+;                   cmp #$5b             ; check for [, pound, ], <- , up arrow
+;                   bcc noneed
+;                   cmp #$60
+;                   bcs noneed
+;                   and #%00011111
+;noneed
+
+                   cmp #$c0
+                   bcc lower1
+                   and #$7f
+                   bne noneed
+lower1             cmp #$20
+                   bcc noneed
+                   cmp #$60
+                   bcc lower2
+                   and #$df
+                   cmp #$80
+                   bcc noneed
+                   sec
+                   sbc #$20
+                   
+                   .byte $2c
+lower2             and #$3f
+noneed
+                   sta (zpC1),y         ;store filename on screen
+                   dey
+                   bpl fn_screenloop
+
+                   ldx #28              ;fname x centering.  -here
+                   bne skipto_adder
+
+fn_screenl1        ldy #$27
+                   lda #" "             ; space, for areas not used
+fn_screenspc       sta (zpC1),y
+                   dey
+                   bpl fn_screenspc
+
+                   ldx #40              ; row
+skipto_adder       jsr adder
+fn_screennxt       inc zpFNRprocessed
+                   lda zpFNRprocessed
+                   cmp #numberofrows    ;# of entries visible below divider
+                   beq fn_screenexit
+                   bne fn_screenloop0   ;jmp
+
+adder              inc zpC1
+                   bne notadd1h
+                   inc zpC2
+notadd1h           dex
+                   bne adder
+fn_screenexit      rts
+
+
+;-------------------------------------------------------------------------------
+DIRCMD             .byte $24            ;this is also used as DIRCMD "$"
+
+
+;-------------------------------------------------------------------------------
+; [EOF]
