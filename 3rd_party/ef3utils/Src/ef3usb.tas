@@ -3,6 +3,8 @@
 ;         EeasyFlash III USB Utilities C64 side
 ;     ********************************************
 ;                     tomcat@sgn.net
+;     ********************************************
+;     KFF version: fixed turbo image write display
 ;=======================================================
 
 ;
@@ -1216,16 +1218,16 @@ checkokwt
                 sta zerop+0
                 lda #>sectordata
                 sta zerop+1     
+               
+                ldy #$00
+                lda #$17      ; 'W'
+                sta (indaddlo),y
 
                 ldx verifytrackwt+1
                 ldy verifysectorwt+1
                 lda #$06
                 
                 jsr tloader              ; write the track
-                
-                ldy #$00
-                lda #$17      ; 'W'
-                sta (indaddlo),y
                 
                 lda retries             ; do we still have to verify ?
                 beq nomoreretrieswt
@@ -1235,6 +1237,10 @@ checkokwt
                 sta errorindwt+1          ; no error at start
 
                 ; VERIFY
+                ldy #$00
+                lda #$16      ; 'V'
+                sta (indaddlo),y
+
                 lda #<verifydata
                 sta zerop+0
                 lda #>verifydata
@@ -1644,7 +1650,7 @@ menustart       = 0
 clrscr          .byte $05,147,0
 title           .text $05, "easy flash 3",0
 titlend
-title2          .text $99, "usb utilities 1.93",0
+title2          .text $99, "usb utilities 1.93.1-kff",0
 title2end
 title3          .text $9e, "server running. run ef3usb.exe on pc",0
 title3end

@@ -1,6 +1,7 @@
 /*
  * Modified version of Easy Flash III USB Transfer Utilities v1.93 by Tom-Cat
  * Uses serial port instead of ftdi
+ * Added interleave for turbo image write
 */
 
 #include <stdio.h>
@@ -14,12 +15,25 @@
 #include <errno.h>
 #include <termios.h>
 
+#define DEFAULT_INTERLEAVE 6
+
 int serial;
+int interleave = DEFAULT_INTERLEAVE;
 
 void close_serial(void)
 {
     close(serial);
     serial = -1;
+}
+
+int parseIL(const char * ilParam) {
+        if(ilParam[1]=='l' && ilParam[2]!=0 && ilParam[3]==0 &&
+                ilParam[2]>'0' && ilParam[2]<='9') {
+                return ilParam[2] - '0';
+        } else {
+                printf("parsing interleave failed, defaulting to %d\n", DEFAULT_INTERLEAVE);
+                return DEFAULT_INTERLEAVE;
+        }
 }
 
 int open_serial(const char * device)
@@ -425,6 +439,10 @@ void sendindicator(int format, int track, int sector)
         bufstart[0] = (unsigned char) (add&0xff);
         bufstart[1] = (unsigned char) ((add>>8)&0xff);
         written = serial_write(bufstart,3);        // send over the coordinates and character
+        if(written != 3) {
+                printf("\n\n ERROR! Sent/received size mismatch! (indicator, %d)\n", written);
+        }
+
 }
 
 void printusage(const char * executable)
@@ -433,7 +451,8 @@ void printusage(const char * executable)
    printf(" e[xecute]  file.prg|p00                   - execute prg on c64\n");
    printf(" c[opy]     file.prg|p00|d64|d81|d71       - copy files to c64\n");
    printf(" x[fer]     [p00]                          - copy files from c64\n");
-   printf(" w[rite]    file.d64|d81 [verify] [kernal] - write image on c64\n");
+   printf(" w[rite]    file.d64|d81 [il#] [verify] [kernal]\n");
+   printf("                                           - write image on c64 (#: 1-9)\n");
    printf(" r[ead]     file.d64|d81 [40] [kernal]     - read image from c64\n");
    printf(" d[ir]      file.d64|d81|d71               - display dir of file and check it\n");
    printf(" f[ormat]   [40]                           - turbo format 1541 floppy\n");
@@ -481,7 +500,7 @@ int main(int argc, char *argv[])
 
   char p00start[8] = "C64File\0";
 
-  printf("EF3 USB Client v1.93 - Kung Fu Flash version\n");
+  printf("EF3 USB Client v1.93.1 - Kung Fu Flash version\n");
   if (argc < 3)
   {
         printusage(argv[0]);
@@ -511,14 +530,32 @@ int main(int argc, char *argv[])
                   break;
         case 'w': command = 2;
                   printf(" - WRITE IMAGE\n");
-                  if (argc == 6)
+                  if (argc == 7)
                   {
                         mode = 1;
                         verify = 1;
+                        interleave = parseIL(argv[4]);
+                  }
+                  else if (argc == 6) {
+                        if(argv[4][0]=='i') {
+                                interleave = parseIL(argv[4]);
+                                if(argv[5][0]=='v') {
+                                        verify = 1;
+                                } else {
+                                        mode = 1;
+                                }
+                        } else if(argv[4][0]=='v') {
+                                verify = 1;
+                                if(argv[5][0] == 'k') {
+                                        mode = 1;
+                                }
+                        }
                   }
                   else if (argc == 5)
                   {
-                        if (argv[4][0] == 'k')
+                        if (argv[4][0] == 'i') {
+                                interleave = parseIL(argv[4]);
+                        } else if (argv[4][0] == 'k')
                         {
                                 mode = 1;
                         }
@@ -809,6 +846,7 @@ int main(int argc, char *argv[])
                         {
                                 numsec = 40;
                         }
+
                         for (sector=0; sector < numsec; sector++)
                         {
                                 printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
@@ -828,9 +866,18 @@ int main(int argc, char *argv[])
                                 }
                                 bufstart[0] = checksum;
                                 written = serial_write(bufstart, 1);
+                                if(written != 1) {
+                                        printf("\n\n ERROR! Sent/received size mismatch! (K bufstart, %d)\n", written);
+                                        goto exitpoint;
+                                }
 
                                 written = serial_write(buf+pos, 256);      // send the sector over
                                 pos += 256;
+                                if(written != 256) {
+                                        printf("\n\n ERROR! Sent/received size mismatch! (K buf+pos, %d)\n", written);
+                                        goto exitpoint;
+                                }
+
 
                                 sendindicator(format, track, sector);
 
@@ -878,28 +925,50 @@ int main(int argc, char *argv[])
                         {
                                 numsec = 40;
                         }
+
+                        for(int il = 0; il < interleave; il++) {
+                                for(sector = numsec -1 - il; sector>=0; sector-=interleave) {
+                                        
+                                        printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
+                                        fflush(stdout);
+
+                                        bufstart[0] = 0xff;                     // indicate that we are transferring a sector
+                                        written = serial_write(bufstart, 1);
+                                        if(written != 1) {
+                                                printf("\n\n ERROR! Sent/received size mismatch! (T bufstart, %d)\n", written);
+                                                goto exitpoint;
+                                        }
+
+                                        written = serial_write(buf + off(track,sector), 256);      // send the sector over
+                                        if(written != 256) {
+                                                printf("\n\n ERROR! Sent/received size mismatch! (T buf+off, %d)\n", written);
+                                                goto exitpoint;
+                                        }
+
+
+                                        bufstart[0] = (unsigned char) track;
+                                        bufstart[1] = (unsigned char) sector;
+                                        written = serial_write(bufstart, 2);       // send over the string containing track & sector
+                                        if(written != 2) {
+                                                printf("\n\n ERROR! Sent/received size mismatch! (T track/sector, %d)\n", written);
+                                                goto exitpoint;
+                                        }
+
+                                        sendindicator(format, track, sector);
+
+                                        // get ack
+                                        written = serial_read(bufread, 1);
+                                        if (bufread[0] != 0xff)
+                                        {
+                                                printf("Error on the C64 side ... exiting...\n");
+                                                goto exitpoint;
+                                        }
+                                }
+                        }
+
+
                         for (sector=numsec-1; sector >=0 ; sector--)
                         {
-                                printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
-
-                                bufstart[0] = 0xff;                     // indicate that we are transferring a sector
-                                written = serial_write(bufstart, 1);
-
-                                written = serial_write(buf + off(track,sector), 256);      // send the sector over
-
-                                bufstart[0] = (unsigned char) track;
-                                bufstart[1] = (unsigned char) sector;
-                                written = serial_write(bufstart, 2);       // send over the string containing track & sector
-
-                                sendindicator(format, track, sector);
-
-                                // get ack
-                                written = serial_read(bufread, 1);
-                                if (bufread[0] != 0xff)
-                                {
-                                        printf("Error on the C64 side ... exiting...\n");
-                                        goto exitpoint;
-                                }
                         }
                   }
                   bufstart[0] = 0;        // end of transfer
