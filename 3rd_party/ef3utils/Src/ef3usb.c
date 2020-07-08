@@ -965,11 +965,6 @@ int main(int argc, char *argv[])
                                         }
                                 }
                         }
-
-
-                        for (sector=numsec-1; sector >=0 ; sector--)
-                        {
-                        }
                   }
                   bufstart[0] = 0;        // end of transfer
                   written = serial_write(bufstart, 1);
@@ -1053,6 +1048,7 @@ int main(int argc, char *argv[])
                         for (sector=0; sector < numsec; sector++)
                         {
                                 printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
+                                fflush(stdout);
 
                                 bufstart[0] = 0xff;                     // indicate that we are transferring a sector
                                 written = serial_write(bufstart, 1);
@@ -1122,6 +1118,7 @@ int main(int argc, char *argv[])
                         for (sector=numsec-1; sector >=0; sector--)
                         {
                                 printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
+                                fflush(stdout);
 
                                 bufstart[0] = 0xff;                     // indicate that we are transferring a sector
                                 written = serial_write(bufstart, 1);
