@@ -15,25 +15,12 @@
 #include <errno.h>
 #include <termios.h>
 
-#define DEFAULT_INTERLEAVE 6
-
 int serial;
-int interleave = DEFAULT_INTERLEAVE;
 
 void close_serial(void)
 {
     close(serial);
     serial = -1;
-}
-
-int parseIL(const char * ilParam) {
-        if(ilParam[1]=='l' && ilParam[2]!=0 && ilParam[3]==0 &&
-                ilParam[2]>'0' && ilParam[2]<='9') {
-                return ilParam[2] - '0';
-        } else {
-                printf("parsing interleave failed, defaulting to %d\n", DEFAULT_INTERLEAVE);
-                return DEFAULT_INTERLEAVE;
-        }
 }
 
 int open_serial(const char * device)
@@ -253,6 +240,21 @@ int serial_write(unsigned char * buf, size_t len)
     return total_bytes_written;
 }
 #endif
+
+#define DEFAULT_INTERLEAVE 6
+
+int interleave = DEFAULT_INTERLEAVE;
+
+int parseIL(const char * ilParam) {
+	if (ilParam[1] == 'l' && ilParam[2] != 0 && ilParam[3] == 0 &&
+		ilParam[2]>'0' && ilParam[2] <= '9') {
+		return ilParam[2] - '0';
+	}
+	else {
+		printf("parsing interleave failed, defaulting to %d\n", DEFAULT_INTERLEAVE);
+		return DEFAULT_INTERLEAVE;
+	}
+}
 
 int d81 = 0;
 
