@@ -1,3 +1,5 @@
+; Updated to be used with the latest 64tass compiler (V1.55.2200)
+
 delta	= $02
 dummy	= $03
 
@@ -25,8 +27,7 @@ main
 
 ;==========================
 ;print message
-print_message
-.proc
+print_message .proc
   ldx #0
 loop
   lda text1,x
@@ -43,8 +44,7 @@ text1  .text "initiating tap transfer now...",0
 
 ;---------------------------------
 ;first, read TAP header, 20 bytes
-read_header
-.proc
+read_header .proc
   ldy #0
 loop
 wait
@@ -59,8 +59,7 @@ wait
 .pend
 
 ;---------------------------------
-display_stats
-.proc
+display_stats .proc
   ldy #20
 loop
   lda header,y
@@ -71,8 +70,7 @@ loop
 .pend
 
 ;---------------------------------
-init_io
-.proc
+init_io .proc
   lda #0
   sta delta
   jsr $f817 ;play on tape
@@ -84,8 +82,7 @@ init_io
 
 ;---------------------------------
 ;first, fill buffer 
-fill_buffer
-.proc
+fill_buffer .proc
 init_loop
   lda delta
   bmi buffer_filled
@@ -186,8 +183,8 @@ no_new_byte_yet
   bne loope2
 
 ;here we got 256 times no byte
-end_of_transfer  
-.proc
+end_of_transfer
+;.proc
   lda #%10011011
   sta $d011 ;screen on
   ldx #0
@@ -202,11 +199,10 @@ end3
   ora #%00100000
   sta $01
   jmp endtaptransfer
-.pend
+;.pend
 
 ;-------------------------
-error
-.proc
+error .proc
   lda #%10011011
   sta $d011 ;screen on
   ldx #0
@@ -304,9 +300,8 @@ pharow2
   jmp start
 
   ;--------------
-header
+header .proc
 ;.bin 0,30,"final.tap"
-.proc
 signature	.byte 0,0,0,0,0,0,0,0,0,0,0,0
 version		.byte 0
 machine		.byte 0
