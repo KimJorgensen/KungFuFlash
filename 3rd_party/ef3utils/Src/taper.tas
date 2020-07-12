@@ -1,3 +1,5 @@
+; Updated to be used with the latest 64tass compiler (V1.55.2200)
+
 delta	= $02
 dummy	= $03
 
@@ -181,7 +183,8 @@ no_new_byte_yet
   bne loope2
 
 ;here we got 256 times no byte
-end_of_transfer  .proc
+end_of_transfer
+;.proc
   lda #%10011011
   sta $d011 ;screen on
   ldx #0
@@ -196,7 +199,7 @@ end3
   ora #%00100000
   sta $01
   jmp endtaptransfer
-.pend
+;.pend
 
 ;-------------------------
 error .proc
@@ -299,7 +302,6 @@ pharow2
   ;--------------
 header .proc
 ;.bin 0,30,"final.tap"
-
 signature	.byte 0,0,0,0,0,0,0,0,0,0,0,0
 version		.byte 0
 machine		.byte 0
