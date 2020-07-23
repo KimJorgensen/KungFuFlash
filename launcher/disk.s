@@ -28,6 +28,7 @@
 ; Kernal functions
 LUKING          = $f5af                 ; Print "SEARCHING"
 LODING          = $f5d2                 ; Print "LOADING"
+SAVING          = $f68f                 ; Print "SAVING"
 CINT	        = $ff81                 ; Initialize screen editor
 RESTOR          = $ff8a                 ; Restore I/O vectors
 BSOUT           = $ffd2                 ; Write byte to default output
@@ -42,6 +43,7 @@ IBASIN          = $0324
 IGETIN          = $032a
 ICLALL          = $032c
 ILOAD           = $0330
+ISAVE           = $0332
 
 ; Kernal tables
 LAT             = $0259                 ; Logical file table
@@ -92,12 +94,16 @@ CMD_CLOSE               = $83
 CMD_TALK                = $84
 CMD_UNTALK              = $85
 CMD_GET_CHAR            = $86
+CMD_SAVE                = $87
+CMD_PUT_BYTE            = $88
 
 REPLY_READ_DONE         = $80
 REPLY_READ_BANK         = $81
 REPLY_NOT_FOUND         = $82
 REPLY_READ_ERROR        = $83
 REPLY_END_OF_FILE       = $84
+REPLY_FILE_EXISTS       = $85
+REPLY_DISK_FULL         = $86
 
 ; =============================================================================
 ;
@@ -121,9 +127,9 @@ _disk_mount_and_load:
         sta $0802
 
         ; === Disk API in EF RAM ===
-        ldx #disk_api_end - disk_api
+        ldx #disk_api_resident_end - disk_api_resident
 :       dex
-        lda disk_api,x
+        lda disk_api_resident,x
         sta EASYFLASH_RAM,x
         cpx #$00
         bne :-
@@ -175,6 +181,12 @@ _disk_mount_and_load:
         lda ILOAD + 1
         sta old_load_vector + 1
 
+        lda ISAVE                       ; Store old SAVE vector
+        sta old_save_vector
+        lda ISAVE + 1
+        sta old_save_vector + 1
+
+
         jsr install_disk_vectors
 
         lda #EASYFLASH_KILL
@@ -222,6 +234,12 @@ install_disk_vectors:
         sta ILOAD
         lda #>load_trampoline
         sta ILOAD + 1
+
+        lda #<save_trampoline           ; Install new SAVE handler
+        sta ISAVE
+        lda #>save_trampoline
+        sta ISAVE + 1
+
         rts
 
 ; =============================================================================
@@ -235,7 +253,7 @@ basic_mount_starter:
 basic_mount_starter_end:
 
 ; =============================================================================
-disk_api:
+disk_api_resident:
 .org EASYFLASH_RAM
 zp_backup:
         .byte $ff,$ff,$ff,$ff,$ff
@@ -247,7 +265,15 @@ filename:
 ; TODO: Should really be 41 bytes for max compatibility but no room in RAM :(
 ;        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 ;        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00
+
+; TODO: Still, there is only 38 bytes for filename (no save and related functions are implemented)
+        .byte     $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+        .byte $00,$00,$00,$00,$00,$00
+
 filename_end:
+
+mem_config:
+        .byte $00
 
 print_text_ptr:
         .byte $00
@@ -286,6 +312,10 @@ load_trampoline:
         jsr store_filename_enable_ef
         jmp kff_load
 
+save_trampoline:
+        jsr store_filename_enable_ef
+        jmp kff_save
+
 old_open_vector:
         .byte $00,$00
 old_close_vector:
@@ -302,6 +332,8 @@ old_clall_vector:
         .byte $00,$00
 old_load_vector:
         .byte $00,$00
+ old_save_vector:
+         .byte $00,$00
 
 store_filename_enable_ef:
         ldy FNLEN
@@ -321,7 +353,7 @@ enable_ef_rom:
         pha
         sei
         lda R6510                       ; Set memory configuration
-        sta mem_config + 1
+        sta mem_config
         ora #$07
         sta R6510
 
@@ -348,7 +380,12 @@ kernal_call:
         ldy #EASYFLASH_16K
         sty EASYFLASH_CONTROL
         rts
+kernal_call_end = *
+.reloc
+disk_api_resident_end:
 
+disk_api_load_prg:
+.org kernal_call_end
 load_prg:
         sta EASYFLASH_BANK
         ldx tmp2
@@ -398,7 +435,12 @@ all_done:
         lda #$60                        ; Setup rts
         sta return_inst
         pla
+        rts
+.reloc
+disk_api_load_prg_end:
 
+disk_api_disable_ef_rom:
+.org kernal_call_end
 disable_ef_rom:
         php                             ; Restore ZP
         pha
@@ -414,8 +456,8 @@ disable_ef_rom:
 
         lda #EASYFLASH_KILL
         sta EASYFLASH_CONTROL
-mem_config:
-        lda #$ff                        ; Restore mem config
+
+        lda mem_config                        ; Restore mem config
         sta R6510
         pla
         plp
@@ -423,9 +465,48 @@ mem_config:
 return_inst:
         .byte $00,$00,$00               ; Replaced with jmp or rts
 .reloc
-disk_api_end:
+disk_api_disable_ef_rom_end:
 
 ; =============================================================================
+
+.proc copy_load_prg
+copy_load_prg:
+        php     ; store flags
+        pha     ; store a
+        txa     ; store x
+        pha
+        ldx #disk_api_load_prg_end - disk_api_load_prg
+:       dex
+        lda disk_api_load_prg,x
+        sta load_prg,x
+        cpx #$00
+        bne :-
+        pla     ; pop x from stack
+        tax
+        pla     ; pop a
+        plp     ; pop flags
+        rts
+.endproc
+
+.proc copy_disable_ef_rom
+copy_disable_ef_rom:
+        php     ; flags
+        pha     ; a
+        txa     ; x
+        pha
+        ldx #disk_api_disable_ef_rom_end - disk_api_disable_ef_rom
+:       dex
+        lda disk_api_disable_ef_rom,x
+        sta disable_ef_rom,x
+        cpx #$00
+        bne :-
+        pla     ; x
+        tax
+        pla     ; a
+        plp     ; flags
+        rts
+.endproc
+
 .proc kff_open
 kff_open:
 	lda FA
@@ -433,6 +514,7 @@ kff_open:
         beq @kff_device                 ; Device 8
 
 @normal_open:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal OPEN
         sta return_inst
         lda old_open_vector
@@ -442,6 +524,7 @@ kff_open:
         jmp disable_ef_rom
 
 @kff_device:
+        jsr copy_load_prg
         sta tmp1                        ; Save device number
 
 	lda #$00                        ; Set device to keyboard so that OPEN
@@ -475,7 +558,7 @@ kff_open:
 
         lda #$04                        ; File not found error
         sec
-        jmp all_done
+        bcs @open_done
 
 @end_of_file:
         lda #$40                        ; Set status to end of file
@@ -484,7 +567,10 @@ kff_open:
         lda #$00
         clc
 @open_done:
-        jmp all_done
+        jsr all_done
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
+
 .endproc
 
 ; =============================================================================
@@ -530,6 +616,7 @@ kff_close:
         jsr ef3usb_receive_byte         ; Get reply (ignored)
 
 @normal_close:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CLOSE
         sta return_inst
         lda old_close_vector
@@ -571,9 +658,12 @@ kff_chkin:
         lda #$00                        ; Clear device status
         sta STATUS
         clc                             ; OK
-        jmp all_done
+        jsr all_done
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
 
 @normal_chkin:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CHKIN
         sta return_inst
         lda old_chkin_vector
@@ -607,6 +697,7 @@ kff_clrch:
         ldy tmp1
 
 @normal_clrch:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CLRCH
         sta return_inst
         lda old_clrch_vector
@@ -643,7 +734,9 @@ do_kff_basin:
         sta STATUS
         lda #$00
         clc
-        jmp all_done
+        jsr all_done
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
 
 @read_end:
         lda #$40                        ; Set status to end of file
@@ -653,7 +746,9 @@ do_kff_basin:
         sta STATUS
         jsr ef3usb_receive_byte         ; Get data
         clc
-        jmp all_done
+        jsr all_done
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
 
 keyboard:
         lda CRSW
@@ -683,6 +778,7 @@ keyboard:
 @normal_basin_y:
         ldy tmp1
 normal_basin:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old BASIN
         sta return_inst
         lda old_basin_vector
@@ -704,6 +800,7 @@ kff_getin:
         jmp kff_basin::do_kff_basin
 
 @normal_getin:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old GETIN
         sta return_inst
         lda old_getin_vector
@@ -726,7 +823,7 @@ kff_clall:
 ; =============================================================================
 .proc kff_load
 kff_load:
-        lda VERCK
+        lda VERCK                       ; TODO FIXME: verify with KFF storage if possible
         bne @normal_load                ; Verify operation (not load)
 
         lda FA
@@ -734,6 +831,7 @@ kff_load:
         beq @kff_device                 ; Device 8
 
 @normal_load:
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal load
         sta return_inst
         lda old_load_vector
@@ -748,6 +846,8 @@ kff_load:
 @kff_device:
         jsr search_for_file
         bcs @normal_load                ; Not found
+
+        jsr copy_load_prg
 
         lda #$00                        ; Clear device status
         sta STATUS
@@ -765,7 +865,7 @@ kff_load:
         jsr kernal_trampoline
 
         jsr ef3usb_receive_2_bytes      ; Get PRG size
-        sta tmp1
+        sta tmp1                        ; actually min(bank#1 size, remaining bytes to load)
         stx tmp2
 
         jsr ef3usb_receive_2_bytes      ; Get load address
@@ -781,6 +881,12 @@ kff_load:
         sta EAH
 
 start_load:
+        jsr init_load_params
+        jsr load_prg
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
+
+init_load_params:
         lda #$00                        ; ptr = Start of EF flash
         sta ptr1
         lda #$80
@@ -788,7 +894,7 @@ start_load:
 
         ldy #$00                        ; Index
         lda #$01                        ; EF Bank
-        jmp load_prg
+        rts
 
 search_for_file:
         ldy FNLEN
@@ -825,16 +931,35 @@ load_next_bank:
         jsr ef3usb_receive_2_bytes      ; Get bank size
         sta tmp1
         stx tmp2
-        jmp start_load
+        jsr init_load_params
+        jmp load_prg                    ; let's not pollute the stack...
 
 @read_error:
         lda #$10                        ; Set device status to read error occurred
         sta STATUS
-        jmp all_done
+        jsr all_done
+        jsr copy_disable_ef_rom
+        jmp disable_ef_rom
 .endproc
 
 ; "Export" function
 load_next_bank = kff_load::load_next_bank
+
+; =============================================================================
+.proc kff_save
+kff_save:
+        lda #'s' - 'a' + 1
+        sta $0400
+@normal_save:
+        jsr copy_disable_ef_rom
+        lda #$4c                        ; Setup jmp to normal load
+        sta return_inst
+        lda old_save_vector
+        sta return_inst + 1
+        lda old_save_vector + 1
+        sta return_inst + 2
+        jmp disable_ef_rom
+.endproc
 
 ; =============================================================================
 kff_send_command:

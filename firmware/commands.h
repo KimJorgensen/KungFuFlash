@@ -55,7 +55,9 @@ typedef enum {
     CMD_CLOSE,
     CMD_TALK,
     CMD_UNTALK,
-    CMD_GET_BYTE
+    CMD_GET_BYTE,
+    CMD_SAVE,
+    CMD_PUT_BYTE
 } COMMAND_TYPE;
 
 typedef enum {
@@ -78,7 +80,9 @@ typedef enum {
 
     REPLY_NOT_FOUND,
     REPLY_READ_ERROR,
-    REPLY_END_OF_FILE
+    REPLY_END_OF_FILE,
+    REPLY_FILE_EXISTS,
+    REPLY_DISK_FULL
 } REPLY_TYPE;
 
 #endif
