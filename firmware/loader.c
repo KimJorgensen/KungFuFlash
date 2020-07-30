@@ -20,6 +20,9 @@
 #define DAT_FILENAME "/KungFuFlash.dat"
 #define FW_NAME_SIZE 20
 
+#define EAPI_OFFSET 0x3800
+#define EAPI_SIZE   0x300
+
 static inline bool prg_size_valid(uint16_t size)
 {
     // PRG should at least have a 2 byte load address and 1 byte of data
@@ -256,32 +259,8 @@ static bool upd_load(FIL *file, char *firmware_name)
 
     if (len == sizeof(dat_buffer))
     {
-        const char *firmware_ver = (char *)&dat_buffer[48*1024];
-
-        // Convert to ascii
-        uint8_t i;
-        for (i=0; i<FW_NAME_SIZE-1; i++)
-        {
-            char c = *firmware_ver++;
-            if (c)
-            {
-                if (c & 0x80)
-                {
-                    c &= 0x7f;
-                }
-                else if (c >= 'A' && c <= 'Z')
-                {
-                    c += 0x20;
-                }
-
-                firmware_name[i] = c;
-            }
-            else
-            {
-                break;
-            }
-        }
-        firmware_name[i] = 0;
+        const uint8_t *firmware_ver = &dat_buffer[48*1024];
+        convert_to_ascii(firmware_name, firmware_ver, FW_NAME_SIZE);
 
         if (memcmp(firmware_name, "Kung Fu Flash", 13) == 0)
         {
@@ -314,8 +293,9 @@ static bool mount_sd_card(void)
     return dir_change("/");
 }
 
-static bool auto_boot(void)
+static bool load_dat(void)
 {
+    bool result = true;
     FIL file;
     if (!file_open(&file, DAT_FILENAME, FA_READ) ||
         file_read(&file, &dat_file, sizeof(dat_file)) != sizeof(dat_file) ||
@@ -325,9 +305,16 @@ static bool auto_boot(void)
         wrn(DAT_FILENAME " file not found or invalid\n");
         memset(&dat_file, 0, sizeof(dat_file));
         memcpy(dat_file.signature, DAT_SIGNATURE, sizeof(dat_file.signature));
+        result = false;
     }
-    file_close(&file);
 
+    file_close(&file);
+    return result;
+}
+
+static bool auto_boot(void)
+{
+    load_dat();
     if (menu_signature() || menu_button())
     {
         menu_button_wait_release();
@@ -421,8 +408,7 @@ static bool load_d64(void)
 static void c64_launcher_mode(void)
 {
     crt_ptr = CRT_LAUNCHER_BANK;
-    ef_init();
-    C64_INSTALL_HANDLER(ef_launcher_handler);
+    crt_install_handler(CRT_EASYFLASH, CRT_FLAG_NONE);
 }
 
 static bool c64_set_mode(void)
@@ -455,7 +441,8 @@ static bool c64_set_mode(void)
             }
 
             uint32_t flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
-            if (flash_hash != dat_file.crt.flash_hash)
+            if (flash_hash != dat_file.crt.flash_hash &&
+                !(dat_file.crt.flags & CRT_FLAG_UPDATED))
             {
                 break;
             }
@@ -492,7 +479,7 @@ static bool c64_set_mode(void)
             c64_crt_control(state);
             // Try prevent triggering bug in H.E.R.O. No effect at power-on though
             c64_sync_with_vic();
-            crt_install_handler(dat_file.crt.type);
+            crt_install_handler(dat_file.crt.type, dat_file.crt.flags);
             c64_enable();
             result = true;
         }

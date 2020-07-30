@@ -31,6 +31,7 @@
 #include "commands.c"
 #include "menu.c"
 #include "disk_drive.c"
+#include "eapi.c"
 
 int main(void)
 {
@@ -57,19 +58,10 @@ int main(void)
         menu_loop();
     }
 
-    if (dat_file.boot_type != DAT_DISK)
+    if (dat_file.boot_type == DAT_CRT || dat_file.boot_type == DAT_DISK)
     {
-        filesystem_unmount();
-
-        if (dat_file.boot_type == DAT_CRT)
-        {
-            // Disable all interrupts besides the C64 bus handler beyond this point
-            // to ensure consistent response times
-            usb_disable();
-        }
-    }
-    else
-    {
+        // Disable all interrupts besides the C64 bus handler beyond this point
+        // to ensure consistent response times
         usb_disable();
     }
 
@@ -82,6 +74,11 @@ int main(void)
     if (dat_file.boot_type == DAT_DISK)
     {
         disk_loop();
+    }
+    else if (dat_file.boot_type == DAT_CRT &&
+             dat_file.crt.type == CRT_EASYFLASH)
+    {
+        eapi_loop();
     }
 
     dbg("In main loop...\n");

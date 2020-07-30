@@ -151,6 +151,13 @@ typedef enum {
     DAT_KILL_C128
 } DAT_BOOT_TYPE;
 
+typedef enum {
+    CRT_FLAG_NONE       = 0x00,
+    CRT_FLAG_UPDATED    = 0x01, // EasyFlash CRT has been updated via EAPI
+
+    CRT_FLAG_VIC        = 0x80  // Support VIC/C128 2MHz mode reads (EF only)
+} DAT_CRT_FLAGS;
+
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
@@ -159,6 +166,7 @@ typedef struct
     uint8_t exrom;          // EXROM line status
     uint8_t game;           // GAME line status
     uint8_t banks;          // Number of 16k CRT banks in use (0-64)
+    uint8_t flags;          // DAT_CRT_FLAGS
     uint32_t flash_hash;    // Used id crt_banks > 4
 } DAT_CRT_HEADER;
 

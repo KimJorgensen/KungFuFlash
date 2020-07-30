@@ -382,11 +382,28 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
                 break;
             }
 
+            uint8_t crt_flags = CRT_FLAG_NONE;
+            if (flags & SELECT_FLAG_VIC)
+            {
+                crt_flags |= CRT_FLAG_VIC;
+            }
+            else if (header.cartridge_type == CRT_EASYFLASH &&
+                     memcmp("eapi", dat_buffer + EAPI_OFFSET, 4) == 0)
+            {
+                convert_to_ascii(scratch_buf, dat_buffer + EAPI_OFFSET + 4, 16);
+                dbg("EAPI detected: %s\n", scratch_buf);
+
+                // Replace EAPI with the one for Kung Fu Flash
+                memcpy(dat_buffer + EAPI_OFFSET,
+                       CRT_LAUNCHER_BANK + EAPI_OFFSET, EAPI_SIZE);
+            }
+
             uint32_t flash_hash = crt_calc_flash_crc(banks);
             dat_file.crt.type = header.cartridge_type;
             dat_file.crt.exrom = header.exrom;
             dat_file.crt.game = header.game;
             dat_file.crt.banks = banks;
+            dat_file.crt.flags = crt_flags;
             dat_file.crt.flash_hash = flash_hash;
             dat_file.boot_type = DAT_CRT;
             exit_menu = true;
