@@ -27,8 +27,8 @@ static inline void put_u8(uint8_t **ptr, uint8_t value)
 
 static inline void put_u16(uint8_t **ptr, uint16_t value)
 {
-    uint16_t **ptr16 = (uint16_t **)ptr;
-    *(*ptr16)++ = value;
+    *(*ptr)++ = (uint8_t)value;
+    *(*ptr)++ = (uint8_t)(value >> 8);
 }
 
 static void put_u8_times(uint8_t **ptr, uint8_t value, size_t size)
