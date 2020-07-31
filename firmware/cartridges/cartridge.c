@@ -32,7 +32,7 @@
 #include "easyflash.c"
 #include "comal80.c"
 
-static void (*crt_get_handler(uint16_t cartridge_type)) (void)
+static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 {
     switch (cartridge_type)
     {
@@ -75,7 +75,14 @@ static void (*crt_get_handler(uint16_t cartridge_type)) (void)
 
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
-            return ef_handler;
+            if (vic_support)
+            {
+                return ef_handler;
+            }
+            else
+            {
+                return ef_sdio_handler;
+            }
     }
 
     return NULL;
@@ -117,7 +124,7 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
     return NULL;
 }
 
-static void crt_install_handler(uint16_t cartridge_type)
+static void crt_install_handler(uint16_t cartridge_type, uint8_t flags)
 {
     void (*init)(void) = crt_get_init(cartridge_type);
     if (init)
@@ -125,11 +132,12 @@ static void crt_install_handler(uint16_t cartridge_type)
         init();
     }
 
-    void (*handler)(void) = crt_get_handler(cartridge_type);
+    bool vic_support = (flags & CRT_FLAG_VIC) != 0;
+    void (*handler)(void) = crt_get_handler(cartridge_type, vic_support);
     C64_INSTALL_HANDLER(handler);
 }
 
 static bool crt_is_supported(uint16_t cartridge_type)
 {
-    return crt_get_handler(cartridge_type) != NULL;
+    return crt_get_handler(cartridge_type, false) != NULL;
 }

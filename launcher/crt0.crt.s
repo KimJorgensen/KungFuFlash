@@ -117,6 +117,14 @@ init_system_constants_light:
         rts
 
 ; ------------------------------------------------------------------------
+; EAPI for Kung Fu Flash
+
+        .segment "EAPI"
+.proc eapi
+.include "eapi-kung_fu_flash.s"
+.endproc
+
+; ------------------------------------------------------------------------
 ; This code is executed in Ultimax mode. It is called directly from the
 ; reset vector and must do some basic hardware initializations.
 ; It also contains trampoline code which will switch to 16k cartridge mode

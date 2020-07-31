@@ -61,7 +61,7 @@ build/$(name).bin: build/crt0.crt.o $(obj) $(ld_config) $(libef3usb)
 	ld65 -o $@ -m $@.map -C $(ld_config) build/crt0.crt.o $(obj) \
 		--lib  $(libef3usb) \
 		-L /usr/local/lib/cc65/lib --lib c64.lib
-	cat $@.map | grep -e "^Name\|^CODE\|^DATA\|^BSS\|^RODATA\|^ONCE\|^INIT"
+	cat $@.map | grep -e "^Name\|^CODE\|^DATA\|^BSS\|^RODATA\|^ONCE\|^INIT\|^EAPI"
 
 .PHONY: clean
 clean:

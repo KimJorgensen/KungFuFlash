@@ -123,6 +123,38 @@ static inline bool c64_send_wait_for_reset(void)
     return false;
 }
 
+static char petscii_to_ascii(char c)
+{
+    if (c & 0x80)
+    {
+        c &= 0x7f;
+    }
+    else if (c >= 'A' && c <= 'Z')
+    {
+        c += 0x20;
+    }
+
+    return c;
+}
+
+static uint16_t convert_to_ascii(char *dest, const uint8_t *src, uint8_t size)
+{
+    uint16_t i;
+    for (i=0; i<size-1; i++)
+    {
+        char c = *src++;
+        if (c == 0)
+        {
+            break;
+        }
+
+        dest[i] = petscii_to_ascii(c);
+    }
+
+    dest[i] = 0;
+    return i + 1;
+}
+
 static char ascii_to_petscii(char c)
 {
     if (c >= 'A' && c <= 'Z')
@@ -201,6 +233,11 @@ static bool c64_send_prg_message(const char *text)
 {
     dbg("Sending flash programming message \"%s\"\n", text);
     return c64_send_text("MSF", text);
+}
+
+static inline uint8_t c64_receive_byte(void)
+{
+    return ef3_getc();
 }
 
 static inline void c64_receive_data(void *buffer, size_t size)

@@ -27,8 +27,8 @@ static inline void put_u8(uint8_t **ptr, uint8_t value)
 
 static inline void put_u16(uint8_t **ptr, uint16_t value)
 {
-    COMPILER_BARRIER(); // Workaround for compiler bug
-    *(*((uint16_t **)ptr))++ = value;
+    *(*ptr)++ = (uint8_t)value;
+    *(*ptr)++ = (uint8_t)(value >> 8);
 }
 
 static void put_u8_times(uint8_t **ptr, uint8_t value, size_t size)
@@ -591,8 +591,7 @@ static void disk_handle_get_byte(D64 *d64, DISK_CHANNEL *channel)
 
 static DISK_CHANNEL *disk_get_channel(DISK_CHANNEL *channels)
 {
-    uint8_t channel_number;
-    c64_receive_data(&channel_number, 1);
+    uint8_t channel_number = c64_receive_byte();
     channel_number &= 0x0f;
 
     DISK_CHANNEL *channel = channels + channel_number;
@@ -618,7 +617,7 @@ static void disk_loop(void)
                 break;
 
             case CMD_LOAD:
-                c64_receive_data(&file_len, 1);
+                file_len = c64_receive_byte();
                 c64_receive_data(filename, file_len);
                 filename[file_len] = 0;
 
@@ -633,7 +632,7 @@ static void disk_loop(void)
 
             case CMD_OPEN:
                 channel = disk_get_channel(channels);
-                c64_receive_data(&file_len, 1);
+                file_len = c64_receive_byte();
                 c64_receive_data(filename, file_len);
                 filename[file_len] = 0;
 

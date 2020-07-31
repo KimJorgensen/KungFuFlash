@@ -44,7 +44,8 @@ struct OPTIONS_ELEMENT_s
 typedef enum
 {
     SELECT_FLAG_ACCEPTED    = 0x01,
-    SELECT_FLAG_MOUNT       = 0x02
+    SELECT_FLAG_MOUNT       = 0x02,
+    SELECT_FLAG_VIC         = 0x04
 } SELECT_FLAGS_EXTRA;
 
 static OPTIONS_STATE * options_init(const char *title);

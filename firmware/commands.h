@@ -58,6 +58,11 @@ typedef enum {
     CMD_GET_BYTE,
     CMD_SAVE,
     CMD_PUT_BYTE
+
+    // EAPI commands
+    CMD_EAPI_INIT = 0xf0,
+    CMD_WRITE_FLASH,
+    CMD_ERASE_SECTOR
 } COMMAND_TYPE;
 
 typedef enum {
@@ -83,6 +88,10 @@ typedef enum {
     REPLY_END_OF_FILE,
     REPLY_FILE_EXISTS,
     REPLY_DISK_FULL
+
+    // EAPI replies
+    REPLY_WRITE_WAIT = 0xf0,
+    REPLY_WRITE_ERROR
 } REPLY_TYPE;
 
 #endif

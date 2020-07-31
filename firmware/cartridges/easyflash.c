@@ -176,7 +176,7 @@ static void ef_init(void)
 
 // Allow SDIO and USB to be used while handling C64 bus access.
 // Does not support VIC-II or C128 2 MHz reads from cartridge
-C64_BUS_HANDLER_(ef_launcher_handler, ef_read_handler, ef_write_handler)
+C64_BUS_HANDLER_(ef_sdio_handler, ef_read_handler, ef_write_handler)
 
 // Needed for C128 read accesses at 2 MHz (e.g. for Prince of Persia)
 C64_C128_BUS_HANDLER(ef)

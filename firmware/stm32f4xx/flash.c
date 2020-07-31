@@ -26,7 +26,7 @@ static void flash_unlock()
     FLASH->KEYR = FLASH_KEYR_KEY2;
 }
 
-static void flash_lock()
+static inline void flash_lock()
 {
     FLASH->CR |= FLASH_CR_LOCK;
 }
@@ -79,6 +79,23 @@ static void flash_program(void *dest, void *src, size_t bytes)
 
     // Deactivate flash programming
     FLASH->CR &= ~FLASH_CR_PG;
+}
+
+static void flash_program_byte(uint8_t *dest, uint8_t byte)
+{
+    flash_unlock();
+    // Wait if a flash memory operation is in progress
+    while(FLASH->SR & FLASH_SR_BSY);
+
+    // Activate flash programming and set parallelism to x8
+    MODIFY_REG(FLASH->CR, FLASH_CR_PSIZE|FLASH_CR_MER|FLASH_CR_SER, FLASH_CR_PG);
+
+    *dest = byte;
+    while(FLASH->SR & FLASH_SR_BSY);
+
+    // Deactivate flash programming
+    FLASH->CR &= ~FLASH_CR_PG;
+    flash_lock();
 }
 
 static void flash_sector_program(int8_t sector, void *dest, void *src, size_t bytes)

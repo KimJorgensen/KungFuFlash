@@ -83,7 +83,7 @@ static void menu_loop()
                 break;
 
             case CMD_SELECT:
-                c64_receive_data(&data, 1);
+                data = c64_receive_byte();
                 exit_loop = menu_state->select(menu_state, data & 0xc0,
                                                data & 0x3f);
                 break;
@@ -167,6 +167,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 {
     const char *title = "File Options";
     const char *select_text;
+    const char *vic_text = NULL;
     const char *mount_text = NULL;
 
     switch (file_type)
@@ -178,6 +179,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 
         case FILE_CRT:
             select_text = "Run";
+            vic_text = "Run (VIC-II/C128 mode)";
             break;
 
         case FILE_PRG:
@@ -202,6 +204,10 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 
     OPTIONS_STATE *options = build_options(title, file_name);
     options_add_select(options, select_text, 0, element_no);
+    if (vic_text)
+    {
+        options_add_select(options, vic_text, SELECT_FLAG_VIC, element_no);
+    }
     if (mount_text)
     {
         options_add_select(options, mount_text, SELECT_FLAG_MOUNT, element_no);
