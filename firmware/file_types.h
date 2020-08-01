@@ -165,7 +165,7 @@ typedef struct
     uint16_t type;          // CRT_TYPE
     uint8_t exrom;          // EXROM line status
     uint8_t game;           // GAME line status
-    uint8_t banks;          // Number of 16k CRT banks in use (0-64)
+    uint8_t banks;          // Number of 16k CRT banks in use (0-63)
     uint8_t flags;          // DAT_CRT_FLAGS
     uint32_t flash_hash;    // Used id crt_banks > 4
 } DAT_CRT_HEADER;
