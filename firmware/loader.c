@@ -285,13 +285,13 @@ static bool crt_write_file(FIL *crt_file, uint8_t banks)
             buf = (uint8_t *)FLASH_BASE + (16*1024 * bank);
         }
 
-        // Exclude empty banks except first
-        if (bank && crt_bank_empty(buf, chip_size*2))
+        if (!crt_bank_empty(buf, chip_size) &&
+            !crt_write_chip(crt_file, bank, 0x8000, chip_size, buf))
         {
-            continue;
+            return false;
         }
 
-        if (!crt_write_chip(crt_file, bank, 0x8000, chip_size, buf) ||
+        if ((!bank || !crt_bank_empty(buf + chip_size, chip_size)) &&
             !crt_write_chip(crt_file, bank, 0xa000, chip_size, buf + chip_size))
         {
             return false;
