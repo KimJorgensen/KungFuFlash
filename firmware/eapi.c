@@ -40,11 +40,11 @@ static void eapi_save_buffer(FIL *file)
     }
 }
 
-static void eapi_save_buffer_byte(FIL *file, uint16_t pos, uint8_t byte)
+static void eapi_save_buffer_byte(FIL *file, uint16_t pos, uint8_t byte, bool sync)
 {
     if (!file_seek(file, sizeof(dat_file) + pos) ||
         file_write(file, &byte, 1) != 1 ||
-        !file_sync(file))
+        (sync && !file_sync(file)))
     {
         err("Failed to save dat buffer byte\n");
         restart_to_menu();
@@ -79,7 +79,10 @@ static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
             eapi_save_header(file);
         }
 
-        eapi_save_buffer_byte(file, pos, *dest);
+        // Only sync to file at end of bank low/high.
+        // This is much faster but doesn't allow random access
+        bool sync = (addr & 0x1fff) == 0x1fff;
+        eapi_save_buffer_byte(file, pos, *dest, sync);
         eapi_enable_interface();
     }
     else
@@ -120,12 +123,13 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
     uint16_t other_offset = offset ? 0 : 8*1024;
 
     eapi_disable_interface();
-    if (!(dat_file.crt.flags & CRT_FLAG_UPDATED) || bank > dat_file.crt.banks)
+    if (!(dat_file.crt.flags & CRT_FLAG_UPDATED) ||
+        (bank + 8) > dat_file.crt.banks)
     {
         dat_file.crt.flags |= CRT_FLAG_UPDATED;
-        if ((bank + 7) > dat_file.crt.banks)
+        if ((bank + 8) > dat_file.crt.banks)
         {
-            dat_file.crt.banks = (bank + 7);
+            dat_file.crt.banks = (bank + 8);
         }
 
         eapi_save_header(file);

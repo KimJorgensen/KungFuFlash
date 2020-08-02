@@ -89,6 +89,18 @@ static uint32_t file_write(FIL *file, void *buffer, size_t bytes)
     return bytes_written;
 }
 
+static bool file_truncate(FIL *file)
+{
+    FRESULT res = f_truncate(file);
+    if (res != FR_OK)
+    {
+        err("f_truncate failed (%u)\n", res);
+    }
+
+    led_on();
+    return res == FR_OK;
+}
+
 static bool file_sync(FIL *file)
 {
     FRESULT res = f_sync(file);
