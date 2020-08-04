@@ -54,7 +54,7 @@ EASYFLASH_IO_BANK    = $de00
 EAPICodeBase:
         .byte $65, $61, $70, $69        ; signature "EAPI"
 
-        .byte "KungFuFlash 1.0"
+        .byte "KungFuFlash 1.1"
         .byte 0                         ; 16 bytes, must be 0-terminated
 
 ; =============================================================================
@@ -455,23 +455,24 @@ writeWait:
 waitDone:
         wait_usb_rx_ok
         ldx USB_DATA
+checkDone:
         cpx #'d'
         bne waitDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'o'
-        bne waitDone
+        bne checkDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'n'
-        bne waitDone
+        bne checkDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'e'
-        bne waitDone
+        bne checkDone
 waitReply:
         wait_usb_rx_ok
         ldx USB_DATA
