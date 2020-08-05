@@ -129,6 +129,20 @@ static bool crt_load_chip_header(FIL *file, CRT_CHIP_HEADER *header)
     return true;
 }
 
+static bool crt_write_chip_header(FIL *file, uint8_t type, uint8_t bank, uint16_t address, uint16_t size)
+{
+    CRT_CHIP_HEADER header;
+    memcpy(header.signature, "CHIP", sizeof(header.signature));
+    header.packet_length = __REV(size + sizeof(CRT_CHIP_HEADER));
+    header.chip_type = __REV16(type);
+    header.bank = __REV16(bank);
+    header.start_address = __REV16(address);
+    header.image_size = __REV16(size);
+
+    uint32_t len = file_write(file, &header, sizeof(CRT_CHIP_HEADER));
+    return len == sizeof(CRT_CHIP_HEADER);
+}
+
 static int32_t crt_get_offset(CRT_CHIP_HEADER *header)
 {
     int32_t offset = -1;
@@ -225,6 +239,66 @@ static uint8_t crt_program_file(FIL *crt_file)
 
     led_on();
     return banks_in_use;
+}
+
+static bool crt_write_chip(FIL *file, uint8_t bank, uint16_t address, uint16_t size, void *buf)
+{
+    if (!crt_write_chip_header(file, CRT_CHIP_FLASH, bank, address, size))
+    {
+        return false;
+    }
+
+    return file_write(file, buf, size) == size;
+}
+
+static bool crt_bank_empty(uint8_t *buf, uint16_t size)
+{
+    uint32_t *buf32 = (uint32_t *)buf;
+    for (uint16_t i=0; i<size/4; i++)
+    {
+        if (buf32[i] != 0xffffffff)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool crt_write_file(FIL *crt_file, uint8_t banks)
+{
+    if (!file_truncate(crt_file))
+    {
+        return false;
+    }
+
+    const uint16_t chip_size = 8*1024;
+    for (uint8_t bank=0; bank<banks; bank++)
+    {
+        uint8_t *buf;
+        if (bank < 4)
+        {
+            buf = dat_buffer + (16*1024 * bank);
+        }
+        else
+        {
+            buf = (uint8_t *)FLASH_BASE + (16*1024 * bank);
+        }
+
+        if (!crt_bank_empty(buf, chip_size) &&
+            !crt_write_chip(crt_file, bank, 0x8000, chip_size, buf))
+        {
+            return false;
+        }
+
+        if ((!bank || !crt_bank_empty(buf + chip_size, chip_size)) &&
+            !crt_write_chip(crt_file, bank, 0xa000, chip_size, buf + chip_size))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static uint32_t crt_calc_flash_crc(uint8_t crt_banks)

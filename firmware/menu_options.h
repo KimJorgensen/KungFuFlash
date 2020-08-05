@@ -26,6 +26,7 @@ typedef struct
     const char *title;
     uint8_t selected_element;
     uint8_t no_of_elements;
+    void *user_state;
 } OPTIONS_STATE;
 
 static OPTIONS_STATE options_state;

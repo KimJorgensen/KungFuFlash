@@ -20,7 +20,6 @@
 ;    misrepresented as being the original software.
 ; 3. This notice may not be removed or altered from any source distribution.
 
-.include "eapi_defs.s"
 .include "ef3usb_macros.s"
 
 ; Align with commands.h
@@ -30,6 +29,13 @@ CMD_ERASE_SECTOR        = $f2
 
 REPLY_WRITE_WAIT        = $f0
 REPLY_WRITE_ERROR       = $f1
+
+; error codes
+EAPI_ERR_RAM            = 1
+EAPI_ERR_ROML           = 2
+EAPI_ERR_ROMH           = 3
+EAPI_ERR_ROML_PROTECTED = 4
+EAPI_ERR_ROMH_PROTECTED = 5
 
 ; There's a pointer to our code base
 EAPI_ZP_INIT_CODE_BASE   = $4b
@@ -42,10 +48,13 @@ KFF_DEV_ID         = $ff
 EAPI_RAM_CODE      = $df80
 EAPI_RAM_SIZE      = 124
 
+; I/O address used to select the bank
+EASYFLASH_IO_BANK    = $de00
+
 EAPICodeBase:
         .byte $65, $61, $70, $69        ; signature "EAPI"
 
-        .byte "KungFuFlash 0.1"
+        .byte "KungFuFlash 1.1"
         .byte 0                         ; 16 bytes, must be 0-terminated
 
 ; =============================================================================
@@ -156,7 +165,32 @@ kff_send_command:
 ; =============================================================================
 ef3usb_send_byte:
         wait_usb_tx_ok
+ef3usb_send_byte_no_wait:
         sta USB_DATA
+        rts
+
+; =============================================================================
+;
+; Internal function
+;
+; Send byte to Kung Fu Flash via USB registers
+;
+; return:
+;       C   set: Timeout
+;           clear: Okay
+; =============================================================================
+ef3usb_send_byte_timed:
+        ldy #$0
+:
+        dey
+        beq timeout
+        bit USB_STATUS
+        bvc :-
+        clc
+        bcc ef3usb_send_byte_no_wait
+
+timeout:
+        sec
         rts
 
 ; =============================================================================
@@ -255,7 +289,31 @@ ciNoRamError:
         sta EAPI_ZP_INIT_CODE_BASE
         bcs returnOnly          ; branch on error from above
 
-        ; TODO: Check for and init Kung Fu Flash
+        ; send init command to KFF
+        lda #'k'
+        jsr ef3usb_send_byte_timed
+        bcs kffNotFound
+        lda #'f'
+        jsr ef3usb_send_byte_timed
+        bcs kffNotFound
+        lda #'f'
+        jsr ef3usb_send_byte_timed
+        bcs kffNotFound
+        lda #':'
+        jsr ef3usb_send_byte_timed
+        bcs kffNotFound
+        lda #CMD_EAPI_INIT
+        jsr ef3usb_send_byte_timed
+        bcs kffNotFound
+
+        ; check reply from KFF
+        ldy #$0
+:       dey
+        beq kffNotFound
+        bit USB_STATUS
+        bpl :-
+        ldx USB_DATA
+        bne kffNotFound
 
         ; Device ID
         ldx #KFF_DEV_ID
@@ -263,26 +321,12 @@ ciNoRamError:
 
         ; everything okay
         clc
-;        bcc resetAndReturn
-;
-;ciROMLNotSupported:
-;        lda #EAPI_ERR_ROML
-;        bne ciSaveErrorAndReturn
-;
-;ciROMHNotSupported:
-;        lda #EAPI_ERR_ROMH
-;        bne ciSaveErrorAndReturn
-;
-;ciROMLProtected:
-;        lda #EAPI_ERR_ROML_PROTECTED
-;        bne ciSaveErrorAndReturn
-;
-;ciROMHProtected:
-;        lda #EAPI_ERR_ROMH_PROTECTED
-;
-;ciSaveErrorAndReturn:
-;        sta EAPI_WRITE_ADDR_LO  ; error code in A
-;        sec
+        bcc returnOnly
+
+kffNotFound:
+        lda #EAPI_ERR_ROML
+        sta EAPI_WRITE_ADDR_LO  ; error code in A
+        sec
 
 returnOnly:                     ; C indicates error
         lda EAPI_WRITE_ADDR_LO  ; device or error code in A
@@ -411,23 +455,24 @@ writeWait:
 waitDone:
         wait_usb_rx_ok
         ldx USB_DATA
+checkDone:
         cpx #'d'
         bne waitDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'o'
-        bne waitDone
+        bne checkDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'n'
-        bne waitDone
+        bne checkDone
 
         wait_usb_rx_ok
         ldx USB_DATA
         cpx #'e'
-        bne waitDone
+        bne checkDone
 waitReply:
         wait_usb_rx_ok
         ldx USB_DATA

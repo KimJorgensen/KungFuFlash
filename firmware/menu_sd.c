@@ -121,8 +121,63 @@ static void handle_dir_open(SD_STATE *state)
     state->dir_end = false;
 }
 
+static void handle_save_updated_crt(void)
+{
+    c64_send_exit_menu();
+    c64_send_prg_message("Saving CRT file.");
+    c64_interface(false);
+
+    FIL file;
+    CRT_HEADER header;
+    if (!file_open(&file, dat_file.file, FA_READ|FA_WRITE) ||
+        !crt_load_header(&file, &header) ||
+        header.cartridge_type != CRT_EASYFLASH)
+    {
+        c64_interface(true);
+        sprint(scratch_buf, "Failed to read CRT file\r\n\r\n%s", dat_file.file);
+        c64_send_warning(scratch_buf);
+        restart_to_menu();
+    }
+
+    if (!crt_write_file(&file, dat_file.crt.banks))
+    {
+        c64_interface(true);
+        sprint(scratch_buf, "Failed to write CRT file\r\n\r\n%s", dat_file.file);
+        c64_send_warning(scratch_buf);
+        restart_to_menu();
+    }
+    file_close(&file);
+
+    // Updated flag is cleared so we need to calculate a new hash
+    uint32_t flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
+    dat_file.crt.flash_hash = flash_hash;
+    save_dat();
+
+    restart_to_menu();
+}
+
+static bool handle_updated_crt(SD_STATE *state)
+{
+    if (dat_file.boot_type != DAT_CRT ||
+        !(dat_file.crt.flags & CRT_FLAG_UPDATED) ||
+        dat_file.crt.type != CRT_EASYFLASH ||
+        !dat_file.file[0])
+    {
+        return false;
+    }
+
+    dat_file.crt.flags &= ~CRT_FLAG_UPDATED; // Don't ask to save file again
+    handle_unsaved_crt(dat_file.file, handle_save_updated_crt);
+    return true;
+}
+
 static void handle_dir_command(SD_STATE *state)
 {
+    if (handle_updated_crt(state))
+    {
+        return;
+    }
+
     handle_dir_open(state);
 
     dir_current(dat_file.path, sizeof(dat_file.path));
