@@ -23,6 +23,9 @@
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
 
+#ifndef D64_READER_H
+#define D64_READER_H
+
 #define D64_SECTOR_DATA_LEN 254
 
 static const uint16_t d64_track_offset[42] =
@@ -144,6 +147,8 @@ typedef struct
 
     char *diskname;         // valid after d64_read_disk_header
     D64_DIR_ENTRY *entry;   // valid after d64_read_dir
+    uint8_t last_read_track;
+    uint8_t last_read_sector;
 } D64;
 
 static uint8_t d64_image_type(FSIZE_t imgsize)
@@ -172,3 +177,5 @@ static uint8_t d64_image_type(FSIZE_t imgsize)
 
     return D64_IMAGE_UNKNOWN;
 }
+
+#endif      // D64_READER_H

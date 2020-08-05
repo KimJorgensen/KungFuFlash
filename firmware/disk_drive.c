@@ -19,6 +19,7 @@
  */
 
 #include "disk_drive.h"
+#include "d64_writer.h"
 
 static inline void put_u8(uint8_t **ptr, uint8_t value)
 {
@@ -200,6 +201,12 @@ static void disk_parse_filename(char *filename, PARSED_FILENAME *parsed)
     char *f_ptr = filename;
     char c, last_c = 0;
     parsed->drive = 0;
+    if(*f_ptr == '@') {
+        parsed->overwrite = true;
+        filename++;
+    } else {
+        parsed->overwrite = false;
+    }
 
     // Scan for drive number
     while ((c = *f_ptr++))
@@ -466,6 +473,196 @@ static void disk_handle_load(D64 *d64, char *filename, uint8_t *ptr)
         disk_handle_load_prg(d64, filename, ptr);
     }
 }
+    
+static bool d64_receive_save_data_cycle(D64 *d64, D64_SAVE_BUFFER *save_buffer) {
+    uint8_t recv_size, next_track, next_sector;
+    uint8_t *receive_buffer = (uint8_t *)&crt_ram_buf[RECV_BUFFER_OFFSET];
+    
+    while((recv_size = c64_receive_byte()) > 0) {
+        c64_interface(false);
+        if((uint16_t)recv_size + save_buffer->data_sector.pos > D64_SECTOR_DATA_LEN) {
+            uint8_t remaining = D64_SECTOR_DATA_LEN - save_buffer->data_sector.pos;
+            if(remaining>0)
+            {
+                memcpy(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos],
+                       receive_buffer,
+                       remaining);
+            }
+            if(!d64_get_next_free_sector(save_buffer, 
+                                         save_buffer->data_sector.track, save_buffer->data_sector.sector, 
+                                         &next_track, &next_sector)) 
+            {
+                return false;
+            }
+            save_buffer->data_sector.d64sector.next_track = next_track;
+            save_buffer->data_sector.d64sector.next_sector = next_sector;
+            if(!d64_write_sector(d64, &save_buffer->data_sector.d64sector, 
+                                 save_buffer->data_sector.track, save_buffer->data_sector.sector))
+            {
+                return false;
+            }
+            
+            memcpy(&save_buffer->data_sector.d64sector.data[0],
+                    receive_buffer + remaining,
+                    recv_size - remaining);
+            save_buffer->data_sector.pos = recv_size - remaining;
+            save_buffer->data_sector.track = next_track;
+            save_buffer->data_sector.sector = next_sector;
+        }
+        else
+        {
+            memcpy(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos], 
+                   receive_buffer,
+                   recv_size);
+            save_buffer->data_sector.pos += recv_size;
+        }
+        c64_interface(true);
+        c64_send_data("OK", 2);
+        c64_send_reply(recv_size);
+    }
+    save_buffer->data_sector.d64sector.next_track = 0;
+    save_buffer->data_sector.d64sector.next_sector = save_buffer->data_sector.pos+1;
+    memset(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos], 
+            0x00, 
+            D64_SECTOR_DATA_LEN - save_buffer->data_sector.pos);
+
+    c64_interface(false);
+    if(!d64_write_sector(d64, &save_buffer->data_sector.d64sector, 
+                            save_buffer->data_sector.track, save_buffer->data_sector.sector))
+    {
+        return false;
+    }
+    return true;
+}
+
+static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *filename, uint16_t filesize_in_bytes) {
+    PARSED_FILENAME parsed_filename;
+    save_buffer->modified_directory_sector_1.track = 0;
+    save_buffer->modified_directory_sector_2.track = 0;
+    
+    // TODO: implement D71 and D81 image type support
+    if(d64->image_type!=D64_IMAGE_D64) 
+    {
+        c64_send_reply(REPLY_NOT_SUPPORTED);
+        return;
+    }
+   
+    disk_parse_filename(filename, &parsed_filename);
+    if (parsed_filename.drive!=0)               // this is a 'single drive system'
+    {
+        c64_send_reply(REPLY_NOT_SUPPORTED);
+        return;
+    }
+
+    if (!parsed_filename.type)
+    {
+        parsed_filename.type = D64_FILE_PRG;
+    }
+    else if (parsed_filename.type == D64_FILE_REL)
+    {
+        // Not supported
+        c64_send_reply(REPLY_NOT_SUPPORTED);
+        return;
+    }
+
+    bool file_found = disk_find_file(d64, parsed_filename.name, parsed_filename.type);
+    // these are needed for the overwrite
+    uint8_t oldfile_dir_track = file_found ? d64->last_read_track : 0;
+    uint8_t oldfile_dir_sector = file_found ? d64->last_read_sector : 0;
+    uint8_t oldfile_size = file_found ? d64->entry->blocks : 0;
+    D64_DIR_ENTRY *oldfile_dir_entry = d64->entry;
+    
+    if(!d64_read_disk_header(d64)) 
+    {
+        c64_send_reply(1);
+        return;
+    }
+    memcpy(&save_buffer->header_sector, &d64->d64_header, sizeof(D64_HEADER_SECTOR));
+
+    uint16_t free_blocks = d64_calc_blocks_free(d64);   // assuming BAM is OK.
+
+    if(file_found)
+    {
+        if(!parsed_filename.overwrite) 
+        {
+            // File already exists, overwrite not selected
+            c64_send_reply(3);
+            return;
+        } 
+        else 
+        {
+            if(free_blocks + oldfile_size < (filesize_in_bytes+1)/254 + 1) 
+            {
+                c64_send_reply(2);
+                return;
+            }
+            d64_read_sector(d64, oldfile_dir_track, oldfile_dir_sector);
+            d64->entry = oldfile_dir_entry;
+            d64->entry->blocks = (uint8_t)((filesize_in_bytes + 1) / 254 + 1);
+            memcpy(&save_buffer->modified_directory_sector_1.directory_sector, &d64->sector, sizeof(D64_SECTOR));
+            save_buffer->modified_directory_sector_1.track = oldfile_dir_track;
+            save_buffer->modified_directory_sector_1.sector = oldfile_dir_sector;
+            save_buffer->data_sector.track = d64->entry->track;
+            save_buffer->data_sector.sector = d64->entry->sector;
+            save_buffer->data_sector.pos = 0;
+            d64_read_sector(d64, d64->entry->track, d64->entry->sector);
+            d64_deallocate_from_sector(d64, save_buffer);
+        }
+    } else {
+        if(free_blocks<((filesize_in_bytes+1)/254 + 1)) 
+        {
+            c64_send_reply(2);
+            return;
+        }
+        if( !d64_writer_create_file_entry(d64, save_buffer, 
+                                          parsed_filename.name, parsed_filename.type, 
+                                          (uint8_t)((filesize_in_bytes + 1) / 254 + 1) ) )
+        {
+            c64_send_reply(4);
+            return;
+        }
+    }
+
+    c64_send_reply(REPLY_SAVE_OK);
+
+    uint16_t start_address;
+    c64_receive_data(&start_address, 2);
+    save_buffer->data_sector.d64sector.data[0] = start_address % 256;
+    save_buffer->data_sector.d64sector.data[1] = start_address / 256;
+    save_buffer->data_sector.pos = 2;
+
+    c64_send_reply(REPLY_SAVE_OK);
+    uint8_t final_reply = 0;
+    if(d64_receive_save_data_cycle(d64, save_buffer))
+    {
+        bool write_success = d64_write_sector(d64, (D64_SECTOR *)&save_buffer->header_sector, 18, 0);
+        write_success = write_success && 
+            d64_write_sector(d64, 
+                             &save_buffer->modified_directory_sector_1.directory_sector, 
+                             save_buffer->modified_directory_sector_1.track, 
+                             save_buffer->modified_directory_sector_1.sector);
+
+        if(save_buffer->modified_directory_sector_2.track) {
+            write_success = write_success && 
+                d64_write_sector(d64, 
+                             &save_buffer->modified_directory_sector_2.directory_sector, 
+                             save_buffer->modified_directory_sector_2.track, 
+                             save_buffer->modified_directory_sector_2.sector);
+        }
+        
+        write_success = write_success && d64_write_sync(d64);
+
+        final_reply = write_success ? 0 : 5;
+    }
+    else
+    {
+        final_reply = 6;
+    }
+
+    c64_interface(true);
+    c64_send_data("OK", 2);
+    c64_send_reply(final_reply);
+}
 
 static uint8_t disk_read_status(D64 *d64, DISK_CHANNEL *channel)
 {
@@ -602,6 +799,10 @@ static void disk_loop(void)
 {
     D64 *d64 = &d64_state.d64;  // Reuse memory from menu
     DISK_CHANNEL *channel = 0, *channels = (DISK_CHANNEL *)crt_ram_banks[1];
+    D64_SAVE_BUFFER *save_buffer = 
+        (D64_SAVE_BUFFER *) (((uint8_t *)crt_ram_banks[1]) + sizeof(DISK_CHANNEL)*16);
+//        (D64_SAVE_BUFFER *) scratch_buf;
+
     disk_close_all_channels(channels);
 
     uint8_t *ptr = crt_banks[1];
@@ -658,6 +859,17 @@ static void disk_loop(void)
 
             case CMD_GET_BYTE:
                 disk_handle_get_byte(d64, channel);
+                break;
+
+            case CMD_SAVE:
+                file_len = c64_receive_byte();
+                c64_receive_data(filename, file_len);
+                filename[file_len] = 0;
+                uint16_t filesize_in_bytes = 0;
+                
+                c64_receive_data(&filesize_in_bytes, 2);
+                dbg("Got SAVE command for: %s\n", filename);
+                disk_handle_save_prg(d64, save_buffer, filename, filesize_in_bytes);
                 break;
 
             default:

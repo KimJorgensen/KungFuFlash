@@ -32,6 +32,7 @@ SAVING          = $f68f                 ; Print "SAVING"
 CINT	        = $ff81                 ; Initialize screen editor
 RESTOR          = $ff8a                 ; Restore I/O vectors
 BSOUT           = $ffd2                 ; Write byte to default output
+RESTORE_ST_ADDR = $fb8e                 ; STAH->SAH ; STAL-> SAL
 
 ; Kernal vectors
 NMINV           = $0318
@@ -57,13 +58,17 @@ VERCK           = $93                   ; Load/verify flag
 LDTND           = $98                   ; Open file count
 DFLTN           = $99                   ; Default input device
 DFLTO           = $9a                   ; Default output device
-EAL             = $ae                   ; Load end address (low byte)
-EAH             = $af                   ; Load end address (high byte)
+SAL             = $ac                   ; Save pointer (low byte)
+SAH             = $ad                   ; Save pointer (high byte)
+EAL             = $ae                   ; Load/save end address (low byte)
+EAH             = $af                   ; Load/save end address (high byte)
 FNLEN           = $b7                   ; Length of filename
 LA              = $b8                   ; Logical file
 SA              = $b9                   ; Secondary address
 FA              = $ba                   ; Device number
 FNADR           = $bb                   ; Pointer to filename
+STAL            = $c1                   ; Save start address (low byte)
+STAH            = $c2                   ; Save start address (high byte)
 MEMUSS          = $c3                   ; Load start address (2 bytes)
 INDX            = $c8                   ; Length of line
 CRSW            = $d0                   ; Input/get flag
@@ -78,6 +83,7 @@ tmp2            = $fe
 tmp3            = $ff
 
 trampoline      = $0100
+ef3usb_send_receive = $0100
 start_commands  = $8000
 
 EASYFLASH_BANK          = $de00
@@ -102,8 +108,12 @@ REPLY_READ_BANK         = $81
 REPLY_NOT_FOUND         = $82
 REPLY_READ_ERROR        = $83
 REPLY_END_OF_FILE       = $84
-REPLY_FILE_EXISTS       = $85
-REPLY_DISK_FULL         = $86
+REPLY_NOT_SUPPORTED     = $85
+REPLY_SAVE_OK           = $86
+REPLY_SAVE_NOK          = $87
+
+; Align with disk_drive.h (RECV_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
+SAVE_BUF_SIZE           = $90
 
 ; =============================================================================
 ;
@@ -252,6 +262,30 @@ basic_mount_starter:
 .reloc
 basic_mount_starter_end:
 
+ef3usb_send_receive_rom_addr:
+.org ef3usb_send_receive
+        wait_usb_tx_ok
+        sta USB_DATA
+@ef3usb_wait4ok:
+        wait_usb_rx_ok
+        lda USB_DATA
+        cmp #'o'
+        bne @ef3usb_wait4ok
+@waitfork:        
+        wait_usb_rx_ok
+        lda USB_DATA
+        cmp #'k'
+        beq @okreceived
+        cmp #'o'
+        beq @waitfork                   ; let's try one more time!
+        bne @ef3usb_wait4ok             ; no, it's useless
+@okreceived:
+        wait_usb_rx_ok
+        lda USB_DATA
+        rts        
+.reloc
+ef3usb_send_receive_rom_addr_end:
+
 ; =============================================================================
 disk_api_resident:
 .org EASYFLASH_RAM
@@ -279,6 +313,34 @@ print_text_ptr:
         .byte $00
 more_to_load:
         .byte $00
+
+old_open_vector:
+        .byte $00,$00
+old_close_vector:
+        .byte $00,$00
+old_chkin_vector:
+        .byte $00,$00
+old_clrch_vector:
+        .byte $00,$00
+old_basin_vector:
+        .byte $00,$00
+old_getin_vector:
+        .byte $00,$00
+old_clall_vector:
+        .byte $00,$00
+old_load_vector:
+        .byte $00,$00
+old_save_vector:
+         .byte $00,$00
+
+kernal_trampoline:
+        lda #EASYFLASH_KILL
+        sta EASYFLASH_CONTROL
+kernal_call:
+        jsr $ffff                       ; Address will be replaced
+        ldy #EASYFLASH_16K
+        sty EASYFLASH_CONTROL
+        rts
 
 open_trampoline:
         jsr store_filename_enable_ef
@@ -315,25 +377,6 @@ load_trampoline:
 save_trampoline:
         jsr store_filename_enable_ef
         jmp kff_save
-
-old_open_vector:
-        .byte $00,$00
-old_close_vector:
-        .byte $00,$00
-old_chkin_vector:
-        .byte $00,$00
-old_clrch_vector:
-        .byte $00,$00
-old_basin_vector:
-        .byte $00,$00
-old_getin_vector:
-        .byte $00,$00
-old_clall_vector:
-        .byte $00,$00
-old_load_vector:
-        .byte $00,$00
- old_save_vector:
-         .byte $00,$00
 
 store_filename_enable_ef:
         ldy FNLEN
@@ -372,14 +415,6 @@ enable_ef_rom:
         pla
         rts
 
-kernal_trampoline:
-        lda #EASYFLASH_KILL
-        sta EASYFLASH_CONTROL
-kernal_call:
-        jsr $ffff                       ; Address will be replaced
-        ldy #EASYFLASH_16K
-        sty EASYFLASH_CONTROL
-        rts
 kernal_call_end = *
 .reloc
 disk_api_resident_end:
@@ -431,10 +466,6 @@ load_done:
         jmp load_next_bank
 
 all_done:
-        pha
-        lda #$60                        ; Setup rts
-        sta return_inst
-        pla
         rts
 .reloc
 disk_api_load_prg_end:
@@ -463,9 +494,36 @@ disable_ef_rom:
         plp
         cli
 return_inst:
-        .byte $00,$00,$00               ; Replaced with jmp or rts
+        rts                         ; Replaced with jmp or remains rts
+       .byte $00,$00          
 .reloc
 disk_api_disable_ef_rom_end:
+
+disk_api_save_prg:
+.org open_trampoline
+save_prg:
+
+        lda #EASYFLASH_KILL                   ; Area under $8000-$9fff will be RAM
+        sta EASYFLASH_CONTROL
+        lda mem_config                        ; Restore mem config
+        sta R6510
+
+:       dey
+        lda (SAL),y
+        sta (ptr1),y
+        cpy #$00
+        bne :-
+
+        lda #EASYFLASH_16K
+        sta EASYFLASH_CONTROL
+        lda mem_config
+        ora #$07
+        sta R6510
+        rts
+
+.reloc
+disk_api_save_prg_end:
+
 
 ; =============================================================================
 
@@ -479,6 +537,25 @@ copy_load_prg:
 :       dex
         lda disk_api_load_prg,x
         sta load_prg,x
+        cpx #$00
+        bne :-
+        pla     ; pop x from stack
+        tax
+        pla     ; pop a
+        plp     ; pop flags
+        rts
+.endproc
+
+.proc copy_save_prg
+copy_save_prg:
+        php     ; store flags
+        pha     ; store a
+        txa     ; store x
+        pha
+        ldx #disk_api_save_prg_end - disk_api_save_prg
+:       dex
+        lda disk_api_save_prg,x
+        sta save_prg,x
         cpx #$00
         bne :-
         pla     ; pop x from stack
@@ -504,6 +581,36 @@ copy_disable_ef_rom:
         tax
         pla     ; a
         plp     ; flags
+        rts
+.endproc
+
+.proc copy_trampoline_code
+copy_trampoline_code:
+        php     ; flags
+        pha     ; a
+        txa     ; x
+        pha
+        ldx #kernal_call_end - open_trampoline
+:       dex
+        lda disk_api_resident + (open_trampoline - EASYFLASH_RAM),x
+        sta open_trampoline,x
+        cpx #$00
+        bne :-
+        pla     ; x
+        tax
+        pla     ; a
+        plp     ; flags
+        rts
+.endproc
+
+.proc copy_ef3usb_send_receive_code
+copy_ef3usb_send_receive_code:
+        ldx #ef3usb_send_receive_rom_addr_end-ef3usb_send_receive_rom_addr
+:       dex        
+        lda ef3usb_send_receive_rom_addr,X
+        sta ef3usb_send_receive,X
+        cpx #$00
+        bne :-
         rts
 .endproc
 
@@ -948,17 +1055,157 @@ load_next_bank = kff_load::load_next_bank
 ; =============================================================================
 .proc kff_save
 kff_save:
-        lda #'s' - 'a' + 1
-        sta $0400
+        lda FA
+        cmp #$08
+        beq @kff_device                 ; Device 8
+
 @normal_save:
-        jsr copy_disable_ef_rom
-        lda #$4c                        ; Setup jmp to normal load
+        jsr copy_trampoline_code
+        lda #$4c                        ; Setup jmp to normal save
         sta return_inst
         lda old_save_vector
         sta return_inst + 1
         lda old_save_vector + 1
         sta return_inst + 2
         jmp disable_ef_rom
+
+@kff_device:
+        lda #<SAVING                   ; Setup call to print "Saving <filename>"
+        sta kernal_call + 1
+        lda #>SAVING
+        sta kernal_call + 2
+        jsr kernal_trampoline
+
+        jsr copy_ef3usb_send_receive_code
+
+        lda #CMD_SAVE                   ; Send command
+        jsr kff_send_command
+        jsr send_filename
+
+        lda #$00
+        sta $02
+; calculate file size
+        sec
+        lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)                 
+        sbc STAL                ; STAL:STAH is the first valid address
+        sta tmp1
+        lda EAH
+        sbc STAH
+        sta tmp2
+
+        lda tmp1                ; size of file (excluding start address) - low byte
+        jsr ef3usb_send_byte    ; high byte
+        lda tmp2
+        jsr ef3usb_send_byte
+
+        jsr ef3usb_receive_byte         ; Get reply
+        ldx #$81
+        cmp #REPLY_SAVE_OK
+        bne @save_done                  ; file already exists, not enough space, other..
+
+        lda STAL                        ; initializing SAL:SAH and sending the start addr to KFF also
+        sta SAL
+        jsr ef3usb_send_byte
+        lda STAH
+        sta SAH
+        jsr ef3usb_send_byte
+
+        lda #($0100 - SAVE_BUF_SIZE)    ; set ptr to EF RAM
+        sta ptr1
+        lda #>EASYFLASH_RAM
+        sta ptr2
+
+        jsr ef3usb_receive_byte         ; Get reply
+        ldx #$82
+        cmp #REPLY_SAVE_OK
+        bne @save_done
+
+        jsr copy_save_prg
+ 
+        ; tmp1:tmp2 -> remaining size of file to save (here: size of file)
+        ; ptr1:ptr2 -> start address of outbut buff in EF RAM
+        ; SAL:SAH   -> running address of file to save (here: start address of file) 
+@save_start:
+        jsr @compare_buffer_and_remaining_size   ; c set if remaining size >= SAVE_BUF_SIZE
+        bcc @set_remaining_size
+        lda #SAVE_BUF_SIZE
+        .byte $2c                       ; BIT
+@set_remaining_size:
+        lda tmp1
+        tax                             ; save A in X
+        tay
+        beq @save_cycle_done            ; let's not copy $100 bytes...
+        jsr save_prg                    ; y->input, num of bytes to copy to save buffer
+        txa                             ; let's restore A from X
+@save_cycle_done:
+        sta tmp3                        ; store last sent bytes (0 if we're done)
+        jsr ef3usb_send_receive
+        ldx #$83                        ; exit code
+        cmp tmp3
+        bne @save_done                  ; if any problem during save -> exit loop
+        tax                  
+        cmp #$00                        ; was it the last save cycle? (exit code is 0x00)
+        beq @save_done
+
+        sec                             ; substract SAVE_BUF_SIZE from remaining size to save
+        lda tmp1
+        sbc tmp3
+        sta tmp1
+        lda tmp2
+        sbc #$00
+        sta tmp2
+
+        clc                             ; increase source address by sent bytes..
+        lda tmp3                        ; SAL is always increased by SAVE_BUF_SIZE.
+        adc SAL                         
+        sta SAL
+        lda SAH
+        adc #$00
+        sta SAH
+
+        jmp @save_start
+
+@save_done:
+                                ; x contains the exit code - not used ... yet
+        jsr copy_trampoline_code
+        jsr copy_disable_ef_rom
+        clc
+        jmp disable_ef_rom
+
+@compare_buffer_and_remaining_size:
+        lda tmp2
+        cmp #$01
+        bcs @compare_done       ; C if size > SAVE_BUF_SIZE
+        lda tmp1
+        cmp #SAVE_BUF_SIZE      ; C if size >= SAVE_BUF_SIZE
+@compare_done:
+        rts
+
+;@long_loop:
+;        pha
+;        txa
+;        pha
+;        tya
+;        pha
+;        ldx #$06
+;        stx $02
+;        ldx #$00
+;        ldy #$00
+;:       dec $d020
+;        dey
+;        bne :-
+;        dex
+;        bne :-
+;        lda $02
+;        sta $0411
+;        dec $02
+;        bne :-
+;        pla
+;        tay
+;        pla
+;        tax
+;        pla
+;        rts
 .endproc
 
 ; =============================================================================

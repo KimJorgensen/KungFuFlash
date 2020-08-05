@@ -22,6 +22,7 @@
 #include "menu_d64.h"
 #include "menu_options.h"
 #include "d64_reader.c"
+#include "d64_writer.c"
 #include "loader.c"
 #include "menu_sd.c"
 #include "menu_d64.c"

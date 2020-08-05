@@ -79,6 +79,9 @@ static bool d64_read_next_sector(D64 *d64, D64_SECTOR *d64_sector)
         return false;
     }
 
+    d64->last_read_track = track;
+    d64->last_read_sector = sector;
+
     return true;
 }
 
@@ -141,7 +144,7 @@ static bool d64_read_disk_header(D64 *d64)
 
 static bool d64_open(D64 *d64, const char *filename)
 {
-    if (!file_open(&d64->file, filename, FA_READ))
+    if (!file_open(&d64->file, filename, FA_READ|FA_WRITE))
     {
         return false;
     }

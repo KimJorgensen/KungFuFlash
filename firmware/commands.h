@@ -57,7 +57,6 @@ typedef enum {
     CMD_UNTALK,
     CMD_GET_BYTE,
     CMD_SAVE,
-    CMD_PUT_BYTE
 
     // EAPI commands
     CMD_EAPI_INIT = 0xf0,
@@ -86,8 +85,9 @@ typedef enum {
     REPLY_NOT_FOUND,
     REPLY_READ_ERROR,
     REPLY_END_OF_FILE,
-    REPLY_FILE_EXISTS,
-    REPLY_DISK_FULL
+    REPLY_NOT_SUPPORTED,
+    REPLY_SAVE_OK,
+    REPLY_SAVE_NOK,
 
     // EAPI replies
     REPLY_WRITE_WAIT = 0xf0,
