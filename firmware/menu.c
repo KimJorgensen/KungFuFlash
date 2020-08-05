@@ -163,22 +163,14 @@ static void handle_unsupported(const char *file_name)
     handle_unsupported_ex("Unsupported", "File is not supported or invalid", file_name);
 }
 
-static bool handle_save_unsaved(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
-{
-    void (*handle_save)(void) = state->user_state;
-    handle_save();
-
-    return options_prev_dir(state, element, flags);
-}
-
-static void handle_unsaved_crt(const char *file_name, void (*handle_save)(void))
+static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t))
 {
     OPTIONS_STATE *options = build_options("Unsaved changes",
-                                           "Do you want to save changes to CRT?");
+                                           "How do you want to save the changes to CRT?");
     options_add_text_block(options, file_name);
-    options_add_text_element(options, handle_save_unsaved, "OK");
+    options_add_callback(options, handle_save, "Overwrite file", SELECT_FLAG_OVERWRITE);
+    options_add_callback(options, handle_save, "New file", 0);
     options_add_dir(options, "Cancel");
-    options->user_state = handle_save;
 
     handle_options(options);
 }

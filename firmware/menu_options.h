@@ -26,7 +26,6 @@ typedef struct
     const char *title;
     uint8_t selected_element;
     uint8_t no_of_elements;
-    void *user_state;
 } OPTIONS_STATE;
 
 static OPTIONS_STATE options_state;
@@ -40,13 +39,15 @@ struct OPTIONS_ELEMENT_s
     options_func callback;
     uint8_t flags;
     uint8_t element_no;
+    void *user_state;
 };
 
 typedef enum
 {
     SELECT_FLAG_ACCEPTED    = 0x01,
     SELECT_FLAG_MOUNT       = 0x02,
-    SELECT_FLAG_VIC         = 0x04
+    SELECT_FLAG_VIC         = 0x04,
+    SELECT_FLAG_OVERWRITE   = 0x08
 } SELECT_FLAGS_EXTRA;
 
 static OPTIONS_STATE * options_init(const char *title);

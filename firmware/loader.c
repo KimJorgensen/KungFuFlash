@@ -20,6 +20,10 @@
 #define DAT_FILENAME "/KungFuFlash.dat"
 #define FW_NAME_SIZE 20
 
+#define CRT_SIGNATURE "C64 CARTRIDGE   "
+#define CRT_CHIP_SIGNATURE "CHIP"
+#define CRT_VERSION 0x100
+
 #define EAPI_OFFSET 0x3800
 #define EAPI_SIZE   0x300
 
@@ -71,7 +75,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     uint32_t len = file_read(file, header, sizeof(CRT_HEADER));
 
     if (len != sizeof(CRT_HEADER) ||
-        memcmp("C64 CARTRIDGE   ", header->signature, sizeof(header->signature)) != 0)
+        memcmp(CRT_SIGNATURE, header->signature, sizeof(header->signature)) != 0)
     {
         wrn("Unsupported CRT header\n");
         return false;
@@ -95,7 +99,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
         }
     }
 
-    if (header->version != 0x0100)
+    if (header->version != CRT_VERSION)
     {
         wrn("Unsupported CRT version: %x\n", header->version);
         return false;
@@ -104,12 +108,38 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     return true;
 }
 
+static bool crt_write_header(FIL *file, uint16_t type, uint8_t exrom, uint8_t game, const char *name)
+{
+    CRT_HEADER header;
+    memcpy(header.signature, CRT_SIGNATURE, sizeof(header.signature));
+    header.header_length = __REV(sizeof(CRT_HEADER));
+    header.version = __REV16(CRT_VERSION);
+    header.cartridge_type = __REV16(type);
+    header.exrom = exrom;
+    header.game = game;
+    memset(header.reserved, 0, sizeof(header.reserved));
+
+    for (uint8_t i=0; i<sizeof(header.cartridge_name); i++)
+    {
+        char c = *name;
+        if (c)
+        {
+            name++;
+        }
+
+        header.cartridge_name[i] = c;
+    }
+
+    uint32_t len = file_write(file, &header, sizeof(CRT_HEADER));
+    return len == sizeof(CRT_HEADER);
+}
+
 static bool crt_load_chip_header(FIL *file, CRT_CHIP_HEADER *header)
 {
     uint32_t len = file_read(file, header, sizeof(CRT_CHIP_HEADER));
 
     if (len != sizeof(CRT_CHIP_HEADER) ||
-        memcmp("CHIP", header->signature, sizeof(header->signature)) != 0)
+        memcmp(CRT_CHIP_SIGNATURE, header->signature, sizeof(header->signature)) != 0)
     {
         return false;
     }
@@ -132,7 +162,7 @@ static bool crt_load_chip_header(FIL *file, CRT_CHIP_HEADER *header)
 static bool crt_write_chip_header(FIL *file, uint8_t type, uint8_t bank, uint16_t address, uint16_t size)
 {
     CRT_CHIP_HEADER header;
-    memcpy(header.signature, "CHIP", sizeof(header.signature));
+    memcpy(header.signature, CRT_CHIP_SIGNATURE, sizeof(header.signature));
     header.packet_length = __REV(size + sizeof(CRT_CHIP_HEADER));
     header.chip_type = __REV16(type);
     header.bank = __REV16(bank);
@@ -237,6 +267,17 @@ static uint8_t crt_program_file(FIL *crt_file)
         }
     }
 
+    // Erase any gaps to minimize generated CRT file
+    for (uint8_t sector=0; sector<banks_in_use/8; sector++)
+    {
+        if (!sector_erased[sector])
+        {
+            uint8_t sector_to_erase = sector + 4;
+            led_toggle();
+            flash_sector_program(sector_to_erase, 0, 0, 0);
+        }
+    }
+
     led_on();
     return banks_in_use;
 }
@@ -267,11 +308,6 @@ static bool crt_bank_empty(uint8_t *buf, uint16_t size)
 
 static bool crt_write_file(FIL *crt_file, uint8_t banks)
 {
-    if (!file_truncate(crt_file))
-    {
-        return false;
-    }
-
     const uint16_t chip_size = 8*1024;
     for (uint8_t bank=0; bank<banks; bank++)
     {

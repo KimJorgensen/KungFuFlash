@@ -170,6 +170,20 @@ static void options_add_text_block(OPTIONS_STATE *state, const char *text)
     options_add_empty(state);
 }
 
+static bool options_callback(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+{
+    void (*callback)(uint8_t) = element->user_state;
+    callback(element->flags|flags);
+    return false;
+}
+
+static void options_add_callback(OPTIONS_STATE *state, void (*callback)(uint8_t), const char *text, uint8_t flags)
+{
+    OPTIONS_ELEMENT *element = options_add_text_element(state, options_callback, text);
+    element->flags = flags;
+    element->user_state = callback;
+}
+
 static bool options_prev_select(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
 {
     menu_state = state->prev_state;
