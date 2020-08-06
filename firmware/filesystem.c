@@ -125,6 +125,30 @@ static bool file_close(FIL *file)
     return res == FR_OK;
 }
 
+static bool file_stat(const char *file_name, FILINFO *file_info)
+{
+    FRESULT res = f_stat(file_name, file_info);
+    if (res != FR_OK)
+    {
+        err("f_stat failed (%u)\n", res);
+    }
+
+    led_on();
+    return res == FR_OK;
+}
+
+static bool file_delete(const char *file_name)
+{
+    FRESULT res = f_unlink(file_name);
+    if (res != FR_OK)
+    {
+        err("f_unlink failed (%u)\n", res);
+    }
+
+    led_on();
+    return res == FR_OK;
+}
+
 static bool dir_change(const char *path)
 {
     FRESULT res = f_chdir(path);

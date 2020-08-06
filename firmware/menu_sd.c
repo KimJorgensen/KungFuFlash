@@ -193,7 +193,6 @@ static void handle_save_updated_crt(uint8_t flags)
     c64_send_prg_message("Saving CRT file.");
     c64_interface(false);
 
-    FIL file;
     if (!(flags & SELECT_FLAG_OVERWRITE))
     {
         bool file_exists = true;
@@ -209,14 +208,12 @@ static void handle_save_updated_crt(uint8_t flags)
                                         dat_file.file);
             }
 
-            file_exists = file_open(&file, dat_file.file, FA_READ);
-            if (file_exists)
-            {
-                file_close(&file);
-            }
+            FILINFO file_info;
+            file_exists = file_stat(dat_file.file, &file_info);
         }
     }
 
+    FIL file;
     if (!file_open(&file, dat_file.file, FA_WRITE|FA_CREATE_ALWAYS) ||
         !crt_write_header(&file, CRT_EASYFLASH, 1, 0, "EASYFLASH") ||
         !crt_write_file(&file, dat_file.crt.banks))
@@ -432,6 +429,21 @@ static void handle_dir_prev_page_command(SD_STATE *state)
     {
         reply_page_end();
     }
+}
+
+static void handle_delete_file(const char *file_name)
+{
+    c64_send_exit_menu();
+    c64_send_prg_message("Deleting file.");
+    c64_interface(false);
+
+    if (!file_delete(file_name))
+    {
+        sd_send_warning_restart("Failed to delete file", file_name);
+    }
+
+    c64_interface(true);
+    c64_send_reset_to_menu();
 }
 
 static void handle_file_open(FIL *file, const char *file_name)
@@ -665,6 +677,10 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     else if (file_type == FILE_NONE)
     {
         handle_change_dir(state, file_info.fname, false);
+    }
+    else if (flags & SELECT_FLAG_DELETE)
+    {
+        handle_delete_file(file_info.fname);
     }
     else
     {

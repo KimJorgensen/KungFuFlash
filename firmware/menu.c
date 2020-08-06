@@ -181,6 +181,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
     const char *select_text;
     const char *vic_text = NULL;
     const char *mount_text = NULL;
+    bool delete_option = false;
 
     switch (file_type)
     {
@@ -192,16 +193,19 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
         case FILE_CRT:
             select_text = "Run";
             vic_text = "Run (VIC-II/C128 mode)";
+            delete_option = true;
             break;
 
         case FILE_PRG:
         case FILE_P00:
             select_text = "Load";
+            delete_option = true;
             break;
 
         case FILE_D64:
             select_text = "Open";
             mount_text = "Mount";
+            delete_option = true;
             break;
 
         case FILE_D64_PRG:
@@ -211,6 +215,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 
         default:
             select_text = "Select";
+            delete_option = true;
             break;
     }
 
@@ -223,6 +228,10 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
     if (mount_text)
     {
         options_add_select(options, mount_text, SELECT_FLAG_MOUNT, element_no);
+    }
+    if (delete_option)
+    {
+        options_add_select(options, "Delete", SELECT_FLAG_DELETE, element_no);
     }
     options_add_dir(options, "Cancel");
 
