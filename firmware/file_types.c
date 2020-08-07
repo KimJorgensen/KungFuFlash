@@ -40,17 +40,11 @@ static bool compare_extension(char *ext1, const char *ext2)
     return true;
 }
 
-static uint8_t get_file_type(FILINFO *info)
+static uint8_t get_filename_length(const char *filename, uint8_t *extension)
 {
-    char *filename = info->fname;
+    *extension = FF_LFN_BUF-1;
+
     uint8_t length = 0;
-    uint8_t extension = FF_LFN_BUF-1;
-
-    if (info->fattrib & AM_DIR)
-    {
-        return FILE_NONE;
-    }
-
     for (; length < FF_LFN_BUF; length++)
     {
         uint8_t chr = filename[length];
@@ -58,7 +52,7 @@ static uint8_t get_file_type(FILINFO *info)
         {
             if (chr == '.')
             {
-                extension = length;
+                *extension = length;
             }
         }
         else
@@ -66,6 +60,20 @@ static uint8_t get_file_type(FILINFO *info)
             break;
         }
     }
+
+    return length;
+}
+
+static uint8_t get_file_type(FILINFO *info)
+{
+    if (info->fattrib & AM_DIR)
+    {
+        return FILE_NONE;
+    }
+
+    char *filename = info->fname;
+    uint8_t extension;
+    uint8_t length = get_filename_length(filename, &extension);
 
     if ((length - extension) >= 4)
     {

@@ -121,30 +121,104 @@ static void handle_dir_open(SD_STATE *state)
     state->dir_end = false;
 }
 
-static void handle_save_updated_crt(void)
+static void sd_send_warning_restart(const char *message, const char *filename)
+{
+    c64_interface(true);
+    sprint(scratch_buf, "%s\r\n\r\n%s", message, filename);
+    c64_send_warning(scratch_buf);
+    restart_to_menu();
+}
+
+static uint8_t sd_parse_file_number(char *filename, uint8_t *extension)
+{
+    uint8_t pos = *extension-1;
+    if (pos <= 5 || filename[pos--] != ')')
+    {
+        return 0;
+    }
+
+    uint8_t number;
+    if (filename[pos] >= '0' && filename[pos] <= '9')
+    {
+        number = filename[pos--] - '0';
+    }
+    else
+    {
+        return 0;
+    }
+
+    if (filename[pos] >= '0' && filename[pos] <= '9')
+    {
+        number += (filename[pos--] - '0') * 10;
+    }
+
+    if(filename[pos--] != '(' || filename[pos] != ' ')
+    {
+        return 0;
+    }
+
+    *extension = pos;
+    return number;
+}
+
+static bool sd_generate_new_filename(void)
+{
+    char *filename = dat_file.file;
+
+    uint8_t extension;
+    uint8_t length = get_filename_length(filename, &extension);
+    if (length <= extension)
+    {
+        return false;
+    }
+
+    uint8_t file_number = sd_parse_file_number(filename, &extension);
+    if (++file_number >= 100)
+    {
+        return false;
+    }
+
+    if (length < (sizeof(dat_file.file)-5))
+    {
+        sprint(filename + extension, " (%u).crt", file_number);
+        return true;
+    }
+
+    return false;
+}
+
+static void handle_save_updated_crt(uint8_t flags)
 {
     c64_send_exit_menu();
     c64_send_prg_message("Saving CRT file.");
     c64_interface(false);
 
-    FIL file;
-    CRT_HEADER header;
-    if (!file_open(&file, dat_file.file, FA_READ|FA_WRITE) ||
-        !crt_load_header(&file, &header) ||
-        header.cartridge_type != CRT_EASYFLASH)
+    if (!(flags & SELECT_FLAG_OVERWRITE))
     {
-        c64_interface(true);
-        sprint(scratch_buf, "Failed to read CRT file\r\n\r\n%s", dat_file.file);
-        c64_send_warning(scratch_buf);
-        restart_to_menu();
+        bool file_exists = true;
+        while (file_exists)
+        {
+            if (!sd_generate_new_filename())
+            {
+                if (!load_dat())
+                {
+                    restart_to_menu();
+                }
+                sd_send_warning_restart("Failed to generate new filename for",
+                                        dat_file.file);
+            }
+
+            FILINFO file_info;
+            file_exists = file_stat(dat_file.file, &file_info);
+        }
     }
 
-    if (!crt_write_file(&file, dat_file.crt.banks))
+    FIL file;
+    if (!file_open(&file, dat_file.file, FA_WRITE|FA_CREATE_ALWAYS) ||
+        !crt_write_header(&file, CRT_EASYFLASH, 1, 0, "EASYFLASH") ||
+        !crt_write_file(&file, dat_file.crt.banks))
     {
-        c64_interface(true);
-        sprint(scratch_buf, "Failed to write CRT file\r\n\r\n%s", dat_file.file);
-        c64_send_warning(scratch_buf);
-        restart_to_menu();
+        sd_send_warning_restart("Failed to write CRT file", dat_file.file);
     }
     file_close(&file);
 
@@ -357,6 +431,21 @@ static void handle_dir_prev_page_command(SD_STATE *state)
     }
 }
 
+static void handle_delete_file(const char *file_name)
+{
+    c64_send_exit_menu();
+    c64_send_prg_message("Deleting file.");
+    c64_interface(false);
+
+    if (!file_delete(file_name))
+    {
+        sd_send_warning_restart("Failed to delete file", file_name);
+    }
+
+    c64_interface(true);
+    c64_send_reset_to_menu();
+}
+
 static void handle_file_open(FIL *file, const char *file_name)
 {
     if (!file_open(file, file_name, FA_READ))
@@ -430,11 +519,7 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
             uint8_t banks = crt_program_file(&file);
             if (!banks)
             {
-                c64_interface(true);
-                sprint(scratch_buf, "Failed to read CRT file\r\n\r\n%s", file_name);
-                c64_send_warning(scratch_buf);
-                c64_send_reset_to_menu();
-                break;
+                sd_send_warning_restart("Failed to read CRT file", file_name);
             }
 
             uint8_t crt_flags = CRT_FLAG_NONE;
@@ -592,6 +677,10 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     else if (file_type == FILE_NONE)
     {
         handle_change_dir(state, file_info.fname, false);
+    }
+    else if (flags & SELECT_FLAG_DELETE)
+    {
+        handle_delete_file(file_info.fname);
     }
     else
     {
