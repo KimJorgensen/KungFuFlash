@@ -267,31 +267,29 @@ ef3usb_send_receive_rom_addr:
         wait_usb_tx_ok
         sta USB_DATA
 @ef3usb_wait4done:
-        wait_usb_rx_ok
-        lda USB_DATA
+        jsr @ef3usb_receive_in_stack
 @ef3usb_checkdone:
         cmp #'d'
         bne @ef3usb_wait4done
 
-        wait_usb_rx_ok
-        lda USB_DATA
+        jsr @ef3usb_receive_in_stack
         cmp #'o'
         bne @ef3usb_checkdone
 
-        wait_usb_rx_ok
-        lda USB_DATA
+        jsr @ef3usb_receive_in_stack
         cmp #'n'
         bne @ef3usb_checkdone
 
-        wait_usb_rx_ok
-        lda USB_DATA
+        jsr @ef3usb_receive_in_stack
         cmp #'e'
         bne @ef3usb_checkdone
 
-@interface_on:
+        jsr @ef3usb_receive_in_stack
+        rts
+@ef3usb_receive_in_stack:
         wait_usb_rx_ok
         lda USB_DATA
-        rts        
+        rts
 .reloc
 ef3usb_send_receive_rom_addr_end:
 
