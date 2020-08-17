@@ -512,7 +512,7 @@ static bool d64_receive_save_data_cycle(D64 *d64, D64_SAVE_BUFFER *save_buffer) 
             save_buffer->data_sector.pos += recv_size;
         }
         c64_interface(true);
-        c64_send_data("OK", 2);
+        c64_send_data("DONE", 4);
         c64_send_reply(recv_size);
     }
     save_buffer->data_sector.d64sector.next_track = 0;
@@ -655,7 +655,7 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
     }
 
     c64_interface(true);
-    c64_send_data("OK", 2);
+    c64_send_data("DONE", 4);
     c64_send_reply(final_reply);
 }
 

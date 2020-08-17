@@ -266,20 +266,29 @@ ef3usb_send_receive_rom_addr:
 .org ef3usb_send_receive
         wait_usb_tx_ok
         sta USB_DATA
-@ef3usb_wait4ok:
+@ef3usb_wait4done:
+        wait_usb_rx_ok
+        lda USB_DATA
+@ef3usb_checkdone:
+        cmp #'d'
+        bne @ef3usb_wait4done
+
         wait_usb_rx_ok
         lda USB_DATA
         cmp #'o'
-        bne @ef3usb_wait4ok
-@waitfork:        
+        bne @ef3usb_checkdone
+
         wait_usb_rx_ok
         lda USB_DATA
-        cmp #'k'
-        beq @okreceived
-        cmp #'o'
-        beq @waitfork                   ; let's try one more time!
-        bne @ef3usb_wait4ok             ; no, it's useless
-@okreceived:
+        cmp #'n'
+        bne @ef3usb_checkdone
+
+        wait_usb_rx_ok
+        lda USB_DATA
+        cmp #'e'
+        bne @ef3usb_checkdone
+
+@interface_on:
         wait_usb_rx_ok
         lda USB_DATA
         rts        
@@ -1122,7 +1131,7 @@ kff_save:
         jsr save_prg                    ; y->input, num of bytes to copy to save buffer
         txa                             ; let's restore A from X
 @save_cycle_done:
-        sta tmp3                        ; store last sent bytes (0 if we're done)
+        sta tmp3                        ; store last num of sent bytes (0 if we're done)
         jsr ef3usb_send_receive
         ldx #$83                        ; exit code
         cmp tmp3
