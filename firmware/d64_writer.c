@@ -94,7 +94,8 @@ static bool d64_write_sector(D64 *d64, D64_SECTOR *sector_buffer, uint8_t track,
     return true;
 }
 
-static bool d64_write_sync(D64 *d64) {
+static bool d64_write_sync(D64 *d64) 
+{
     return f_sync(&d64->file) == FR_OK;
 }
 
@@ -168,7 +169,8 @@ static bool d64_get_next_free_sector(D64_SAVE_BUFFER *save_buffer,
         *new_track = from_track;
         *new_sector = from_sector;
         uint8_t interleave = 10;
-        while(save_buffer->header_sector.entries[*new_track-1].free_sectors==0) {
+        while(save_buffer->header_sector.entries[*new_track-1].free_sectors==0) 
+        {
             (*new_track)++;
             *new_sector = 0;
             interleave = 0;
@@ -279,7 +281,8 @@ static bool d64_writer_create_file_entry(D64 *d64, D64_SAVE_BUFFER *save_buffer,
 
     uint8_t first_track, first_sector;
 
-    if(!d64_get_first_free_sector(d64, save_buffer, &first_track, &first_sector)) {
+    if(!d64_get_first_free_sector(d64, save_buffer, &first_track, &first_sector)) 
+    {
         wrn("Shall not happen, free space check passed...");
         return false;
     }

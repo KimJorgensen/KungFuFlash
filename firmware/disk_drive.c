@@ -471,9 +471,11 @@ static bool d64_receive_save_data_cycle(D64 *d64, D64_SAVE_BUFFER *save_buffer) 
     uint8_t recv_size, next_track, next_sector;
     uint8_t *receive_buffer = (uint8_t *)&crt_ram_buf[SAVE_BUFFER_OFFSET];
     
-    while((recv_size = c64_receive_byte()) > 0) {
+    while((recv_size = c64_receive_byte()) > 0) 
+    {
         c64_interface(false);
-        if((uint16_t)recv_size + save_buffer->data_sector.pos > D64_SECTOR_DATA_LEN) {
+        if((uint16_t)recv_size + save_buffer->data_sector.pos > D64_SECTOR_DATA_LEN) 
+        {
             uint8_t remaining = D64_SECTOR_DATA_LEN - save_buffer->data_sector.pos;
             if(remaining>0)
             {
