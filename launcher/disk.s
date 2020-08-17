@@ -32,7 +32,6 @@ SAVING          = $f68f                 ; Print "SAVING"
 CINT	        = $ff81                 ; Initialize screen editor
 RESTOR          = $ff8a                 ; Restore I/O vectors
 BSOUT           = $ffd2                 ; Write byte to default output
-RESTORE_ST_ADDR = $fb8e                 ; STAH->SAH ; STAL-> SAL
 
 ; Kernal vectors
 NMINV           = $0318
@@ -101,7 +100,6 @@ CMD_TALK                = $84
 CMD_UNTALK              = $85
 CMD_GET_CHAR            = $86
 CMD_SAVE                = $87
-CMD_PUT_BYTE            = $88
 
 REPLY_READ_DONE         = $80
 REPLY_READ_BANK         = $81
@@ -110,7 +108,7 @@ REPLY_READ_ERROR        = $83
 REPLY_END_OF_FILE       = $84
 REPLY_NOT_SUPPORTED     = $85
 REPLY_SAVE_OK           = $86
-REPLY_SAVE_NOK          = $87
+REPLY_SAVE_ERROR        = $87
 
 ; Align with disk_drive.h (RECV_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
 SAVE_BUF_SIZE           = $90
@@ -674,7 +672,6 @@ kff_open:
         lda #$00
         clc
 @open_done:
-        jsr all_done
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
@@ -765,7 +762,6 @@ kff_chkin:
         lda #$00                        ; Clear device status
         sta STATUS
         clc                             ; OK
-        jsr all_done
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
@@ -841,7 +837,6 @@ do_kff_basin:
         sta STATUS
         lda #$00
         clc
-        jsr all_done
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
@@ -853,7 +848,6 @@ do_kff_basin:
         sta STATUS
         jsr ef3usb_receive_byte         ; Get data
         clc
-        jsr all_done
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
@@ -1044,7 +1038,6 @@ load_next_bank:
 @read_error:
         lda #$10                        ; Set device status to read error occurred
         sta STATUS
-        jsr all_done
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 .endproc
@@ -1061,6 +1054,7 @@ kff_save:
 
 @normal_save:
         jsr copy_trampoline_code
+        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal save
         sta return_inst
         lda old_save_vector
@@ -1082,8 +1076,6 @@ kff_save:
         jsr kff_send_command
         jsr send_filename
 
-        lda #$00
-        sta $02
 ; calculate file size
         sec
         lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)                 
@@ -1181,31 +1173,6 @@ kff_save:
 @compare_done:
         rts
 
-;@long_loop:
-;        pha
-;        txa
-;        pha
-;        tya
-;        pha
-;        ldx #$06
-;        stx $02
-;        ldx #$00
-;        ldy #$00
-;:       dec $d020
-;        dey
-;        bne :-
-;        dex
-;        bne :-
-;        lda $02
-;        sta $0411
-;        dec $02
-;        bne :-
-;        pla
-;        tay
-;        pla
-;        tax
-;        pla
-;        rts
 .endproc
 
 ; =============================================================================

@@ -19,10 +19,6 @@
  *
  ******************************************************************************
  */
-#include "d64_reader.h"
-
-#ifndef D64_WRITER_H
-#define D64_WRITER_H
 
 static const uint8_t d64_sector_num[40] =
 {
@@ -56,5 +52,3 @@ typedef struct
     D64_DIRECTORY_SECTOR modified_directory_sector_2; // not necessarily needed - initialize track with 0!
     D64_DATA_SECTOR data_sector;
 } D64_SAVE_BUFFER;
-
-#endif      // D64_WRITER_H

@@ -18,9 +18,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "disk_drive.h"
-#include "d64_writer.h"
-
 static inline void put_u8(uint8_t **ptr, uint8_t value)
 {
     *(*ptr)++ = value;
@@ -201,18 +198,14 @@ static void disk_parse_filename(char *filename, PARSED_FILENAME *parsed)
     char *f_ptr = filename;
     char c, last_c = 0;
     parsed->drive = 0;
-    if(*f_ptr == '@') {
-        parsed->overwrite = true;
-        filename++;
-    } else {
-        parsed->overwrite = false;
-    }
-
-    // Scan for drive number
+    parsed->overwrite = false;
+    
+    // Scan for drive number and overwrite flag
     while ((c = *f_ptr++))
     {
         if (c == ':')
         {
+            parsed->overwrite = (*filename == '@');
             if (last_c >= '0' && last_c <= '9')
             {
                 parsed->drive = last_c - '0';
@@ -574,7 +567,7 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
     
     if(!d64_read_disk_header(d64)) 
     {
-        c64_send_reply(1);
+        c64_send_reply(REPLY_SAVE_ERROR);
         return;
     }
     memcpy(&save_buffer->header_sector, &d64->d64_header, sizeof(D64_HEADER_SECTOR));
@@ -586,14 +579,14 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
         if(!parsed_filename.overwrite) 
         {
             // File already exists, overwrite not selected
-            c64_send_reply(3);
+            c64_send_reply(REPLY_SAVE_ERROR);
             return;
         } 
         else 
         {
             if(free_blocks + oldfile_size < (filesize_in_bytes+1)/254 + 1) 
             {
-                c64_send_reply(2);
+                c64_send_reply(REPLY_SAVE_ERROR);
                 return;
             }
             d64_read_sector(d64, oldfile_dir_track, oldfile_dir_sector);
@@ -611,14 +604,14 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
     } else {
         if(free_blocks<((filesize_in_bytes+1)/254 + 1)) 
         {
-            c64_send_reply(2);
+            c64_send_reply(REPLY_SAVE_ERROR);
             return;
         }
         if( !d64_writer_create_file_entry(d64, save_buffer, 
                                           parsed_filename.name, parsed_filename.type, 
                                           (uint8_t)((filesize_in_bytes + 1) / 254 + 1) ) )
         {
-            c64_send_reply(4);
+            c64_send_reply(REPLY_SAVE_ERROR);
             return;
         }
     }
@@ -652,11 +645,11 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
         
         write_success = write_success && d64_write_sync(d64);
 
-        final_reply = write_success ? 0 : 5;
+        final_reply = write_success ? 0 : REPLY_SAVE_ERROR;
     }
     else
     {
-        final_reply = 6;
+        final_reply = REPLY_SAVE_ERROR;
     }
 
     c64_interface(true);

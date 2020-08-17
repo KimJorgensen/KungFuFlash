@@ -26,11 +26,9 @@
  * Original source (C) Kim Jørgensen
  */
 
-#include "disk_drive.h"
-#include "d64_reader.h"
 #include "d64_writer.h"
 
-bool allocate_if_free(D64_SAVE_BUFFER *save_buffer, uint8_t track, uint8_t sector) {
+static bool allocate_if_free(D64_SAVE_BUFFER *save_buffer, uint8_t track, uint8_t sector) {
     D64_BAM_ENTRY *bam_entry = &save_buffer->header_sector.entries[track-1];
     uint8_t *d = &bam_entry->data[sector / 8];
     if ((*d & (1<<(sector % 8))) != 0)
@@ -44,7 +42,7 @@ bool allocate_if_free(D64_SAVE_BUFFER *save_buffer, uint8_t track, uint8_t secto
     }
 }
 
-bool deallocate_in_bam(D64_SAVE_BUFFER *save_buffer, uint8_t track, uint8_t sector) {
+static bool deallocate_in_bam(D64_SAVE_BUFFER *save_buffer, uint8_t track, uint8_t sector) {
     D64_BAM_ENTRY *bam_entry = &save_buffer->header_sector.entries[track-1];
     uint8_t *d = &bam_entry->data[sector / 8];
     if ((*d & (1<<(sector % 8))) == 0)
@@ -96,7 +94,7 @@ static bool d64_write_sector(D64 *d64, D64_SECTOR *sector_buffer, uint8_t track,
     return true;
 }
 
-bool d64_write_sync(D64 *d64) {
+static bool d64_write_sync(D64 *d64) {
     return f_sync(&d64->file) == FR_OK;
 }
 
@@ -253,7 +251,6 @@ static bool d64_writer_create_file_entry(D64 *d64, D64_SAVE_BUFFER *save_buffer,
                 return false;                   // directory table is full
             }
 
-//            d64_read_sector(d64, track, sector);
             d64->sector.next_track = next_free_track;
             d64->sector.next_sector = next_free_sector;
             memcpy(&save_buffer->modified_directory_sector_2.directory_sector, &d64->sector, sizeof(D64_SECTOR));

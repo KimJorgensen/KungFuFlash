@@ -17,8 +17,6 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-#ifndef COMMANDS_H
-#define COMMANDS_H
 
 #define DIR_NAME_LENGTH 34
 #define ELEMENT_LENGTH 38
@@ -87,11 +85,9 @@ typedef enum {
     REPLY_END_OF_FILE,
     REPLY_NOT_SUPPORTED,
     REPLY_SAVE_OK,
-    REPLY_SAVE_NOK,
+    REPLY_SAVE_ERROR,
 
     // EAPI replies
     REPLY_WRITE_WAIT = 0xf0,
     REPLY_WRITE_ERROR
 } REPLY_TYPE;
-
-#endif

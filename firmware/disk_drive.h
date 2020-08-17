@@ -18,9 +18,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#ifndef DISK_DRIVE_H
-#define DISK_DRIVE_H
-
 typedef struct
 {
     const char *name;
@@ -40,5 +37,3 @@ typedef struct
 
 // RECV_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE. Check disk.s 
 #define RECV_BUFFER_OFFSET 0x70
-
-#endif // DISK_DRIVE_H

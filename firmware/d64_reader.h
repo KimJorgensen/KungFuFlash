@@ -23,9 +23,6 @@
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
 
-#ifndef D64_READER_H
-#define D64_READER_H
-
 #define D64_SECTOR_DATA_LEN 254
 
 static const uint16_t d64_track_offset[42] =
@@ -177,5 +174,3 @@ static uint8_t d64_image_type(FSIZE_t imgsize)
 
     return D64_IMAGE_UNKNOWN;
 }
-
-#endif      // D64_READER_H
