@@ -28,6 +28,9 @@
 
 #define BASIC_CMD_BUF_SIZE 80
 
+// SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE. Check disk.s for SAVE_BUF_SIZE value
+#define SAVE_BUFFER_OFFSET 0x70
+
 typedef enum {
     CMD_NONE = 0x00,
 

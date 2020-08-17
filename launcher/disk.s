@@ -110,7 +110,7 @@ REPLY_NOT_SUPPORTED     = $85
 REPLY_SAVE_OK           = $86
 REPLY_SAVE_ERROR        = $87
 
-; Align with disk_drive.h (RECV_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
+; Align with commands.h (SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
 SAVE_BUF_SIZE           = $90
 
 ; =============================================================================
@@ -141,6 +141,8 @@ _disk_mount_and_load:
         sta EASYFLASH_RAM,x
         cpx #$00
         bne :-
+
+        jsr copy_disable_ef_rom
 
         ; === Start BASIC ===
         ldx #basic_mount_starter_end - basic_mount_starter
@@ -291,16 +293,11 @@ zp_backup:
         .byte $ff,$ff,$ff,$ff,$ff
 filename_len:
         .byte $00
+; TODO: still, only 39 bytes are allocated for filenames. It should be 41 chars long.
 filename:
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00
-; TODO: Should really be 41 bytes for max compatibility but no room in RAM :(
-;        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-;        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00
-
-; TODO: Still, there is only 38 bytes for filename (no save and related functions are implemented)
-        .byte     $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00,$00,$00,$00,$00,$00
+        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+        .byte $00,$00,$00,$00,$00,$00,$00
 
 filename_end:
 
@@ -492,7 +489,7 @@ disable_ef_rom:
         plp
         cli
 return_inst:
-        rts                         ; Replaced with jmp or remains rts
+        rts                         ; Replaced with jmp or rts
        .byte $00,$00          
 .reloc
 disk_api_disable_ef_rom_end:
@@ -619,7 +616,6 @@ kff_open:
         beq @kff_device                 ; Device 8
 
 @normal_open:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal OPEN
         sta return_inst
         lda old_open_vector
@@ -629,7 +625,6 @@ kff_open:
         jmp disable_ef_rom
 
 @kff_device:
-        jsr copy_load_prg
         sta tmp1                        ; Save device number
 
 	lda #$00                        ; Set device to keyboard so that OPEN
@@ -672,7 +667,9 @@ kff_open:
         lda #$00
         clc
 @open_done:
-        jsr copy_disable_ef_rom
+        ldy #$60
+        sty return_inst
+        ldy FA
         jmp disable_ef_rom
 
 .endproc
@@ -720,7 +717,6 @@ kff_close:
         jsr ef3usb_receive_byte         ; Get reply (ignored)
 
 @normal_close:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CLOSE
         sta return_inst
         lda old_close_vector
@@ -762,11 +758,13 @@ kff_chkin:
         lda #$00                        ; Clear device status
         sta STATUS
         clc                             ; OK
-        jsr copy_disable_ef_rom
+        stx tmp1
+        ldx #$60                        ; Setup rts from CHKIN
+        stx return_inst
+        ldx tmp1
         jmp disable_ef_rom
 
 @normal_chkin:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CHKIN
         sta return_inst
         lda old_chkin_vector
@@ -800,7 +798,6 @@ kff_clrch:
         ldy tmp1
 
 @normal_clrch:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old CLRCH
         sta return_inst
         lda old_clrch_vector
@@ -823,6 +820,8 @@ kff_basin:
 do_kff_basin:
         stx tmp1
         sty tmp2
+        ldx #$60                        ; set RTS at the end of disable_ef_rom
+        stx return_inst
         lda #CMD_GET_CHAR               ; Send command
         jsr kff_send_command
         ldx tmp1
@@ -837,7 +836,6 @@ do_kff_basin:
         sta STATUS
         lda #$00
         clc
-        jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
 @read_end:
@@ -848,7 +846,6 @@ do_kff_basin:
         sta STATUS
         jsr ef3usb_receive_byte         ; Get data
         clc
-        jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
 keyboard:
@@ -879,7 +876,6 @@ keyboard:
 @normal_basin_y:
         ldy tmp1
 normal_basin:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old BASIN
         sta return_inst
         lda old_basin_vector
@@ -901,7 +897,6 @@ kff_getin:
         jmp kff_basin::do_kff_basin
 
 @normal_getin:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to old GETIN
         sta return_inst
         lda old_getin_vector
@@ -932,7 +927,6 @@ kff_load:
         beq @kff_device                 ; Device 8
 
 @normal_load:
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal load
         sta return_inst
         lda old_load_vector
@@ -1053,8 +1047,6 @@ kff_save:
         beq @kff_device                 ; Device 8
 
 @normal_save:
-        jsr copy_trampoline_code
-        jsr copy_disable_ef_rom
         lda #$4c                        ; Setup jmp to normal save
         sta return_inst
         lda old_save_vector

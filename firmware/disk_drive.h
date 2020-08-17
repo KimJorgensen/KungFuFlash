@@ -34,6 +34,3 @@ typedef struct
     uint8_t bytes_ptr;
     D64_SECTOR sector;
 } DISK_CHANNEL;
-
-// RECV_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE. Check disk.s 
-#define RECV_BUFFER_OFFSET 0x70
