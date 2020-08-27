@@ -113,6 +113,8 @@ REPLY_SAVE_ERROR        = $87
 
 ; Align with commands.h (SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
 SAVE_BUF_SIZE           = $90
+SAVE_ERROR_FILE_EXISTS  = $80
+SAVE_ERROR_DISK_FULL    = $83
 
 ; =============================================================================
 ;
@@ -264,6 +266,8 @@ basic_mount_starter:
 basic_mount_starter_end:
 
 ef3usb_send_receive_rom_addr:
+; Make sure a wait_usb_tx_ok macro inserted before calling
+; Not included here to keep stack usage low
 .org ef3usb_send_receive
         sta USB_DATA
 @ef3usb_wait4done:
@@ -341,7 +345,8 @@ kernal_call:
         sty EASYFLASH_CONTROL
         rts
 
-removable_ef_ram_code:
+; Overwritten only by save, otherwise stays in EF_RAM
+io_trampoline_start:
 open_trampoline:                        ; Called by C64 kernal routines
         jsr store_filename_enable_ef
         jmp kff_open
@@ -415,12 +420,12 @@ enable_ef_rom:
         pla
         rts
 
-kernal_call_end = *
+enable_ef_rom_end:
 .reloc
 disk_api_resident_end:
 
 disk_api_load_prg:
-.org kernal_call_end
+.org enable_ef_rom_end
 load_prg:
         sta EASYFLASH_BANK
         ldx tmp2
@@ -471,7 +476,8 @@ all_done:
 disk_api_load_prg_end:
 
 disk_api_disable_ef_rom:
-.org kernal_call_end
+; Overwritten only by load and save, otherwise stays in EF_RAM
+.org enable_ef_rom_end
 disable_ef_rom:
         php                             ; Restore ZP
         pha
@@ -500,7 +506,9 @@ return_inst:
 disk_api_disable_ef_rom_end:
 
 disk_api_save_prg:
-.org removable_ef_ram_code
+; This area is copied over the io_trampoline code to have bigger 
+; IO buffer for data transfer between C64 and KFF card.
+.org io_trampoline_start
 fill_save_buffer:
 
         lda #EASYFLASH_KILL                   ; Area under $8000-$9fff will be RAM
@@ -546,8 +554,8 @@ copy_load_prg:
         rts
 .endproc
 
-.proc copy_fill_save_buffer
-copy_fill_save_buffer:
+.proc copy_save_prg
+copy_save_prg:
         php     ; store flags
         pha     ; store a
         txa     ; store x
@@ -590,10 +598,10 @@ copy_trampoline_code:
         pha     ; a
         txa     ; x
         pha
-        ldx #kernal_call_end - open_trampoline
+        ldx #enable_ef_rom_end - io_trampoline_start
 :       dex
-        lda disk_api_resident + (open_trampoline - EASYFLASH_RAM),x
-        sta open_trampoline,x
+        lda disk_api_resident + (io_trampoline_start - EASYFLASH_RAM),x
+        sta io_trampoline_start,x
         cpx #$00
         bne :-
         pla     ; x
@@ -1073,7 +1081,7 @@ kff_save:
         jsr kff_send_command
         jsr send_filename
 
-        jsr copy_fill_save_buffer
+        jsr copy_save_prg
 
 ; calculate file size
         sec
@@ -1091,7 +1099,7 @@ kff_save:
         lda STAH
         sta SAH
         jsr @ef3usb_send_receive
-        ldx #$01
+        ldx #SAVE_ERROR_FILE_EXISTS     ; Most probably the file already exists (or directory is full)
         cmp #REPLY_SAVE_OK
         bne @save_done
 
@@ -1122,7 +1130,7 @@ kff_save:
 @save_cycle_done:
         sta tmp3                        ; store last num of sent bytes (0 if we're done)
         jsr @ef3usb_send_receive
-        ldx #$83                        ; exit code - disk full
+        ldx #SAVE_ERROR_DISK_FULL       ; exit code - disk full
         cmp tmp3
         bne @save_done                  ; if any problem during save -> exit loop
         tax                  
