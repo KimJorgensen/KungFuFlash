@@ -100,6 +100,7 @@ CMD_TALK                = $84
 CMD_UNTALK              = $85
 CMD_GET_CHAR            = $86
 CMD_SAVE                = $87
+CMD_SAVE_BUFFER         = $88
 
 REPLY_READ_DONE         = $80
 REPLY_READ_BANK         = $81
@@ -264,7 +265,6 @@ basic_mount_starter_end:
 
 ef3usb_send_receive_rom_addr:
 .org ef3usb_send_receive
-        wait_usb_tx_ok
         sta USB_DATA
 @ef3usb_wait4done:
         jsr @ef3usb_receive_in_stack
@@ -284,8 +284,6 @@ ef3usb_send_receive_rom_addr:
         cmp #'e'
         bne @ef3usb_checkdone
 
-        jsr @ef3usb_receive_in_stack
-        rts
 @ef3usb_receive_in_stack:
         wait_usb_rx_ok
         lda USB_DATA
@@ -310,7 +308,6 @@ filename_end:
 
 mem_config:
         .byte $00
-
 print_text_ptr:
         .byte $00
 more_to_load:
@@ -335,7 +332,7 @@ old_load_vector:
 old_save_vector:
          .byte $00,$00
 
-kernal_trampoline:
+kernal_trampoline:                      ; Called by KFF routines 
         lda #EASYFLASH_KILL
         sta EASYFLASH_CONTROL
 kernal_call:
@@ -344,7 +341,8 @@ kernal_call:
         sty EASYFLASH_CONTROL
         rts
 
-open_trampoline:
+removable_ef_ram_code:
+open_trampoline:                        ; Called by C64 kernal routines
         jsr store_filename_enable_ef
         jmp kff_open
 
@@ -502,8 +500,8 @@ return_inst:
 disk_api_disable_ef_rom_end:
 
 disk_api_save_prg:
-.org open_trampoline
-save_prg:
+.org removable_ef_ram_code
+fill_save_buffer:
 
         lda #EASYFLASH_KILL                   ; Area under $8000-$9fff will be RAM
         sta EASYFLASH_CONTROL
@@ -548,8 +546,8 @@ copy_load_prg:
         rts
 .endproc
 
-.proc copy_save_prg
-copy_save_prg:
+.proc copy_fill_save_buffer
+copy_fill_save_buffer:
         php     ; store flags
         pha     ; store a
         txa     ; store x
@@ -557,7 +555,7 @@ copy_save_prg:
         ldx #disk_api_save_prg_end - disk_api_save_prg
 :       dex
         lda disk_api_save_prg,x
-        sta save_prg,x
+        sta fill_save_buffer,x
         cpx #$00
         bne :-
         pla     ; pop x from stack
@@ -1075,6 +1073,8 @@ kff_save:
         jsr kff_send_command
         jsr send_filename
 
+        jsr copy_fill_save_buffer
+
 ; calculate file size
         sec
         lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)                 
@@ -1084,61 +1084,52 @@ kff_save:
         sbc STAH
         sta tmp2
 
-        lda tmp1                ; size of file (excluding start address) - low byte
-        jsr ef3usb_send_byte    ; high byte
-        lda tmp2
-        jsr ef3usb_send_byte
-
-        jsr ef3usb_receive_byte         ; Get reply
-        ldx #$81
-        cmp #REPLY_SAVE_OK
-        bne @save_done                  ; file already exists, not enough space, other..
-
-        lda STAL                        ; initializing SAL:SAH and sending the start addr to KFF also
+        lda STAL                        ; initializing SAL:SAH
         sta SAL
-        jsr ef3usb_send_byte
+        jsr ef3usb_send_byte            ; send low byte of start address
+
         lda STAH
         sta SAH
-        jsr ef3usb_send_byte
+        jsr @ef3usb_send_receive
+        ldx #$01
+        cmp #REPLY_SAVE_OK
+        bne @save_done
+
+        lda #CMD_SAVE_BUFFER            ; Here starts the save buffer cycle
+        jsr kff_send_command
 
         lda #($0100 - SAVE_BUF_SIZE)    ; set ptr to EF RAM
         sta ptr1
         lda #>EASYFLASH_RAM
         sta ptr2
 
-        jsr ef3usb_receive_byte         ; Get reply
-        ldx #$82
-        cmp #REPLY_SAVE_OK
-        bne @save_done
 
-        jsr copy_save_prg
- 
-        ; tmp1:tmp2 -> remaining size of file to save (here: size of file)
-        ; ptr1:ptr2 -> start address of outbut buff in EF RAM
-        ; SAL:SAH   -> running address of file to save (here: start address of file) 
+; tmp1:tmp2 -> remaining size of file to save (here: size of file)
+; ptr1:ptr2 -> start address of outbut buff in EF RAM
+; SAL:SAH   -> running address of file to save (here: start address of file) 
 @save_start:
         jsr @compare_buffer_and_remaining_size   ; c set if remaining size >= SAVE_BUF_SIZE
         bcc @set_remaining_size
         lda #SAVE_BUF_SIZE
         .byte $2c                       ; BIT
 @set_remaining_size:
-        lda tmp1
+        lda tmp1                        ; valid bytes in buffer
         tax                             ; save A in X
         tay
         beq @save_cycle_done            ; let's not copy $100 bytes...
-        jsr save_prg                    ; y->input, num of bytes to copy to save buffer
+        jsr fill_save_buffer            ; y->input, num of bytes to copy to save buffer
         txa                             ; let's restore A from X
 @save_cycle_done:
         sta tmp3                        ; store last num of sent bytes (0 if we're done)
-        jsr ef3usb_send_receive
-        ldx #$83                        ; exit code
+        jsr @ef3usb_send_receive
+        ldx #$83                        ; exit code - disk full
         cmp tmp3
         bne @save_done                  ; if any problem during save -> exit loop
         tax                  
         cmp #$00                        ; was it the last save cycle? (exit code is 0x00)
         beq @save_done
 
-        sec                             ; substract SAVE_BUF_SIZE from remaining size to save
+        sec                             ; substract sent bytes from remaining size to save
         lda tmp1
         sbc tmp3
         sta tmp1
@@ -1146,8 +1137,8 @@ kff_save:
         sbc #$00
         sta tmp2
 
-        clc                             ; increase source address by sent bytes..
-        lda tmp3                        ; SAL is always increased by SAVE_BUF_SIZE.
+        clc                             ; increase source address by sent bytes
+        lda tmp3
         adc SAL                         
         sta SAL
         lda SAH
@@ -1157,7 +1148,7 @@ kff_save:
         jmp @save_start
 
 @save_done:
-                                ; x contains the exit code - not used ... yet
+        stx STATUS                      ; x contains the exit code - stored in STATUS (ST)
         jsr copy_trampoline_code
         jsr copy_disable_ef_rom
         clc
@@ -1172,10 +1163,14 @@ kff_save:
 @compare_done:
         rts
 
+@ef3usb_send_receive:
+        wait_usb_tx_ok
+        jmp ef3usb_send_receive
+
 .endproc
 
 ; =============================================================================
-kff_send_command:
+`:
         sta tmp3
         lda #<cmd_header
         sta ptr1

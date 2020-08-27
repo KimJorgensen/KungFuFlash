@@ -29,26 +29,3 @@ static const uint8_t d64_sector_num[40] =
     17, 17, 17, 17, 17, 17, 17, 17,
     17
 };
-
-typedef struct
-{
-    uint8_t track;
-    uint8_t sector;
-    D64_SECTOR directory_sector;
-} D64_DIRECTORY_SECTOR;
-
-typedef struct
-{
-    uint8_t track;
-    uint8_t sector;
-    uint8_t pos;
-    D64_SECTOR d64sector;
-} D64_DATA_SECTOR;
-
-typedef struct
-{
-    D64_HEADER_SECTOR header_sector;
-    D64_DIRECTORY_SECTOR modified_directory_sector_1;
-    D64_DIRECTORY_SECTOR modified_directory_sector_2; // not necessarily needed - initialize track with 0!
-    D64_DATA_SECTOR data_sector;
-} D64_SAVE_BUFFER;

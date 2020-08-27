@@ -58,6 +58,7 @@ typedef enum {
     CMD_UNTALK,
     CMD_GET_BYTE,
     CMD_SAVE,
+    CMD_SAVE_BUFFER,
 
     // EAPI commands
     CMD_EAPI_INIT = 0xf0,

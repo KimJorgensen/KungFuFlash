@@ -467,86 +467,209 @@ static void disk_handle_load(D64 *d64, char *filename, uint8_t *ptr)
     }
 }
     
-static bool d64_receive_save_data_cycle(D64 *d64, D64_SAVE_BUFFER *save_buffer) {
-    uint8_t recv_size, next_track, next_sector;
-    uint8_t *receive_buffer = (uint8_t *)&crt_ram_buf[SAVE_BUFFER_OFFSET];
-    
-    while((recv_size = c64_receive_byte()) > 0) 
+static bool allocate_in_bam(D64_HEADER_SECTOR *header, uint8_t track, uint8_t sector) {
+    D64_BAM_ENTRY *bam_entry = &header->entries[track-1];
+    uint8_t *d = &bam_entry->data[sector / 8];
+    if ((*d & (1<<(sector % 8))) != 0)
     {
-        c64_interface(false);
-        if((uint16_t)recv_size + save_buffer->data_sector.pos > D64_SECTOR_DATA_LEN) 
-        {
-            uint8_t remaining = D64_SECTOR_DATA_LEN - save_buffer->data_sector.pos;
-            if(remaining>0)
-            {
-                memcpy(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos],
-                       receive_buffer,
-                       remaining);
-            }
-            if(!d64_get_next_free_sector(save_buffer, 
-                                         save_buffer->data_sector.track, save_buffer->data_sector.sector, 
-                                         &next_track, &next_sector)) 
-            {
-                return false;
-            }
-            save_buffer->data_sector.d64sector.next_track = next_track;
-            save_buffer->data_sector.d64sector.next_sector = next_sector;
-            if(!d64_write_sector(d64, &save_buffer->data_sector.d64sector, 
-                                 save_buffer->data_sector.track, save_buffer->data_sector.sector))
-            {
-                return false;
-            }
-            
-            memcpy(&save_buffer->data_sector.d64sector.data[0],
-                    receive_buffer + remaining,
-                    recv_size - remaining);
-            save_buffer->data_sector.pos = recv_size - remaining;
-            save_buffer->data_sector.track = next_track;
-            save_buffer->data_sector.sector = next_sector;
-        }
-        else
-        {
-            memcpy(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos], 
-                   receive_buffer,
-                   recv_size);
-            save_buffer->data_sector.pos += recv_size;
-        }
-        c64_interface(true);
-        c64_send_data("DONE", 4);
-        c64_send_reply(recv_size);
+        *d &= ~(1<<(sector % 8));
+        bam_entry->free_sectors--;
+        return true;
     }
-    save_buffer->data_sector.d64sector.next_track = 0;
-    save_buffer->data_sector.d64sector.next_sector = save_buffer->data_sector.pos+1;
-    memset(&save_buffer->data_sector.d64sector.data[save_buffer->data_sector.pos], 
-            0x00, 
-            D64_SECTOR_DATA_LEN - save_buffer->data_sector.pos);
-
-    c64_interface(false);
-    if(!d64_write_sector(d64, &save_buffer->data_sector.d64sector, 
-                            save_buffer->data_sector.track, save_buffer->data_sector.sector))
+    else
     {
         return false;
     }
+}
+
+static bool deallocate_in_bam(D64_HEADER_SECTOR *header, uint8_t track, uint8_t sector) {
+    D64_BAM_ENTRY *bam_entry = &header->entries[track-1];
+    uint8_t *d = &bam_entry->data[sector / 8];
+    if ((*d & (1<<(sector % 8))) == 0)
+    {
+        *d |= (1<<(sector % 8));
+        bam_entry->free_sectors++;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+static void deallocate_chain(D64 *d64, D64_HEADER_SECTOR *header)
+{
+    uint8_t track = d64->entry->track;
+    uint8_t sector = d64->entry->sector;
+
+    while(track!=0) {
+        if(!deallocate_in_bam(header, track, sector) ||
+           !d64_read_sector(d64, track, sector)) 
+        {
+            break;
+        } 
+        track = d64->sector.next_track;
+        sector = d64->sector.next_sector;
+    }
+}
+
+static bool find_and_allocate_next_free_sector(D64_HEADER_SECTOR *header,
+                                     uint8_t from_track, uint8_t from_sector,
+                                     uint8_t *new_track, uint8_t *new_sector) 
+{
+    *new_track = from_track;
+    *new_sector = from_sector;
+    uint8_t interleave = 10;
+    while(header->entries[*new_track-1].free_sectors==0) 
+    {
+        (*new_track)++;
+        *new_sector = 0;
+        interleave = 0;
+        if(*new_track>35) 
+        {
+            *new_track = 1;
+        } 
+        else if (*new_track == 18) 
+        {
+            (*new_track)++;
+        }
+        if((*new_track == from_track) || from_track == 18) {
+            // ??? disk is full
+            return false;
+        }
+    }
+    
+    bool found = false;
+    uint8_t sector_num_in_track = d64_sector_num[*new_track-1];
+    for(int count = 0; count<sector_num_in_track; count++) 
+    {
+        *new_sector += interleave;
+        if(*new_sector >= sector_num_in_track)
+            *new_sector -= sector_num_in_track;
+
+        if(allocate_in_bam(header, *new_track, *new_sector))
+        {
+            found = true;
+            break;
+        }
+        interleave = 1;
+    }
+    return found;
+}
+
+static bool d64_create_file_entry(D64 *d64, D64_HEADER_SECTOR *header, DISK_CHANNEL *channel, 
+                                         const char *file_name, uint8_t file_type) 
+{
+    d64_rewind_dir(d64);
+    d64_read_next_sector(d64, &d64->sector);
+    d64->entry = d64->entries;
+    uint8_t track=18, sector=1;
+    bool entry_found = false;
+    while(!entry_found) 
+    {
+        while(d64->entry < &d64->entries[8]) 
+        {
+            if((d64->entry->type & 7) == D64_FILE_DEL || 
+                d64->entry->filename[0]=='\xa0' || 
+                d64->entry->filename[0]=='\x00') 
+            { // can be deleted entry (let's reuse it), or a new, empty entry
+                entry_found = true;
+                break;
+            }
+            d64->entry++;
+        }
+        if(entry_found)
+            break;
+            
+        if(d64->sector.next_track)      // there is more linked directory sector
+        {
+            track = d64->sector.next_track;
+            sector = d64->sector.next_sector;
+            d64_read_next_sector(d64, &d64->sector);
+            d64->entry = d64->entries;
+            d64->visited_dir_sectors++;
+            if(d64->visited_dir_sectors>40) 
+            {
+                wrn("Directory too big or there is a recursive link\n");
+                return false;
+            }
+        }
+        else                        // no linked sector, this is the last one
+        {
+            uint8_t next_free_track;
+            uint8_t next_free_sector;
+            if(!find_and_allocate_next_free_sector(header, 
+                                                   d64->last_read_track, 
+                                                   d64->last_read_sector, 
+                                                   &next_free_track, 
+                                                   &next_free_sector))
+            {
+                return false;                   // directory table is full
+            }
+
+            d64->sector.next_track = next_free_track;
+            d64->sector.next_sector = next_free_sector;
+            if(!d64_write_sector(d64, &d64->sector, d64->last_read_track, d64->last_read_sector)) {
+                return false;
+            }
+
+            memset(&d64->sector, 0, sizeof(D64_SECTOR));
+            d64->sector.next_track=0;
+            d64->sector.next_sector=255;
+            d64->entry = d64->entries;
+            track = next_free_track;
+            sector = next_free_sector;
+            
+            entry_found = true;
+            break;
+        }
+        
+    }
+
+    if(!entry_found) 
+    {
+        wrn("shall not exit from loop without founding any entry!!");
+        return false;
+    }
+
+    uint8_t first_track, first_sector;
+
+    if(!find_and_allocate_next_free_sector(header, 1, 11, &first_track, &first_sector)) 
+    {
+        wrn("D64 disk is full...");
+        return false;
+    }
+
+    d64->entry->track = first_track;        // here will start the program to be saved
+    d64->entry->sector = first_sector;
+    memset(d64->entry->filename, '\xa0', 16);
+    memcpy(d64->entry->filename, file_name, strlen(file_name)); // excluding trailing 0x00
+    d64->entry->type = file_type;           // without setting bit 7
+    d64->entry->blocks = 0;
+
+    if(!d64_write_sector(d64, &d64->sector, track, sector)) {
+        return false;
+    }
+
+    channel->track_pos = first_track;
+    channel->sector_pos = first_sector;
+    
     return true;
 }
 
-static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *filename, uint16_t filesize_in_bytes) {
+static uint8_t disk_handle_save_direntry(D64 *d64, DISK_CHANNEL *channel, char *filename) {
     PARSED_FILENAME parsed_filename;
-    save_buffer->modified_directory_sector_1.track = 0;
-    save_buffer->modified_directory_sector_2.track = 0;
-    
-    // TODO: implement D71 and D81 image type support
+    D64_HEADER_SECTOR header;
+
     if(d64->image_type!=D64_IMAGE_D64) 
     {
-        c64_send_reply(REPLY_NOT_SUPPORTED);
-        return;
+        return REPLY_NOT_SUPPORTED;
     }
    
     disk_parse_filename(filename, &parsed_filename);
     if (parsed_filename.drive!=0)               // this is a 'single drive system'
     {
-        c64_send_reply(REPLY_NOT_SUPPORTED);
-        return;
+        return REPLY_NOT_SUPPORTED;
     }
 
     if (!parsed_filename.type)
@@ -556,107 +679,145 @@ static void disk_handle_save_prg(D64 *d64, D64_SAVE_BUFFER *save_buffer, char *f
     else if (parsed_filename.type == D64_FILE_REL)
     {
         // Not supported
-        c64_send_reply(REPLY_NOT_SUPPORTED);
-        return;
+        return REPLY_NOT_SUPPORTED;
     }
+
+    if(!d64_read_disk_header(d64))
+    {
+        return REPLY_SAVE_ERROR;
+    }
+    memcpy(&header, &d64->sector, sizeof(D64_HEADER_SECTOR));
 
     bool file_found = disk_find_file(d64, parsed_filename.name, parsed_filename.type);
     // these are needed for the overwrite
     uint8_t oldfile_dir_track = file_found ? d64->last_read_track : 0;
     uint8_t oldfile_dir_sector = file_found ? d64->last_read_sector : 0;
-    uint8_t oldfile_size = file_found ? d64->entry->blocks : 0;
     D64_DIR_ENTRY *oldfile_dir_entry = d64->entry;
     
-    if(!d64_read_disk_header(d64)) 
-    {
-        c64_send_reply(REPLY_SAVE_ERROR);
-        return;
-    }
-    memcpy(&save_buffer->header_sector, &d64->d64_header, sizeof(D64_HEADER_SECTOR));
-
-    uint16_t free_blocks = d64_calc_blocks_free(d64);   // assuming BAM is OK.
-
     if(file_found)
     {
         if(!parsed_filename.overwrite) 
         {
             // File already exists, overwrite not selected
-            c64_send_reply(REPLY_SAVE_ERROR);
-            return;
+            return REPLY_SAVE_ERROR;
         } 
         else 
         {
-            if(free_blocks + oldfile_size < (filesize_in_bytes+1)/254 + 1) 
-            {
-                c64_send_reply(REPLY_SAVE_ERROR);
-                return;
-            }
-            d64_read_sector(d64, oldfile_dir_track, oldfile_dir_sector);
             d64->entry = oldfile_dir_entry;
-            d64->entry->blocks = (uint8_t)((filesize_in_bytes + 1) / 254 + 1);
-            memcpy(&save_buffer->modified_directory_sector_1.directory_sector, &d64->sector, sizeof(D64_SECTOR));
-            save_buffer->modified_directory_sector_1.track = oldfile_dir_track;
-            save_buffer->modified_directory_sector_1.sector = oldfile_dir_sector;
-            save_buffer->data_sector.track = d64->entry->track;
-            save_buffer->data_sector.sector = d64->entry->sector;
-            save_buffer->data_sector.pos = 0;
-            d64_read_sector(d64, d64->entry->track, d64->entry->sector);
-            d64_deallocate_from_sector(d64, save_buffer);
+            d64->entry->blocks = 0;
+            d64->entry->type = parsed_filename.type;
+
+            channel->track_pos = d64->entry->track;
+            channel->sector_pos = d64->entry->sector;
+
+            d64_write_sector(d64, &d64->sector, oldfile_dir_track, oldfile_dir_sector);
+            deallocate_chain(d64, &header);                         // old file deallocated
+            d64_write_sector(d64, (D64_SECTOR *)&header, 18, 0);    // written to disk
+            allocate_in_bam(&header, channel->track_pos, channel->sector_pos);  // allocate first sector in memory
         }
     } else {
-        if(free_blocks<((filesize_in_bytes+1)/254 + 1)) 
+        if( !d64_create_file_entry(d64, &header, channel,
+                                          parsed_filename.name, parsed_filename.type ) )
         {
-            c64_send_reply(REPLY_SAVE_ERROR);
-            return;
+            return REPLY_SAVE_ERROR;
         }
-        if( !d64_writer_create_file_entry(d64, save_buffer, 
-                                          parsed_filename.name, parsed_filename.type, 
-                                          (uint8_t)((filesize_in_bytes + 1) / 254 + 1) ) )
+
+    }
+
+    memcpy(&d64->sector, &header, sizeof(D64_SECTOR));
+
+    return REPLY_SAVE_OK;
+
+}
+
+static uint8_t disk_handle_save_data(D64 *d64, DISK_CHANNEL *channel, uint8_t *blocks)
+{
+    uint8_t *receive_buffer = (uint8_t *)&crt_ram_buf[SAVE_BUFFER_OFFSET];
+    uint8_t recv_size, next_track, next_sector;
+    while((recv_size = c64_receive_byte()) > 0)  
+    {
+        if((uint16_t)recv_size + channel->bytes_ptr > D64_SECTOR_DATA_LEN) 
         {
-            c64_send_reply(REPLY_SAVE_ERROR);
-            return;
+            c64_interface(false);
+            uint8_t remaining = D64_SECTOR_DATA_LEN - channel->bytes_ptr;
+            if(remaining>0)
+            {
+                memcpy(&channel->sector.data[channel->bytes_ptr],
+                       receive_buffer,
+                       remaining);
+            }
+            if(!find_and_allocate_next_free_sector(&d64->d64_header, 
+                                                   channel->track_pos, channel->sector_pos, 
+                                                   &next_track, &next_sector)) 
+            {
+                return REPLY_SAVE_ERROR;
+            }
+            channel->sector.next_track = next_track;
+            channel->sector.next_sector = next_sector;
+            if(!d64_write_sector(d64, &channel->sector, 
+                                 channel->track_pos, channel->sector_pos))
+            {
+                return REPLY_SAVE_ERROR;
+            }
+            
+            memcpy(&channel->sector.data[0],
+                    receive_buffer + remaining,
+                    recv_size - remaining);
+            channel->bytes_ptr = recv_size - remaining;
+            channel->track_pos = next_track;
+            channel->sector_pos = next_sector;
+            c64_interface(true);
+            (*blocks)++;
         }
-    }
-
-    c64_send_reply(REPLY_SAVE_OK);
-
-    uint16_t start_address;
-    c64_receive_data(&start_address, 2);
-    save_buffer->data_sector.d64sector.data[0] = start_address % 256;
-    save_buffer->data_sector.d64sector.data[1] = start_address / 256;
-    save_buffer->data_sector.pos = 2;
-
-    c64_send_reply(REPLY_SAVE_OK);
-    uint8_t final_reply = 0;
-    if(d64_receive_save_data_cycle(d64, save_buffer))
-    {
-        bool write_success = d64_write_sector(d64, (D64_SECTOR *)&save_buffer->header_sector, 18, 0);
-        write_success = write_success && 
-            d64_write_sector(d64, 
-                             &save_buffer->modified_directory_sector_1.directory_sector, 
-                             save_buffer->modified_directory_sector_1.track, 
-                             save_buffer->modified_directory_sector_1.sector);
-
-        if(save_buffer->modified_directory_sector_2.track) {
-            write_success = write_success && 
-                d64_write_sector(d64, 
-                             &save_buffer->modified_directory_sector_2.directory_sector, 
-                             save_buffer->modified_directory_sector_2.track, 
-                             save_buffer->modified_directory_sector_2.sector);
+        else
+        {
+            memcpy(&channel->sector.data[channel->bytes_ptr], 
+                   receive_buffer,
+                   recv_size);
+            channel->bytes_ptr += recv_size;
         }
-        
-        write_success = write_success && d64_write_sync(d64);
-
-        final_reply = write_success ? 0 : REPLY_SAVE_ERROR;
+        c64_send_data("DONE", 4);
+        c64_send_reply(recv_size);
     }
-    else
+    channel->sector.next_track = 0;
+    channel->sector.next_sector = channel->bytes_ptr+1;
+    memset(&channel->sector.data[channel->bytes_ptr], 
+            0x00, 
+            D64_SECTOR_DATA_LEN - channel->bytes_ptr);
+
+    c64_interface(false);
+    
+    // write last sector's data
+    if(!d64_write_sector(d64, &channel->sector, channel->track_pos, channel->sector_pos))
     {
-        final_reply = REPLY_SAVE_ERROR;
+        return REPLY_SAVE_ERROR;
     }
 
-    c64_interface(true);
-    c64_send_data("DONE", 4);
-    c64_send_reply(final_reply);
+    // write bam (header sector)
+    if(!d64_write_sector(d64, (D64_SECTOR *)&d64->d64_header, 18, 0))
+    {
+        return recv_size+1;
+    }
+    (*blocks)++;
+
+    return recv_size;
+}
+
+static bool disk_update_saved_filename(D64 *d64, char *filename, uint8_t blocks) {
+    PARSED_FILENAME parsed_filename;
+    
+    disk_parse_filename(filename, &parsed_filename);
+    
+    bool file_found = disk_find_file(d64, parsed_filename.name, parsed_filename.type);
+    if(!file_found)
+        return false;
+    
+    d64->entry->blocks = blocks;
+    d64->entry->type |= 0x80;
+    return d64_write_sector(d64, 
+                            &d64->sector, 
+                            d64->last_read_track, 
+                            d64->last_read_sector);
 }
 
 static uint8_t disk_read_status(D64 *d64, DISK_CHANNEL *channel)
@@ -794,10 +955,6 @@ static void disk_loop(void)
 {
     D64 *d64 = &d64_state.d64;  // Reuse memory from menu
     DISK_CHANNEL *channel = 0, *channels = (DISK_CHANNEL *)crt_ram_banks[1];
-    D64_SAVE_BUFFER *save_buffer = 
-        (D64_SAVE_BUFFER *) (((uint8_t *)crt_ram_banks[1]) + sizeof(DISK_CHANNEL)*16);
-//        (D64_SAVE_BUFFER *) scratch_buf;
-
     disk_close_all_channels(channels);
 
     uint8_t *ptr = crt_banks[1];
@@ -860,11 +1017,30 @@ static void disk_loop(void)
                 file_len = c64_receive_byte();
                 c64_receive_data(filename, file_len);
                 filename[file_len] = 0;
-                uint16_t filesize_in_bytes = 0;
-                
-                c64_receive_data(&filesize_in_bytes, 2);
+                channel = channels + 1;                 // channel 1 will be used as save buffer - just as on 1541
+                channel->bytes_ptr = 2;
+                c64_receive_data(channel->sector.data, 2);
                 dbg("Got SAVE command for: %s\n", filename);
-                disk_handle_save_prg(d64, save_buffer, filename, filesize_in_bytes);
+                c64_interface(false);
+                uint8_t ret_val = disk_handle_save_direntry(d64, channel, filename);
+                c64_interface(true);
+                c64_send_data("DONE", 4);
+                c64_send_reply(ret_val);
+                break;
+
+            case CMD_SAVE_BUFFER: ;
+                uint8_t blocks = 0;
+                ret_val = disk_handle_save_data(d64, channel, &blocks);
+                if(ret_val == 0)
+                {
+                    ret_val = (disk_update_saved_filename(d64, filename, blocks)) ? 0 : REPLY_SAVE_ERROR;
+                }
+                d64_write_sync(d64);
+                c64_interface(true);
+                c64_send_data("DONE", 4);
+                c64_send_reply(ret_val);
+                disk_close_channel(channel);
+                channel->number = 1;
                 break;
 
             default:
