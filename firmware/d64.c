@@ -346,3 +346,29 @@ static size_t d64_read_prg(D64 *d64, uint8_t *buf, size_t buf_size)
 
     return prg_len;
 }
+
+static bool d64_write_sector(D64 *d64, D64_SECTOR *sector_buffer, uint8_t track, uint8_t sector) 
+{
+    FSIZE_t offset;
+    if (d64->image_type == D64_IMAGE_D81)
+    {
+        offset = d81_get_offset(d64, track, sector);    // not supported yet
+    }
+    else
+    {
+        offset = d64_get_offset(d64, track, sector);
+    }
+
+    if (!file_seek(&d64->file, offset) ||
+        file_write(&d64->file, sector_buffer, sizeof(D64_SECTOR)) != sizeof(D64_SECTOR))
+    {
+        err("Failed to write track %d sector %d\n", track, sector);
+        return false;
+    }
+    return true;
+}
+
+static bool d64_write_sync(D64 *d64) 
+{
+    return f_sync(&d64->file) == FR_OK;
+}

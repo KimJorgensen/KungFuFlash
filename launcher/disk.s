@@ -1148,7 +1148,7 @@ kff_save:
         jmp @save_start
 
 @save_done:
-        stx STATUS                      ; x contains the exit code - stored in STATUS (ST)
+        stx STATUS                      ; x contains the exit code - (ST)
         jsr copy_trampoline_code
         jsr copy_disable_ef_rom
         clc
@@ -1170,7 +1170,7 @@ kff_save:
 .endproc
 
 ; =============================================================================
-`:
+kff_send_command:
         sta tmp3
         lda #<cmd_header
         sta ptr1
