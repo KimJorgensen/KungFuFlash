@@ -41,10 +41,19 @@ static inline void magic_desk_write_handler(uint8_t control, uint16_t addr, uint
     {
         if(!(data & 0x80))
         {
+            // Enable cartridge
+            c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+
             crt_ptr = crt_banks[data & 0x3f];
+            if(data & 0x40)
+            {
+                // Use ROMH location for bank > 63
+                crt_ptr += 0x2000;
+            }
         }
         else
         {
+            // Disable cartridge
             c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
         }
     }

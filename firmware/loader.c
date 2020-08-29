@@ -173,14 +173,25 @@ static bool crt_write_chip_header(FIL *file, uint8_t type, uint8_t bank, uint16_
     return len == sizeof(CRT_CHIP_HEADER);
 }
 
-static int32_t crt_get_offset(CRT_CHIP_HEADER *header)
+static int32_t crt_get_offset(CRT_CHIP_HEADER *header, uint16_t cartridge_type)
 {
     int32_t offset = -1;
 
     // ROML bank (and ROMH for >8k images)
     if (header->start_address == 0x8000 && header->image_size <= 16*1024)
     {
-        offset = header->bank * 16*1024;
+        if (header->bank < 64)
+        {
+            offset = header->bank * 16*1024;
+        }
+        // Suport ROML only cartridges with more than 64 banks
+        else if(header->image_size <= 8*1024 &&
+                cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA)
+        {
+            // Use ROMH bank location for upper banks
+            header->bank -= 64;
+            offset = header->bank * 16*1024 + 8*1024;
+        }
     }
     // ROMH bank
     else if ((header->start_address == 0xa000 || header->start_address == 0xe000) &&
@@ -197,7 +208,7 @@ static int32_t crt_get_offset(CRT_CHIP_HEADER *header)
     return offset;
 }
 
-static uint8_t crt_program_file(FIL *crt_file)
+static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
 {
     uint8_t *flash_buffer = (uint8_t *)FLASH_BASE;
     uint8_t banks_in_use = 0;
@@ -215,7 +226,7 @@ static uint8_t crt_program_file(FIL *crt_file)
             break;
         }
 
-        int32_t offset = crt_get_offset(&header);
+        int32_t offset = crt_get_offset(&header, cartridge_type);
         if (offset == -1)
         {
             wrn("Unsupported CRT chip bank %u at $%x. Size %u\n",
