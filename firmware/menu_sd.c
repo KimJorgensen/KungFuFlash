@@ -516,7 +516,7 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
             c64_send_prg_message("Programming flash memory.");
             c64_interface(false);
 
-            uint8_t banks = crt_program_file(&file);
+            uint8_t banks = crt_program_file(&file, header.cartridge_type);
             if (!banks)
             {
                 sd_send_warning_restart("Failed to read CRT file", file_name);
