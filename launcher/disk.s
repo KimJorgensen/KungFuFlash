@@ -556,20 +556,12 @@ copy_load_prg:
 
 .proc copy_save_prg
 copy_save_prg:
-        php     ; store flags
-        pha     ; store a
-        txa     ; store x
-        pha
         ldx #disk_api_save_prg_end - disk_api_save_prg
 :       dex
         lda disk_api_save_prg,x
         sta fill_save_buffer,x
         cpx #$00
         bne :-
-        pla     ; pop x from stack
-        tax
-        pla     ; pop a
-        plp     ; pop flags
         rts
 .endproc
 
@@ -1076,14 +1068,14 @@ kff_save:
         jsr kernal_trampoline
 
         jsr copy_ef3usb_send_receive_code
+        jsr copy_save_prg
 
         lda #CMD_SAVE                   ; Send command
         jsr kff_send_command
         jsr send_filename
 
-        jsr copy_save_prg
 
-; calculate file size
+; calculate file size - number of bytes to send
         sec
         lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)                 
         sbc STAL                ; STAL:STAH is the first valid address
@@ -1110,7 +1102,6 @@ kff_save:
         sta ptr1
         lda #>EASYFLASH_RAM
         sta ptr2
-
 
 ; tmp1:tmp2 -> remaining size of file to save (here: size of file)
 ; ptr1:ptr2 -> start address of outbut buff in EF RAM
