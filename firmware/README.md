@@ -2,7 +2,7 @@
 The initial firmware installation can be done via the SWD interface (J4) using a ST-Link V2 programmer or via the USB port.
 The Kung Fu Flash cartridge should not be connected to the Commodore 64 before this process has been completed.
 
-## SWD
+## SWD (Recommended)
 Connect the ST-Link V2 programmer to J4 (3.3V, GND, SWDIO, and SWCLK) and connect BOOT0 to 3.3V.
 
 Rename the `KungFuFlash_v1.xx.upd` file to `KungFuFlash_v1.xx.bin` and use the STM32 ST-LINK Utility from ST to program the firmware.
