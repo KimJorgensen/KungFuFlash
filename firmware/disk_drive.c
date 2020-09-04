@@ -18,8 +18,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "disk_drive.h"
-
 static inline void put_u8(uint8_t **ptr, uint8_t value)
 {
     *(*ptr)++ = value;
@@ -200,12 +198,14 @@ static void disk_parse_filename(char *filename, PARSED_FILENAME *parsed)
     char *f_ptr = filename;
     char c, last_c = 0;
     parsed->drive = 0;
-
-    // Scan for drive number
+    parsed->overwrite = false;
+    
+    // Scan for drive number and overwrite flag
     while ((c = *f_ptr++))
     {
         if (c == ':')
         {
+            parsed->overwrite = (*filename == '@');
             if (last_c >= '0' && last_c <= '9')
             {
                 parsed->drive = last_c - '0';
@@ -467,6 +467,142 @@ static void disk_handle_load(D64 *d64, char *filename, uint8_t *ptr)
     }
 }
 
+static uint8_t disk_handle_create_file_entry(D64 *d64, char *filename) 
+{
+    PARSED_FILENAME parsed_filename;
+
+    if(d64->image_type!=D64_IMAGE_D64) 
+    {
+        return REPLY_NOT_SUPPORTED;
+    }
+   
+    disk_parse_filename(filename, &parsed_filename);
+    if (parsed_filename.drive!=0)               // this is a 'single drive system'
+    {
+        return REPLY_NOT_SUPPORTED;
+    }
+
+    if (!parsed_filename.type)
+    {
+        parsed_filename.type = D64_FILE_PRG;
+    }
+    else if (parsed_filename.type == D64_FILE_REL)
+    {
+        // Not supported
+        return REPLY_NOT_SUPPORTED;
+    }
+
+    bool file_found = disk_find_file(d64, parsed_filename.name, parsed_filename.type);
+    
+    uint8_t ret_val = 0;
+
+    if(file_found)
+    {
+        if(!parsed_filename.overwrite) 
+        {
+            // File already exists, overwrite not selected
+            ret_val = REPLY_SAVE_ERROR;
+        } 
+        else 
+        {
+            ret_val = d64_update_file_for_save(d64) ? REPLY_SAVE_OK : REPLY_SAVE_ERROR;
+        }
+    } 
+    else 
+    {
+        ret_val = d64_create_file_for_save(d64, 
+                                           parsed_filename.name, 
+                                           parsed_filename.type) ? REPLY_SAVE_OK : REPLY_SAVE_ERROR;
+    }
+    // d64->entry contains the file's first track/sector position
+    return ret_val;
+}
+
+static uint8_t disk_handle_save_data(D64 *d64, DISK_CHANNEL *channel, uint8_t *blocks)
+{
+    uint8_t *receive_buffer = (uint8_t *)&crt_ram_buf[SAVE_BUFFER_OFFSET];
+    uint8_t recv_size = 0;
+
+    if( !d64_read_disk_header(d64) )
+    {
+        c64_receive_byte(); // let's read and discard the first batch of bytes. Error is error..
+        c64_interface(false);
+        return 255;       
+    } 
+    
+    while((recv_size = c64_receive_byte()) != 0)  
+    {
+        if((uint16_t)recv_size + channel->bytes_ptr > D64_SECTOR_DATA_LEN) 
+        {
+            c64_interface(false);
+            uint8_t remaining = D64_SECTOR_DATA_LEN - channel->bytes_ptr;
+            if(remaining>0)
+            {
+                memcpy(&channel->sector.data[channel->bytes_ptr],
+                       receive_buffer,
+                       remaining);
+            }
+
+            if(!d64_write_interim_block(d64, 
+                                        &channel->sector, 
+                                        channel->track_pos, 
+                                        channel->sector_pos))
+            {
+                return 255;
+            }
+
+            c64_interface(true);
+            
+            memcpy(&channel->sector.data[0],
+                    receive_buffer + remaining,
+                    recv_size - remaining);
+            channel->bytes_ptr = recv_size - remaining;
+            channel->track_pos = channel->sector.next_track;
+            channel->sector_pos = channel->sector.next_sector;
+            (*blocks)++;
+        }
+        else
+        {
+            memcpy(&channel->sector.data[channel->bytes_ptr], 
+                   receive_buffer,
+                   recv_size);
+            channel->bytes_ptr += recv_size;
+        }
+        c64_send_data("DONE", 4);
+        c64_send_reply(recv_size);
+    }
+    
+    memset(&channel->sector.data[channel->bytes_ptr], 
+            0x00, 
+            D64_SECTOR_DATA_LEN - channel->bytes_ptr);
+
+    c64_interface(false);
+    
+    // write last sector's data, update BAM
+    if(!d64_write_last_block(d64, &channel->sector, 
+                            channel->track_pos, channel->sector_pos, 
+                            channel->bytes_ptr))
+    {
+        return 255;
+    }
+
+    (*blocks)++;
+
+    return recv_size;   // normally this is always 0
+}
+
+static bool disk_finalize_saved_filename(D64 *d64, char *filename, uint8_t blocks) 
+{
+    PARSED_FILENAME parsed_filename;
+    
+    disk_parse_filename(filename, &parsed_filename);
+    
+    bool file_found = disk_find_file(d64, parsed_filename.name, parsed_filename.type);
+    if(!file_found)
+        return false;
+    return d64_finalize_file_for_save(d64, blocks);
+}
+
 static uint8_t disk_read_status(D64 *d64, DISK_CHANNEL *channel)
 {
     uint8_t len = 13;
@@ -658,6 +794,37 @@ static void disk_loop(void)
 
             case CMD_GET_BYTE:
                 disk_handle_get_byte(d64, channel);
+                break;
+
+            case CMD_SAVE:
+                file_len = c64_receive_byte();
+                c64_receive_data(filename, file_len);
+                filename[file_len] = 0;
+                channel = channels + 1;                 // channel 1 will be used as save buffer - just as on 1541
+                channel->bytes_ptr = 2;
+                c64_receive_data(channel->sector.data, 2);
+                dbg("Got SAVE command for: %s\n", filename);
+                c64_interface(false);
+                uint8_t ret_val = disk_handle_create_file_entry(d64, filename);
+                channel->track_pos = d64->entry->track;
+                channel->sector_pos = d64->entry->sector;
+                c64_interface(true);
+                c64_send_data("DONE", 4);
+                c64_send_reply(ret_val);
+                break;
+
+            case CMD_SAVE_BUFFER: ;
+                uint8_t blocks = 0;
+                ret_val = disk_handle_save_data(d64, channel, &blocks); // returns always with c64 i/f off
+                if(ret_val == 0)
+                {
+                    ret_val = (disk_finalize_saved_filename(d64, filename, blocks)) ? 0 : REPLY_SAVE_ERROR;
+                }
+                c64_interface(true);
+                c64_send_data("DONE", 4);
+                c64_send_reply(ret_val);
+                disk_close_channel(channel);
+                channel->number = 1;
                 break;
 
             default:

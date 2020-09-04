@@ -17,8 +17,6 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-#ifndef COMMANDS_H
-#define COMMANDS_H
 
 #define DIR_NAME_LENGTH 34
 #define ELEMENT_LENGTH 38
@@ -29,6 +27,9 @@
 #define TEXT_ELEMENT     0xe0
 
 #define BASIC_CMD_BUF_SIZE 80
+
+// SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE. Check disk.s for SAVE_BUF_SIZE value
+#define SAVE_BUFFER_OFFSET 0x70
 
 typedef enum {
     CMD_NONE = 0x00,
@@ -56,6 +57,8 @@ typedef enum {
     CMD_TALK,
     CMD_UNTALK,
     CMD_GET_BYTE,
+    CMD_SAVE,
+    CMD_SAVE_BUFFER,
 
     // EAPI commands
     CMD_EAPI_INIT = 0xf0,
@@ -84,10 +87,11 @@ typedef enum {
     REPLY_NOT_FOUND,
     REPLY_READ_ERROR,
     REPLY_END_OF_FILE,
+    REPLY_NOT_SUPPORTED,
+    REPLY_SAVE_OK,
+    REPLY_SAVE_ERROR,
 
     // EAPI replies
     REPLY_WRITE_WAIT = 0xf0,
     REPLY_WRITE_ERROR
 } REPLY_TYPE;
-
-#endif

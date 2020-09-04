@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 #include "file_types.h"
-#include "d64_reader.h"
+#include "d64.h"
 
 static bool compare_extension(char *ext1, const char *ext2)
 {

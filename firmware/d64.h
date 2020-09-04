@@ -35,6 +35,16 @@ static const uint16_t d64_track_offset[42] =
     0x0300, 0x0311
 };
 
+static const uint8_t d64_sector_num[40] =
+{
+    21, 21, 21, 21, 21, 21, 21,     
+    21, 21, 21, 21, 21, 21, 21, 21,  // 1-17: 21s, 18-24: 19s, 25-30: 18s, 31-40: 17s
+    21, 21, 19, 19, 19, 19, 19, 19,
+    19, 18, 18, 18, 18, 18, 18, 17,
+    17, 17, 17, 17, 17, 17, 17, 17,
+    17
+};
+
 static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "CBM", "???", "???"};
 
 typedef enum
@@ -144,6 +154,8 @@ typedef struct
 
     char *diskname;         // valid after d64_read_disk_header
     D64_DIR_ENTRY *entry;   // valid after d64_read_dir
+    uint8_t last_read_track;
+    uint8_t last_read_sector;
 } D64;
 
 static uint8_t d64_image_type(FSIZE_t imgsize)
