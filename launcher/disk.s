@@ -429,7 +429,8 @@ disk_api_end:
 .proc kff_open
 kff_open:
 	lda FA
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
         beq @kff_device                 ; Device 8
 
 @normal_open:
@@ -515,7 +516,8 @@ kff_close:
         bne :-
 
         lda FAT,x                       ; Lookup device
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
         bne @normal_close               ; Not device 8
 
         lda SAT,x                       ; Lookup secondary address
@@ -554,7 +556,8 @@ kff_chkin:
         sta LA                          ; Store logical file
 
         lda FAT,x                       ; Lookup device
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
         bne @normal_chkin               ; Not device 8
 
         sta FA                          ; Store device
@@ -590,7 +593,8 @@ kff_chkin:
 kff_clrch:
         lda #$00                        ; Keyboard channel
 
-        ldx #$08
+;        ldx #$08
+        ldx #D64DEVNR
         cpx DFLTO                       ; Check output channel
         bne @check_input                ; Not device 8
         sta DFLTO                       ; Don't send commands to the serial bus
@@ -623,7 +627,8 @@ kff_basin:
         lda DFLTN
         beq keyboard                    ; Is keyboard
 
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
         bne normal_basin                ; Not device 8
 
 do_kff_basin:
@@ -697,7 +702,8 @@ normal_basin:
 .proc kff_getin
 kff_getin:
         lda DFLTN
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
         bne @normal_getin               ; Not device 8
 
 @kff_device:
@@ -730,7 +736,9 @@ kff_load:
         bne @normal_load                ; Verify operation (not load)
 
         lda FA
-        cmp #$08
+;        cmp #$08
+        cmp #D64DEVNR
+
         beq @kff_device                 ; Device 8
 
 @normal_load:

@@ -5,6 +5,11 @@ ifndef version
 version := 1.xx
 endif
 
+ifndef d64devnr
+d64devnr := 8
+endif
+
+
 name := KungFuLauncher_v$(version)
 
 ld_config := ld.crt.cfg
@@ -24,7 +29,8 @@ inc      += ../3rd_party/libef3usb/src
 libef3usb := ../3rd_party/libef3usb/libef3usb.lib
 
 INCLUDE  := $(addprefix -I,$(inc))
-DEFINE   := -DVERSION=\"${version}\"
+CDEFINE  := -DVERSION=\"${version}\" 
+ADEFINE  := -DD64DEVNR=${d64devnr}
 
 .PHONY: all
 all: build/$(name).bin
@@ -35,15 +41,15 @@ all: build/$(name).bin
 headers := $(wildcard *.h)
 
 build/%.s: %.c $(headers) | build
-	cc65 -t c64 -T -O --static-locals $(INCLUDE) $(DEFINE) -o $@ $<
+	cc65 -t c64 -T -O --static-locals $(INCLUDE) $(CDEFINE) -o $@ $<
 
 ###############################################################################
 build/%.o: build/%.s | build
-	ca65 -t c64 $(INCLUDE) -o $@ $<
+	ca65 -t c64 $(INCLUDE) $(ADEFINE) -o $@ $<
 
 ###############################################################################
 build/%.o: %.s | build
-	ca65 -t c64 $(INCLUDE) -o $@ $<
+	ca65 -t c64 $(INCLUDE) $(ADEFINE) -o $@ $<
 
 ###############################################################################
 #

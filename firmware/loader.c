@@ -364,7 +364,7 @@ static uint32_t crt_calc_flash_crc(uint8_t crt_banks)
 static void basic_load(const char *filename)
 {
     // BASIC commands to run at start-up
-    sprint((char *)dat_buffer, "LOAD\"%s\",8,1%cRUN%c", filename, 0, 0);
+    sprint((char *)dat_buffer, "LOAD\"%s\",%d,1%cRUN%c", filename, D64DEVNR, 0, 0);
 }
 
 static void basic_no_commands(void)

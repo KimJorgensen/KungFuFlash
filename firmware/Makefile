@@ -3,6 +3,11 @@ version := 1.xx
 endif
 export version
 
+ifndef d64devnr
+d64devnr := 8
+endif
+export d64devnr
+
 ######################################
 # target
 ######################################
@@ -81,7 +86,8 @@ AS_DEFS =
 
 # C defines
 C_DEFS =  \
--DSTM32F405xx
+-DSTM32F405xx \
+-DD64DEVNR=${d64devnr}
 
 # AS includes
 AS_INCLUDES =
