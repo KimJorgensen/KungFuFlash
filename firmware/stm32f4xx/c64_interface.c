@@ -404,11 +404,16 @@ void name(void)                                                                 
 /*************************************************
 * C64 interface status
 *************************************************/
+static inline bool c64_interface_active(void)
+{
+    return (TIM1->DIER & TIM_DIER_CC3IE) != 0;
+}
+
 static inline void c64_interface(bool state)
 {
     if (state)
     {
-        if (!(TIM1->DIER & TIM_DIER_CC3IE))
+        if (!c64_interface_active())
         {
             uint8_t valid_clock_count = 0;
             uint32_t led_activity = 0;

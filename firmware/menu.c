@@ -21,17 +21,12 @@
 #include "menu_sd.h"
 #include "menu_d64.h"
 #include "menu_options.h"
-#include "d64_reader.c"
+#include "d64.c"
 #include "loader.c"
 #include "menu_sd.c"
 #include "menu_d64.c"
 #include "menu_options.c"
 #include "menu_settings.c"
-
-static inline bool persist_basic_selection(void)
-{
-    return (dat_file.flags & DAT_FLAG_PERSIST_BASIC) != 0;
-}
 
 static void menu_loop()
 {
@@ -181,33 +176,33 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
     const char *select_text;
     const char *vic_text = NULL;
     const char *mount_text = NULL;
-    bool delete_option = false;
+    bool delete_option = true;
 
     switch (file_type)
     {
         case FILE_NONE:
             title = "Directory Options";
             select_text = "Open";
+            delete_option = false;
             break;
 
         case FILE_CRT:
             select_text = "Run";
             vic_text = "Run (VIC-II/C128 mode)";
-            delete_option = true;
             break;
 
         case FILE_PRG:
         case FILE_P00:
             select_text = "Load";
-            delete_option = true;
             break;
 
         case FILE_D64:
             select_text = "Open";
             mount_text = "Mount";
-            delete_option = true;
             break;
 
+        case FILE_D64_STAR:
+            delete_option = false;
         case FILE_D64_PRG:
             select_text = "Mount and load";
             mount_text = "Load"; // No mount
@@ -215,12 +210,11 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
 
         default:
             select_text = "Select";
-            delete_option = true;
             break;
     }
 
     OPTIONS_STATE *options = build_options(title, file_name);
-    options_add_select(options, select_text, 0, element_no);
+    options_add_select(options, select_text, SELECT_FLAG_ACCEPT, element_no);
     if (vic_text)
     {
         options_add_select(options, vic_text, SELECT_FLAG_VIC, element_no);
@@ -243,7 +237,7 @@ static void handle_upgrade_menu(const char *firmware, uint8_t element_no)
     OPTIONS_STATE *options = build_options("Firmware Upgrade",
                                 "This will upgrade the firmware to");
     options_add_text_block(options, firmware);
-    options_add_select(options, "Upgrade", SELECT_FLAG_ACCEPTED, element_no);
+    options_add_select(options, "Upgrade", SELECT_FLAG_ACCEPT, element_no);
     options_add_dir(options, "Cancel");
     handle_options(options);
 }

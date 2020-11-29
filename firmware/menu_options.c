@@ -35,6 +35,10 @@ static void options_dir(OPTIONS_STATE *state)
         {
             element->text[0] = SELECTED_ELEMENT;
         }
+        else if (element->text[0] == SELECTED_ELEMENT)
+        {
+            element->text[0] = ' ';
+        }
 
         c64_send_data(element->text, ELEMENT_LENGTH);
     }

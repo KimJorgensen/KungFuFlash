@@ -127,6 +127,7 @@ typedef enum {
     FILE_PRG,
     FILE_P00,
     FILE_D64,
+    FILE_D64_STAR,
     FILE_D64_PRG,
     FILE_ROM,
 
@@ -136,8 +137,14 @@ typedef enum {
 } FILE_TYPE;
 
 typedef enum {
-    DAT_FLAG_PERSIST_BASIC = 0x01
+    DAT_FLAG_PERSIST_BASIC      = 0x01,
+    DAT_FLAG_AUTOSTART_D64      = 0x02,
+    DAT_FLAG_DEVICE_NUM_D64_1   = 0x04,
+    DAT_FLAG_DEVICE_NUM_D64_2   = 0x08
 } DAT_FLAGS;
+
+#define DAT_FLAG_DEVICE_D64_POS 0x02
+#define DAT_FLAG_DEVICE_D64_MSK (0x03 << DAT_FLAG_DEVICE_D64_POS)
 
 typedef enum {
     DAT_NONE = 0x00,

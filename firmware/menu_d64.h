@@ -24,6 +24,7 @@ typedef struct
 {
     MENU_STATE menu;
 
+    D64_IMAGE image;
     D64 d64;
 
     uint8_t page;

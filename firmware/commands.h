@@ -17,8 +17,6 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-#ifndef COMMANDS_H
-#define COMMANDS_H
 
 #define DIR_NAME_LENGTH 34
 #define ELEMENT_LENGTH 38
@@ -29,6 +27,7 @@
 #define TEXT_ELEMENT     0xe0
 
 #define BASIC_CMD_BUF_SIZE 80
+#define SAVE_BUFFER_OFFSET 0x70
 
 typedef enum {
     CMD_NONE = 0x00,
@@ -50,7 +49,7 @@ typedef enum {
 
     // Disk commands
     CMD_LOAD = 0x80,
-    CMD_LOAD_NEXT_BANK,
+    CMD_SAVE,
     CMD_OPEN,
     CMD_CLOSE,
     CMD_TALK,
@@ -78,16 +77,13 @@ typedef enum {
     REPLY_EXIT_MENU,        // Exit menu and wait for EFSTART:xxx command
 
     // Disk replies
-    REPLY_READ_DONE = 0x80,
-    REPLY_READ_BANK,
+    REPLY_NO_DRIVE = 0x80,
 
+    REPLY_DISK_ERROR,
     REPLY_NOT_FOUND,
-    REPLY_READ_ERROR,
     REPLY_END_OF_FILE,
 
     // EAPI replies
     REPLY_WRITE_WAIT = 0xf0,
     REPLY_WRITE_ERROR
 } REPLY_TYPE;
-
-#endif
