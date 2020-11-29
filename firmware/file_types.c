@@ -103,7 +103,7 @@ static uint8_t get_file_type(FILINFO *info)
                  compare_extension(filename, "D71") ||
                  compare_extension(filename, "D81"))
         {
-            if (d64_image_type(info->fsize) != D64_IMAGE_UNKNOWN)
+            if (d64_get_type(info->fsize) != D64_TYPE_UNKNOWN)
             {
                 return FILE_D64;
             }

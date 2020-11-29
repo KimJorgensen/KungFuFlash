@@ -23,7 +23,22 @@
  * (C)2003/2009 by iAN CooG/HokutoForce^TWT^HVSC
  */
 
+#define D64_DOS_VERSION     0x41
+#define D81_DOS_VERSION     0x44
+
+#define D64_TRACKS          35
+#define D71_TRACKS          70
+#define D81_TRACKS          80
+#define D81_SECTORS         40
+
+#define D64_TRACK_DIR       18
+#define D64_SECTOR_DIR      1
+#define D64_SECTOR_HEADER   0
+#define D81_TRACK_DIR       40
+#define D81_SECTOR_DIR      3
+
 #define D64_SECTOR_DATA_LEN 254
+#define D64_SECTOR_LEN      256
 
 static const uint16_t d64_track_offset[42] =
 {
@@ -35,17 +50,42 @@ static const uint16_t d64_track_offset[42] =
     0x0300, 0x0311
 };
 
-static const uint8_t d64_sector_num[40] =
-{
-    21, 21, 21, 21, 21, 21, 21,     
-    21, 21, 21, 21, 21, 21, 21, 21,  // 1-17: 21s, 18-24: 19s, 25-30: 18s, 31-40: 17s
-    21, 21, 19, 19, 19, 19, 19, 19,
-    19, 18, 18, 18, 18, 18, 18, 17,
-    17, 17, 17, 17, 17, 17, 17, 17,
-    17
-};
-
 static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "CBM", "???", "???"};
+
+typedef enum
+{
+  D64_TYPE_UNKNOWN = 0,
+  D64_TYPE_D64,
+  D64_TYPE_D71,
+  D64_TYPE_D81
+} D64_TYPE;
+
+static uint8_t d64_get_type(FSIZE_t imgsize)
+{
+    switch (imgsize)
+    {
+        // D64
+        case 174848:  // 35 tracks no errors
+        case 175531:  // 35 w/ errors
+        case 196608:  // 40 tracks no errors
+        case 197376:  // 40 w/ errors
+        case 205312:  // 42 tracks no errors
+        case 206114:  // 42 w/ errors
+            return D64_TYPE_D64;
+
+        // D71
+        case 349696:  // 70 tracks no errors
+        case 351062:  // 70 w/ errors
+            return D64_TYPE_D71;
+
+        // D81
+        case 819200:  // 80 tracks no errors
+        case 822400:  // 80 w/ errors
+            return D64_TYPE_D81;
+    }
+
+    return D64_TYPE_UNKNOWN;
+}
 
 typedef enum
 {
@@ -58,20 +98,18 @@ typedef enum
   D64_FILE_DIR
 } D64_FILE_TYPE;
 
-typedef enum
-{
-  D64_IMAGE_UNKNOWN = 0,
-  D64_IMAGE_D64,
-  D64_IMAGE_D71,
-  D64_IMAGE_D81
-} D64_IMAGE_TYPE;
-
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
 {
-    uint8_t next_track;
-    uint8_t next_sector;
+    uint8_t track;
+    uint8_t sector;
+} D64_TS;
+
+typedef struct
+{
+    D64_TS current;                 // not persisted in D64
+    D64_TS next;
     uint8_t data[D64_SECTOR_DATA_LEN];
 } D64_SECTOR;
 
@@ -83,8 +121,8 @@ typedef struct
 
 typedef struct
 {
-    uint8_t next_track;
-    uint8_t next_sector;
+    D64_TS current;
+    D64_TS next;
     uint8_t dos_version;
     uint8_t double_sided;           // Only used by D71
     D64_BAM_ENTRY entries[35];
@@ -98,14 +136,26 @@ typedef struct
 
 typedef struct
 {
+    uint8_t data[3];
+} D71_BAM_ENTRY;
+
+typedef struct
+{
+    D64_TS current;
+    D71_BAM_ENTRY entries[35];
+    uint8_t unused[151];
+} D71_BAM_SECTOR;
+
+typedef struct
+{
     uint8_t free_sectors;
     uint8_t data[5];
 } D81_BAM_ENTRY;
 
 typedef struct
 {
-    uint8_t next_track;
-    uint8_t next_sector;
+    D64_TS current;
+    D64_TS next;
     uint16_t version;
     uint16_t disk_id;
     uint8_t io_byte;
@@ -116,8 +166,8 @@ typedef struct
 
 typedef struct
 {
-    uint8_t next_track;
-    uint8_t next_sector;
+    D64_TS current;
+    D64_TS next;
     uint8_t dos_version;
     uint8_t unused;
     char diskname[27];
@@ -126,61 +176,67 @@ typedef struct
 
 typedef struct
 {
-    uint8_t next_track;
-    uint8_t next_sector;
+    D64_TS next;
     uint8_t type;
-    uint8_t track;
-    uint8_t sector;
+    D64_TS start;
     char filename[16];
     uint8_t ignored[9];
     uint16_t blocks;
 } D64_DIR_ENTRY;
+
+typedef struct
+{
+    D64_TS current;
+    D64_DIR_ENTRY entries[8];
+} D64_DIR_SECTOR;
 #pragma pack(pop)
 
 typedef struct
 {
     FIL file;
-    uint8_t image_type;
+    uint8_t type;       // D64_TYPE
 
-    uint8_t visited_dir_sectors;
+    union               // Cached header/BAM sectors
+    {
+        D64_SECTOR header;
+        D64_HEADER_SECTOR d64_header;
+        D81_HEADER_SECTOR d81_header;
+    };
+    union
+    {
+        D64_SECTOR bam;
+        D71_BAM_SECTOR d71_bam;
+        D81_BAM_SECTOR d81_bam1;
+    };
+    union
+    {
+        D64_SECTOR bam2;
+        D81_BAM_SECTOR d81_bam2;
+    };
+} D64_IMAGE;
+
+typedef struct
+{
+    D64_TS start;
+    D64_TS dir;
+    uint8_t dir_ptr;
+} D64_FILE_CREATE;
+
+typedef struct
+{
+    D64_IMAGE *image;
+
     union
     {
         D64_SECTOR sector;
-        D64_HEADER_SECTOR d64_header;
-        D81_HEADER_SECTOR d81_header;
-        D81_BAM_SECTOR d81_bam;
-        D64_DIR_ENTRY entries[8];
+        D64_DIR_SECTOR dir;
     };
 
-    char *diskname;         // valid after d64_read_disk_header
-    D64_DIR_ENTRY *entry;   // valid after d64_read_dir
-    uint8_t last_read_track;
-    uint8_t last_read_sector;
+    uint8_t data_len;
+    uint8_t data_ptr;
+
+    uint8_t sector_count;
+    uint8_t channel;
+
+    D64_FILE_CREATE file;
 } D64;
-
-static uint8_t d64_image_type(FSIZE_t imgsize)
-{
-    switch (imgsize)
-    {
-        // D64
-        case 174848:  // 35 tracks no errors
-        case 175531:  // 35 w/ errors
-        case 196608:  // 40 tracks no errors
-        case 197376:  // 40 w/ errors
-        case 205312:  // 42 tracks no errors
-        case 206114:  // 42 w/ errors
-            return D64_IMAGE_D64;
-
-        // D71
-        case 349696:  // 70 tracks no errors
-        case 351062:  // 70 w/ errors
-            return D64_IMAGE_D71;
-
-        // D81
-        case 819200:  // 80 tracks no errors
-        case 822400:  // 80 w/ errors
-            return D64_IMAGE_D81;
-    }
-
-    return D64_IMAGE_UNKNOWN;
-}

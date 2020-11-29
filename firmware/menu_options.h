@@ -44,7 +44,7 @@ struct OPTIONS_ELEMENT_s
 
 typedef enum
 {
-    SELECT_FLAG_ACCEPTED    = 0x01,
+    SELECT_FLAG_ACCEPT      = 0x01,
     SELECT_FLAG_MOUNT       = 0x02,
     SELECT_FLAG_VIC         = 0x04,
     SELECT_FLAG_OVERWRITE   = 0x08,

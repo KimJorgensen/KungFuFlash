@@ -1,5 +1,6 @@
 ;
 ; Copyright (c) 2019-2020 Kim Jørgensen
+; Copyright (c) 2020 Sandor Vass
 ;
 ; Derived from Disk2easyflash 0.9.1 by ALeX Kazik
 ; and EasyFlash 3 Boot Image
@@ -21,9 +22,14 @@
 ;    misrepresented as being the original software.
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
-.import init_system_constants_light
 
+.import init_system_constants_light
 .include "ef3usb_macros.s"
+
+; 6502 Instructions
+BIT_INSTRUCTION = $2c
+JMP_INSTRUCTION = $4c
+RTS_INSTRUCTION = $60
 
 ; Kernal functions
 LUKING          = $f5af                 ; Print "SEARCHING"
@@ -74,6 +80,15 @@ CRSW            = $d0                   ; Input/get flag
 PNTR            = $d3                   ; Cursor column
 QTSW            = $d4                   ; Quotation mode flag
 
+; Kernal error codes
+ERROR_FILE_NOT_FOUND    = $04
+
+; Kernal status codes
+STATUS_READ_ERROR       = $02
+STATUS_END_OF_FILE      = $40
+STATUS_SAVE_FILE_EXISTS = $80
+STATUS_SAVE_DISK_FULL   = $83
+
 ; Used ZP
 ptr1            = $fb
 ptr2            = $fc
@@ -81,40 +96,33 @@ tmp1            = $fd
 tmp2            = $fe
 tmp3            = $ff
 
-trampoline      = $0100
-ef3usb_send_receive = $0100
-start_commands  = $8000
+trampoline              = $0100
+ef3usb_send_receive     = $0100
+start_commands          = $8000
 
 EASYFLASH_BANK          = $de00
 EASYFLASH_CONTROL       = $de02
 EASYFLASH_RAM           = $df00
+EASYFLASH_RAM_SIZE      = $0100
 EASYFLASH_KILL          = $04
 EASYFLASH_16K           = $87
 
 ; Align with commands.h
 CMD_LOAD                = $80
-CMD_LOAD_NEXT_BANK      = $81
+CMD_SAVE                = $81
 CMD_OPEN                = $82
 CMD_CLOSE               = $83
 CMD_TALK                = $84
 CMD_UNTALK              = $85
 CMD_GET_CHAR            = $86
-CMD_SAVE                = $87
-CMD_SAVE_BUFFER         = $88
 
-REPLY_READ_DONE         = $80
-REPLY_READ_BANK         = $81
+REPLY_NO_DRIVE          = $80
+REPLY_DISK_ERROR        = $81
 REPLY_NOT_FOUND         = $82
-REPLY_READ_ERROR        = $83
-REPLY_END_OF_FILE       = $84
-REPLY_NOT_SUPPORTED     = $85
-REPLY_SAVE_OK           = $86
-REPLY_SAVE_ERROR        = $87
+REPLY_END_OF_FILE       = $83
 
-; Align with commands.h (SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE)
-SAVE_BUF_SIZE           = $90
-SAVE_ERROR_FILE_EXISTS  = $80
-SAVE_ERROR_DISK_FULL    = $83
+SAVE_BUFFER_OFFSET      = $70
+SAVE_BUFFER_SIZE        = EASYFLASH_RAM_SIZE - SAVE_BUFFER_OFFSET
 
 ; =============================================================================
 ;
@@ -144,6 +152,9 @@ _disk_mount_and_load:
         sta EASYFLASH_RAM,x
         cpx #$00
         bne :-
+
+        lda start_commands              ; First byte is device number
+        sta kff_device_number
 
         jsr copy_disable_ef_rom
 
@@ -198,7 +209,6 @@ _disk_mount_and_load:
         sta old_save_vector
         lda ISAVE + 1
         sta old_save_vector + 1
-
 
         jsr install_disk_vectors
 
@@ -302,18 +312,19 @@ zp_backup:
         .byte $ff,$ff,$ff,$ff,$ff
 filename_len:
         .byte $00
-; TODO: still, only 39 bytes are allocated for filenames. It should be 41 chars long.
+; TODO: 38 bytes are allocated for filenames. It should be 41 chars long.
 filename:
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00,$00,$00,$00,$00,$00,$00
-
+        .byte $00,$00,$00,$00,$00,$00
 filename_end:
 
+kff_device_number:
+        .byte $08
 mem_config:
         .byte $00
 print_text_ptr:
-        .byte $00
+        .byte $01
 more_to_load:
         .byte $00
 
@@ -336,7 +347,7 @@ old_load_vector:
 old_save_vector:
          .byte $00,$00
 
-kernal_trampoline:                      ; Called by KFF routines 
+kernal_trampoline:                      ; Called by KFF routines
         lda #EASYFLASH_KILL
         sta EASYFLASH_CONTROL
 kernal_call:
@@ -387,15 +398,17 @@ store_filename_enable_ef:
         ldy FNLEN
         cpy #(filename_end - filename) + 1
         bcs @too_long                   ; Filename too long
-        .byte $2c                       ; Dummy instruction (skip next 2 bytes)
+        .byte BIT_INSTRUCTION           ; Dummy instruction (skip next 2 bytes)
 @too_long:
         ldy #filename_end - filename    ; Limit to max length
         sty filename_len
 
+        pha
 :       lda (FNADR),y                   ; Store current file name
         sta filename,y
         dey
         bpl :-
+        pla
 
 enable_ef_rom:
         pha
@@ -472,6 +485,10 @@ load_done:
 
 all_done:
         rts
+
+.if * > EASYFLASH_RAM + EASYFLASH_RAM_SIZE
+    .error "Not enough space for disk_api_load_prg"
+.endif
 .reloc
 disk_api_load_prg_end:
 
@@ -501,12 +518,16 @@ disable_ef_rom:
         cli
 return_inst:
         rts                         ; Replaced with jmp or rts
-       .byte $00,$00          
+       .byte $00,$00
+
+.if * > EASYFLASH_RAM + EASYFLASH_RAM_SIZE
+    .error "Not enough space for disk_api_disable_ef_rom"
+.endif
 .reloc
 disk_api_disable_ef_rom_end:
 
 disk_api_save_prg:
-; This area is copied over the io_trampoline code to have bigger 
+; This area is copied over the io_trampoline code to have bigger
 ; IO buffer for data transfer between C64 and KFF card.
 .org io_trampoline_start
 fill_save_buffer:
@@ -529,6 +550,9 @@ fill_save_buffer:
         sta R6510
         rts
 
+.if * > EASYFLASH_RAM + SAVE_BUFFER_OFFSET
+    .error "Not enough space for disk_api_save_prg"
+.endif
 .reloc
 disk_api_save_prg_end:
 
@@ -606,7 +630,7 @@ copy_trampoline_code:
 .proc copy_ef3usb_send_receive_code
 copy_ef3usb_send_receive_code:
         ldx #ef3usb_send_receive_rom_addr_end-ef3usb_send_receive_rom_addr
-:       dex        
+:       dex
         lda ef3usb_send_receive_rom_addr,X
         sta ef3usb_send_receive,X
         cpx #$00
@@ -617,11 +641,11 @@ copy_ef3usb_send_receive_code:
 .proc kff_open
 kff_open:
 	lda FA
-        cmp #$08
-        beq @kff_device                 ; Device 8
+        cmp kff_device_number
+        beq @kff_device
 
 @normal_open:
-        lda #$4c                        ; Setup jmp to normal OPEN
+        lda #JMP_INSTRUCTION            ; Setup jmp to normal OPEN
         sta return_inst
         lda old_open_vector
         sta return_inst + 1
@@ -656,23 +680,22 @@ kff_open:
         jsr send_filename
 
         jsr ef3usb_receive_byte         ; Get reply
-        cmp #REPLY_READ_DONE
         beq @open_ok
         cmp #REPLY_END_OF_FILE
         beq @end_of_file
 
-        lda #$04                        ; File not found error
+        lda #ERROR_FILE_NOT_FOUND      ; File not found error
         sec
         bcs @open_done
 
 @end_of_file:
-        lda #$40                        ; Set status to end of file
+        lda #STATUS_END_OF_FILE         ; Set status to end of file
         sta STATUS
 @open_ok:
         lda #$00
         clc
 @open_done:
-        ldy #$60
+        ldy #RTS_INSTRUCTION
         sty return_inst
         ldy FA
         jmp disable_ef_rom
@@ -707,8 +730,8 @@ kff_close:
         bne :-
 
         lda FAT,x                       ; Lookup device
-        cmp #$08
-        bne @normal_close               ; Not device 8
+        cmp kff_device_number
+        bne @normal_close               ; Not KFF device
 
         lda SAT,x                       ; Lookup secondary address
         sta SA
@@ -722,7 +745,7 @@ kff_close:
         jsr ef3usb_receive_byte         ; Get reply (ignored)
 
 @normal_close:
-        lda #$4c                        ; Setup jmp to old CLOSE
+        lda #JMP_INSTRUCTION            ; Setup jmp to old CLOSE
         sta return_inst
         lda old_close_vector
         sta return_inst + 1
@@ -746,8 +769,8 @@ kff_chkin:
         sta LA                          ; Store logical file
 
         lda FAT,x                       ; Lookup device
-        cmp #$08
-        bne @normal_chkin               ; Not device 8
+        cmp kff_device_number
+        bne @normal_chkin               ; Not KFF device
 
         sta FA                          ; Store device
         sta DFLTN
@@ -764,13 +787,13 @@ kff_chkin:
         sta STATUS
         clc                             ; OK
         stx tmp1
-        ldx #$60                        ; Setup rts from CHKIN
+        ldx #RTS_INSTRUCTION            ; Setup rts from CHKIN
         stx return_inst
         ldx tmp1
         jmp disable_ef_rom
 
 @normal_chkin:
-        lda #$4c                        ; Setup jmp to old CHKIN
+        lda #JMP_INSTRUCTION            ; Setup jmp to old CHKIN
         sta return_inst
         lda old_chkin_vector
         sta return_inst + 1
@@ -786,14 +809,14 @@ kff_chkin:
 kff_clrch:
         lda #$00                        ; Keyboard channel
 
-        ldx #$08
+        ldx kff_device_number
         cpx DFLTO                       ; Check output channel
-        bne @check_input                ; Not device 8
+        bne @check_input                ; Not KFF device
         sta DFLTO                       ; Don't send commands to the serial bus
 
 @check_input:
         cpx DFLTN                       ; Check input channel
-        bne @normal_clrch               ; Not device 8
+        bne @normal_clrch               ; Not KFF device
         sta DFLTN                       ; Don't send commands to the serial bus
 
         sty tmp1
@@ -803,7 +826,7 @@ kff_clrch:
         ldy tmp1
 
 @normal_clrch:
-        lda #$4c                        ; Setup jmp to old CLRCH
+        lda #JMP_INSTRUCTION            ; Setup jmp to old CLRCH
         sta return_inst
         lda old_clrch_vector
         sta return_inst + 1
@@ -819,33 +842,32 @@ kff_basin:
         lda DFLTN
         beq keyboard                    ; Is keyboard
 
-        cmp #$08
-        bne normal_basin                ; Not device 8
+        cmp kff_device_number
+        bne normal_basin                ; Not KFF device
 
 do_kff_basin:
         stx tmp1
         sty tmp2
-        ldx #$60                        ; set RTS at the end of disable_ef_rom
+        ldx #RTS_INSTRUCTION            ; set RTS at the end of disable_ef_rom
         stx return_inst
         lda #CMD_GET_CHAR               ; Send command
         jsr kff_send_command
         ldx tmp1
         ldy tmp2
         jsr ef3usb_receive_byte         ; Get reply
-        cmp #REPLY_READ_DONE
         beq @read_ok
         cmp #REPLY_END_OF_FILE
         beq @read_end
 
-        lda #$10                        ; Set device status to read error occurred
+        lda #STATUS_READ_ERROR          ; Set device status to read error occurred
         sta STATUS
         lda #$00
         clc
         jmp disable_ef_rom
 
 @read_end:
-        lda #$40                        ; Set status to end of file
-        .byte $2c                       ; Skip next 2 bytes
+        lda #STATUS_END_OF_FILE         ; Set status to end of file
+        .byte BIT_INSTRUCTION           ; Skip next 2 bytes
 @read_ok:
         lda #$00                        ; Clear status
         sta STATUS
@@ -881,7 +903,7 @@ keyboard:
 @normal_basin_y:
         ldy tmp1
 normal_basin:
-        lda #$4c                        ; Setup jmp to old BASIN
+        lda #JMP_INSTRUCTION            ; Setup jmp to old BASIN
         sta return_inst
         lda old_basin_vector
         sta return_inst + 1
@@ -895,14 +917,11 @@ normal_basin:
 .proc kff_getin
 kff_getin:
         lda DFLTN
-        cmp #$08
-        bne @normal_getin               ; Not device 8
-
-@kff_device:
-        jmp kff_basin::do_kff_basin
+        cmp kff_device_number
+        beq kff_basin::do_kff_basin     ; KFF device
 
 @normal_getin:
-        lda #$4c                        ; Setup jmp to old GETIN
+        lda #JMP_INSTRUCTION            ; Setup jmp to old GETIN
         sta return_inst
         lda old_getin_vector
         sta return_inst + 1
@@ -924,15 +943,13 @@ kff_clall:
 ; =============================================================================
 .proc kff_load
 kff_load:
-        lda VERCK                       ; TODO FIXME: verify with KFF storage if possible
-        bne @normal_load                ; Verify operation (not load)
-
+        sta VERCK
         lda FA
-        cmp #$08
-        beq @kff_device                 ; Device 8
+        cmp kff_device_number
+        beq @kff_device
 
 @normal_load:
-        lda #$4c                        ; Setup jmp to normal load
+        lda #JMP_INSTRUCTION            ; Setup jmp to normal load
         sta return_inst
         lda old_load_vector
         sta return_inst + 1
@@ -943,20 +960,44 @@ kff_load:
         ldy MEMUSS + 1
         jmp disable_ef_rom
 
-@kff_device:
-        jsr search_for_file
-        bcs @normal_load                ; Not found
-
-        jsr copy_load_prg
-
-        lda #$00                        ; Clear device status
-        sta STATUS
-
+@print_searching:
         lda #<LUKING                   ; Setup call to print "Searching for"
         sta kernal_call + 1
         lda #>LUKING
         sta kernal_call + 2
-        jsr kernal_trampoline
+        jmp kernal_trampoline
+
+@load_file_error:
+        cmp #REPLY_NO_DRIVE
+        beq @normal_load                ; Try serial device (if any)
+
+@not_found_error:
+        jsr @print_searching
+        lda #RTS_INSTRUCTION            ; Set RTS at the end of disable_ef_rom
+        sta return_inst
+
+        lda #STATUS_READ_ERROR | STATUS_END_OF_FILE
+        sta STATUS
+        lda #ERROR_FILE_NOT_FOUND       ; File not found error
+        sec
+        jmp disable_ef_rom
+
+@kff_device:
+        lda FNLEN
+        beq @normal_load                ; No filename, load will report error
+
+        lda VERCK
+        bne @not_found_error            ; TODO: Support verify operation
+
+        jsr load_file
+        bcs @load_file_error
+
+@load_start:
+        jsr copy_load_prg
+
+        lda #STATUS_END_OF_FILE         ; Clear device status
+        sta STATUS
+        jsr @print_searching
 
         lda #<LODING                    ; Setup call to print "Loading"
         sta kernal_call + 1
@@ -964,8 +1005,8 @@ kff_load:
         sta kernal_call + 2
         jsr kernal_trampoline
 
-        jsr ef3usb_receive_2_bytes      ; Get PRG size
-        sta tmp1                        ; actually min(bank#1 size, remaining bytes to load)
+        jsr ef3usb_receive_2_bytes      ; Get bank size
+        sta tmp1
         stx tmp2
 
         jsr ef3usb_receive_2_bytes      ; Get load address
@@ -996,35 +1037,30 @@ init_load_params:
         lda #$01                        ; EF Bank
         rts
 
-search_for_file:
-        ldy FNLEN
-        beq file_not_found              ; Filename length = 0
-
+load_file:
         lda #CMD_LOAD                   ; Send command
         jsr kff_send_command
         jsr send_filename
 
 get_reply:
+        ldx #$01
         jsr ef3usb_receive_byte         ; Get reply
-        ldx #$00
-        cmp #REPLY_READ_DONE
-        beq @file_found
-        cmp #REPLY_READ_BANK
-        bne file_not_found
+        beq @load_ok
+        cmp #REPLY_END_OF_FILE
+        bne @load_failed
 
-        inx
-@file_found:
+        dex
+@load_ok:
         stx more_to_load
         clc
         rts
 
-file_not_found:
+@load_failed:
         sec
         rts
 
 load_next_bank:
-        lda #CMD_LOAD_NEXT_BANK         ; Send command
-        jsr kff_send_command
+        jsr ef3usb_send_byte            ; Ready for next bank
         jsr get_reply
         bcs @read_error
 
@@ -1032,10 +1068,10 @@ load_next_bank:
         sta tmp1
         stx tmp2
         jsr init_load_params
-        jmp load_prg                    ; let's not pollute the stack...
+        jmp load_prg
 
 @read_error:
-        lda #$10                        ; Set device status to read error occurred
+        lda #STATUS_READ_ERROR          ; Set device status to read error occurred
         sta STATUS
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
@@ -1048,11 +1084,11 @@ load_next_bank = kff_load::load_next_bank
 .proc kff_save
 kff_save:
         lda FA
-        cmp #$08
-        beq @kff_device                 ; Device 8
+        cmp kff_device_number
+        beq @kff_device
 
 @normal_save:
-        lda #$4c                        ; Setup jmp to normal save
+        lda #JMP_INSTRUCTION            ; Setup jmp to normal save
         sta return_inst
         lda old_save_vector
         sta return_inst + 1
@@ -1061,7 +1097,17 @@ kff_save:
         jmp disable_ef_rom
 
 @kff_device:
-        lda #<SAVING                   ; Setup call to print "Saving <filename>"
+        lda FNLEN
+        beq @normal_save                ; No filename, save will report error
+
+        lda #CMD_SAVE                   ; Send command
+        jsr kff_send_command
+        jsr send_filename
+        jsr ef3usb_receive_byte         ; Get reply
+        bne @normal_save                ; Try serial device (if any)
+
+@save_ok:
+        lda #<SAVING                    ; Setup call to print "Saving <filename>"
         sta kernal_call + 1
         lda #>SAVING
         sta kernal_call + 2
@@ -1070,14 +1116,9 @@ kff_save:
         jsr copy_ef3usb_send_receive_code
         jsr copy_save_prg
 
-        lda #CMD_SAVE                   ; Send command
-        jsr kff_send_command
-        jsr send_filename
-
-
 ; calculate file size - number of bytes to send
         sec
-        lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)                 
+        lda EAL                 ; EAL:EAH is the first address after the program (points after the prg)
         sbc STAL                ; STAL:STAH is the first valid address
         sta tmp1
         lda EAH
@@ -1090,27 +1131,23 @@ kff_save:
 
         lda STAH
         sta SAH
+        ldx #STATUS_SAVE_FILE_EXISTS    ; Most probably the file already exists (or directory is full)
         jsr @ef3usb_send_receive
-        ldx #SAVE_ERROR_FILE_EXISTS     ; Most probably the file already exists (or directory is full)
-        cmp #REPLY_SAVE_OK
         bne @save_done
 
-        lda #CMD_SAVE_BUFFER            ; Here starts the save buffer cycle
-        jsr kff_send_command
-
-        lda #($0100 - SAVE_BUF_SIZE)    ; set ptr to EF RAM
+        lda #SAVE_BUFFER_OFFSET         ; set ptr to EF RAM
         sta ptr1
         lda #>EASYFLASH_RAM
         sta ptr2
 
 ; tmp1:tmp2 -> remaining size of file to save (here: size of file)
-; ptr1:ptr2 -> start address of outbut buff in EF RAM
-; SAL:SAH   -> running address of file to save (here: start address of file) 
+; ptr1:ptr2 -> start address of output buff in EF RAM
+; SAL:SAH   -> running address of file to save (here: start address of file)
 @save_start:
-        jsr @compare_buffer_and_remaining_size   ; c set if remaining size >= SAVE_BUF_SIZE
+        jsr @compare_buffer_and_remaining_size   ; c set if remaining size >= SAVE_BUFFER_SIZE
         bcc @set_remaining_size
-        lda #SAVE_BUF_SIZE
-        .byte $2c                       ; BIT
+        lda #SAVE_BUFFER_SIZE
+        .byte BIT_INSTRUCTION           ; Skip next 2 bytes
 @set_remaining_size:
         lda tmp1                        ; valid bytes in buffer
         tax                             ; save A in X
@@ -1120,13 +1157,11 @@ kff_save:
         txa                             ; let's restore A from X
 @save_cycle_done:
         sta tmp3                        ; store last num of sent bytes (0 if we're done)
+        ldx #STATUS_SAVE_DISK_FULL      ; exit code - disk full
         jsr @ef3usb_send_receive
-        ldx #SAVE_ERROR_DISK_FULL       ; exit code - disk full
-        cmp tmp3
         bne @save_done                  ; if any problem during save -> exit loop
-        tax                  
-        cmp #$00                        ; was it the last save cycle? (exit code is 0x00)
-        beq @save_done
+        ldx tmp3
+        beq @save_done                  ; was it the last save cycle? (exit code is $00)
 
         sec                             ; substract sent bytes from remaining size to save
         lda tmp1
@@ -1138,7 +1173,7 @@ kff_save:
 
         clc                             ; increase source address by sent bytes
         lda tmp3
-        adc SAL                         
+        adc SAL
         sta SAL
         lda SAH
         adc #$00
@@ -1156,16 +1191,15 @@ kff_save:
 @compare_buffer_and_remaining_size:
         lda tmp2
         cmp #$01
-        bcs @compare_done       ; C if size > SAVE_BUF_SIZE
+        bcs @compare_done       ; C if size > SAVE_BUFFER_SIZE
         lda tmp1
-        cmp #SAVE_BUF_SIZE      ; C if size >= SAVE_BUF_SIZE
+        cmp #SAVE_BUFFER_SIZE   ; C if size >= SAVE_BUFFER_SIZE
 @compare_done:
         rts
 
 @ef3usb_send_receive:
         wait_usb_tx_ok
         jmp ef3usb_send_receive
-
 .endproc
 
 ; =============================================================================

@@ -361,18 +361,6 @@ static uint32_t crt_calc_flash_crc(uint8_t crt_banks)
     return crc_get();
 }
 
-static void basic_load(const char *filename)
-{
-    // BASIC commands to run at start-up
-    sprint((char *)dat_buffer, "LOAD\"%s\",8,1%cRUN%c", filename, 0, 0);
-}
-
-static void basic_no_commands(void)
-{
-    // No BASIC commands at start-up
-    sprint((char *)dat_buffer, "%c", 0);
-}
-
 static bool upd_load(FIL *file, char *firmware_name)
 {
     uint32_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
@@ -468,6 +456,50 @@ static bool save_dat(void)
     return file_saved;
 }
 
+static inline bool persist_basic_selection(void)
+{
+    return (dat_file.flags & DAT_FLAG_PERSIST_BASIC) != 0;
+}
+
+static inline bool autostart_d64(void)
+{
+    return (dat_file.flags & DAT_FLAG_AUTOSTART_D64) != 0;
+}
+
+static uint8_t get_device_number(uint8_t flags)
+{
+    uint8_t offset = flags & DAT_FLAG_DEVICE_D64_MSK;
+    return (offset >> DAT_FLAG_DEVICE_D64_POS) + 8;
+}
+
+static void set_device_number(uint8_t *flags, uint8_t device)
+{
+    uint8_t offset = ((device - 8) << DAT_FLAG_DEVICE_D64_POS) &
+                     DAT_FLAG_DEVICE_D64_MSK;
+
+    MODIFY_REG(*flags, DAT_FLAG_DEVICE_D64_MSK, offset);
+}
+
+static inline uint8_t device_number_d64(void)
+{
+    return get_device_number(dat_file.flags);
+}
+
+static void basic_load(const char *filename)
+{
+    uint8_t device = device_number_d64();
+
+    // BASIC commands to run at start-up
+    sprint((char *)dat_buffer, "%cLOAD\"%s\",%d,1%cRUN%c", device,
+           filename, device, 0, 0);
+}
+
+static void basic_no_commands(void)
+{
+    // No BASIC commands at start-up
+    sprint((char *)dat_buffer, "%c%c", device_number_d64(), 0);
+}
+
 static bool chdir_last(void)
 {
     bool res = false;
@@ -518,7 +550,7 @@ static bool load_d64(void)
         return false;
     }
 
-    if (!d64_open(&d64_state.d64, dat_file.file))
+    if (!d64_open(&d64_state.image, dat_file.file))
     {
         return false;
     }

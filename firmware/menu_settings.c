@@ -44,6 +44,46 @@ static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element
     return false;
 }
 
+static const char * settings_autostart_text(void)
+{
+    sprint(scratch_buf, "Autostart disk image: %s",
+           (settings_flags & DAT_FLAG_AUTOSTART_D64) ? "yes" : "no");
+
+    return scratch_buf;
+}
+
+static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+{
+    if (settings_flags & DAT_FLAG_AUTOSTART_D64)
+    {
+        settings_flags &= ~DAT_FLAG_AUTOSTART_D64;
+    }
+    else
+    {
+        settings_flags |= DAT_FLAG_AUTOSTART_D64;
+    }
+
+    options_element_text(element, settings_autostart_text());
+    menu_state->dir(menu_state); // Refresh settings
+    return false;
+}
+
+static const char * settings_device_text(void)
+{
+    sprint(scratch_buf, "Disk device number: %d", get_device_number(settings_flags));
+    return scratch_buf;
+}
+
+static bool settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+{
+    uint8_t device = get_device_number(settings_flags) + 1;
+    set_device_number(&settings_flags, device);
+
+    options_element_text(element, settings_device_text());
+    menu_state->dir(menu_state); // Refresh settings
+    return false;
+}
+
 static bool settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
 {
     dat_file.flags = settings_flags;
@@ -63,6 +103,8 @@ static void handle_settings(void)
 
     OPTIONS_STATE *options = options_init("Settings");
     options_add_text_element(options, settings_basic_change, settings_basic_text());
+    options_add_text_element(options, settings_autostart_change, settings_autostart_text());
+    options_add_text_element(options, settings_device_change, settings_device_text());
     options_add_text_element(options, settings_save, "Save");
     options_add_dir(options, "Cancel");
     handle_options(options);

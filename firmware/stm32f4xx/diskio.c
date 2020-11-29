@@ -507,6 +507,12 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
 
     // Note: No check of Write Protect Pin
 
+    if (c64_interface_active())
+    {
+        err("Cannot write to disk while C64 interface is active\n");
+        return RES_ERROR;
+    }
+
     if (!(card_type & CT_BLOCK))
     {
         sector *= 512;

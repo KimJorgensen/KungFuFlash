@@ -27,8 +27,6 @@
 #define TEXT_ELEMENT     0xe0
 
 #define BASIC_CMD_BUF_SIZE 80
-
-// SAVE_BUFFER_OFFSET = $0100 - SAVE_BUF_SIZE. Check disk.s for SAVE_BUF_SIZE value
 #define SAVE_BUFFER_OFFSET 0x70
 
 typedef enum {
@@ -51,14 +49,12 @@ typedef enum {
 
     // Disk commands
     CMD_LOAD = 0x80,
-    CMD_LOAD_NEXT_BANK,
+    CMD_SAVE,
     CMD_OPEN,
     CMD_CLOSE,
     CMD_TALK,
     CMD_UNTALK,
     CMD_GET_BYTE,
-    CMD_SAVE,
-    CMD_SAVE_BUFFER,
 
     // EAPI commands
     CMD_EAPI_INIT = 0xf0,
@@ -81,15 +77,11 @@ typedef enum {
     REPLY_EXIT_MENU,        // Exit menu and wait for EFSTART:xxx command
 
     // Disk replies
-    REPLY_READ_DONE = 0x80,
-    REPLY_READ_BANK,
+    REPLY_NO_DRIVE = 0x80,
 
+    REPLY_DISK_ERROR,
     REPLY_NOT_FOUND,
-    REPLY_READ_ERROR,
     REPLY_END_OF_FILE,
-    REPLY_NOT_SUPPORTED,
-    REPLY_SAVE_OK,
-    REPLY_SAVE_ERROR,
 
     // EAPI replies
     REPLY_WRITE_WAIT = 0xf0,

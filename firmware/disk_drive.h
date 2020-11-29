@@ -21,22 +21,9 @@
 typedef struct
 {
     const char *name;
+    bool wildcard;
+    bool overwrite;
     uint8_t drive;
     uint8_t type;
     char mode;
-    bool overwrite;
 } PARSED_FILENAME;
-
-typedef struct
-{
-    union {
-        uint8_t number;
-        uint8_t track_pos;
-    };
-    union {
-        uint8_t bytes_left;
-        uint8_t sector_pos;
-    };
-    uint8_t bytes_ptr;
-    D64_SECTOR sector;
-} DISK_CHANNEL;

@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static void sd_format_size(char *buffer, uint32_t size)
 {
     char units[] = "BKmg";
@@ -558,6 +559,12 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
                 dat_file.boot_type = DAT_DISK;
                 exit_menu = true;
             }
+            else if (!(flags & SELECT_FLAG_ACCEPT) && autostart_d64())
+            {
+                basic_load("*");
+                dat_file.boot_type = DAT_DISK;
+                exit_menu = true;
+            }
             else
             {
                 dat_file.prg.element = 0;
@@ -569,7 +576,7 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
 
         case FILE_UPD:
         {
-            if (!(flags & SELECT_FLAG_ACCEPTED))
+            if (!(flags & SELECT_FLAG_ACCEPT))
             {
                 FIL file;
                 handle_file_open(&file, file_name);
