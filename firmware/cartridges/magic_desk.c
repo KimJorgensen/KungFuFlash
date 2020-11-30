@@ -39,15 +39,15 @@ static inline void magic_desk_write_handler(uint8_t control, uint16_t addr, uint
 {
     if (!(control & C64_IO1) && addr == 0xde00)
     {
-        if(!(data & 0x80))
+        if (!(data & 0x80))
         {
             // Enable cartridge
             c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 
-            crt_ptr = crt_banks[data & 0x3f];
-            if(data & 0x40)
+            crt_ptr = crt_banks[(data >> 1) & 0x3f];
+            if (data & 0x01)
             {
-                // Use ROMH location for bank > 63
+                // Use ROMH location for odd banks
                 crt_ptr += 0x2000;
             }
         }

@@ -180,17 +180,23 @@ static int32_t crt_get_offset(CRT_CHIP_HEADER *header, uint16_t cartridge_type)
     // ROML bank (and ROMH for >8k images)
     if (header->start_address == 0x8000 && header->image_size <= 16*1024)
     {
-        if (header->bank < 64)
+        // Suport ROML only cartridges with more than 64 banks
+        if(header->image_size <= 8*1024 &&
+           cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA)
+        {
+            bool odd_bank = header->bank & 1;
+            header->bank >>= 1;
+            offset = header->bank * 16*1024;
+
+            // Use ROMH bank location for odd banks
+            if (odd_bank)
+            {
+                offset += 8*1024;
+            }
+        }
+        else
         {
             offset = header->bank * 16*1024;
-        }
-        // Suport ROML only cartridges with more than 64 banks
-        else if(header->image_size <= 8*1024 &&
-                cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA)
-        {
-            // Use ROMH bank location for upper banks
-            header->bank -= 64;
-            offset = header->bank * 16*1024 + 8*1024;
         }
     }
     // ROMH bank
