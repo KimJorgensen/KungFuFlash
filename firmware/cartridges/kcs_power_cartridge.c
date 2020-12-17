@@ -31,7 +31,7 @@ static uint8_t kcs_register;
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool kcs_vic_read_handler(uint8_t control, uint16_t addr)
+static inline bool kcs_vic_read_handler(uint32_t control, uint32_t addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -45,7 +45,7 @@ static inline bool kcs_vic_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool kcs_read_handler(uint8_t control, uint16_t addr)
+static inline bool kcs_read_handler(uint32_t control, uint32_t addr)
 {
     if ((control & (C64_IO1|C64_ROML|C64_ROMH)) != (C64_IO1|C64_ROML|C64_ROMH))
     {
@@ -104,7 +104,7 @@ static inline void kcs_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void kcs_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void kcs_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     if (!(control & C64_IO1))
     {
@@ -117,7 +117,7 @@ static inline void kcs_write_handler(uint8_t control, uint16_t addr, uint8_t dat
     {
         if (!(addr & 0x80))
         {
-            crt_ram_buf[addr & 0x7f] = data;
+            crt_ram_buf[addr & 0x7f] = (uint8_t)data;
         }
 
         c64_irq_nmi(C64_IRQ_NMI_HIGH);

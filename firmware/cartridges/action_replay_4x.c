@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static uint32_t const ar4x_mode[4] =
 {
     STATUS_LED_ON|CRT_PORT_8K,
@@ -28,7 +29,7 @@ static uint32_t const ar4x_mode[4] =
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool ar4x_vic_read_handler(uint8_t control, uint16_t addr)
+static inline bool ar4x_vic_read_handler(uint32_t control, uint32_t addr)
 {
     // Not needed
     return false;
@@ -37,7 +38,7 @@ static inline bool ar4x_vic_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool ar4x_read_handler(uint8_t control, uint16_t addr)
+static inline bool ar4x_read_handler(uint32_t control, uint32_t addr)
 {
     // Not 100% accurate: ROM should not be accessible at IO2
     // in 16k & Ultimax mode nor at ROML in 16k mode
@@ -96,7 +97,7 @@ static inline void ar4x_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ar4x_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void ar4x_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     if (crt_ptr)
     {
@@ -146,7 +147,7 @@ static inline void ar4x_write_handler(uint8_t control, uint16_t addr, uint8_t da
 
         if ((control & (C64_IO2|C64_ROML)) != (C64_IO2|C64_ROML) && crt_ptr != crt_rom_ptr)
         {
-            crt_ptr[addr & 0x1fff] = data;
+            crt_ptr[addr & 0x1fff] = (uint8_t)data;
             return;
         }
     }

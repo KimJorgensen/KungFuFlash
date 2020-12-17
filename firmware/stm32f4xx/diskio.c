@@ -281,7 +281,7 @@ DSTATUS disk_initialize(BYTE pdrv)
                 (resp[0] & BIT31))
             {
                 card_type = (resp[0] & BIT30) ? CT_SD2 | CT_BLOCK : CT_SD2;
-                log("card type: SD2\n");
+                dbg("card type: SD2\n");
                 break;
             }
         }
@@ -326,7 +326,7 @@ DSTATUS disk_initialize(BYTE pdrv)
     }
 
     byte_swap(&card_info[32], resp[0]);
-    log("card OCR: %08x\n", ((uint32_t*)card_info)[8]);
+    dbg("card OCR: %08x\n", ((uint32_t*)card_info)[8]);
 
     // card state 'ready'
     if (!sdio_cmd_send(2, 0, RESP_LONG, resp)) // enter ident state

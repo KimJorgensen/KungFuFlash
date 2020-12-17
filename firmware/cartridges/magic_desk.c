@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool magic_desk_read_handler(uint8_t control, uint16_t addr)
+static inline bool magic_desk_read_handler(uint32_t control, uint32_t addr)
 {
     if (!(control & C64_ROML))
     {
@@ -35,9 +35,9 @@ static inline bool magic_desk_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void magic_desk_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void magic_desk_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
-    if (!(control & C64_IO1) && addr == 0xde00)
+    if (!(control & C64_IO1) && !(addr & 0xff))
     {
         if (!(data & 0x80))
         {

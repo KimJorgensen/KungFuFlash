@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void comal80_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void comal80_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     /* The register is reset to $00 on reset. Bits:
         7   Unused

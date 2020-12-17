@@ -118,5 +118,5 @@ static uint8_t * const crt_banks[64] =
 #define FREEZE_START    1
 #define FREEZE_3_WRITES 4   // 3 Consecutive writes after FREEZE_START
 
-static uint8_t freezer_button;
-static uint8_t freezer_state;
+static uint32_t freezer_button;
+static uint32_t freezer_state;

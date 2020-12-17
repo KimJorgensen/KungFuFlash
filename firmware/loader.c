@@ -379,6 +379,11 @@ static bool upd_load(FIL *file, char *firmware_name)
 
         if (memcmp(firmware_name, "Kung Fu Flash", 13) == 0)
         {
+            // Don't allow downgrade to a PAL only version on a NTSC C64
+            if (c64_is_ntsc() && firmware_name[14] == 'v')
+            {
+                return false;
+            }
             return true;
         }
     }
@@ -589,6 +594,11 @@ static bool c64_set_mode(void)
 
         case DAT_CRT:
         {
+            if (!c64_fw_supports_crt())
+            {
+                break;
+            }
+
             if (!crt_is_supported(dat_file.crt.type))
             {
                 break;

@@ -22,7 +22,7 @@ static uint16_t epyx_cycles;
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool epyx_read_handler(uint8_t control, uint16_t addr)
+static inline bool epyx_read_handler(uint32_t control, uint32_t addr)
 {
     if (!(control & C64_ROML))
     {
@@ -54,7 +54,7 @@ static inline bool epyx_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void epyx_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void epyx_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     // No write support
 }

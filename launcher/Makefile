@@ -2,10 +2,14 @@
 .SECONDARY:
 
 ifndef version
-version := 1.xx
+version := 1.XX
 endif
 
-name := KungFuLauncher_v$(version)
+ifndef type
+type := PAL
+endif
+
+name := KungFuLauncher_v$(version)_$(type)
 
 ld_config := ld.crt.cfg
 
@@ -24,7 +28,7 @@ inc      += ../3rd_party/libef3usb/src
 libef3usb := ../3rd_party/libef3usb/libef3usb.lib
 
 INCLUDE  := $(addprefix -I,$(inc))
-DEFINE   := -DVERSION=\"${version}\"
+DEFINE   := -DVERSION=\"${version}\" -D${type}
 
 .PHONY: all
 all: build/$(name).bin

@@ -29,6 +29,7 @@
  *
  * Newer versions might be available here: http://www.sascha-bader.de/html/code.html
  */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -76,7 +77,11 @@ static const uint8_t backc = COLOR_VIOLET;
 static const uint8_t warnc = COLOR_YELLOW;
 static const uint8_t errorc = COLOR_LIGHTRED;
 
-#define KUNG_FU_FLASH_VER "Kung Fu Flash v" ## VERSION
+#ifdef NTSC
+#define KUNG_FU_FLASH_VER "Kung Fu Flash " ## VERSION "n"
+#else
+#define KUNG_FU_FLASH_VER "Kung Fu Flash " ## VERSION "p"
+#endif
 
 // Place program name in the start of the output file
 // so it can be read by the firmware

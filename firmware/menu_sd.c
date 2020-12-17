@@ -513,6 +513,18 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
                 break;
             }
 
+            if (!c64_fw_supports_crt())
+            {
+#ifdef NTSC
+                handle_unsupported_ex("Unsupported",
+                    "Please update to PAL firmware to run", dat_file.file);
+#else
+                handle_unsupported_ex("Unsupported",
+                    "Please update to NTSC firmware to   run", dat_file.file);
+#endif
+                break;
+            }
+
             c64_send_exit_menu();
             c64_send_prg_message("Programming flash memory.");
             c64_interface(false);

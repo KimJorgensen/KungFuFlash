@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static uint32_t const ss5_mode[8] =
 {
     STATUS_LED_ON|CRT_PORT_ULTIMAX,
@@ -33,7 +34,7 @@ static uint32_t const ss5_mode[8] =
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool ss5_vic_read_handler(uint8_t control, uint16_t addr)
+static inline bool ss5_vic_read_handler(uint32_t control, uint32_t addr)
 {
     // Not needed
     return false;
@@ -42,7 +43,7 @@ static inline bool ss5_vic_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool ss5_read_handler(uint8_t control, uint16_t addr)
+static inline bool ss5_read_handler(uint32_t control, uint32_t addr)
 {
     if (crt_ptr)
     {
@@ -92,7 +93,7 @@ static inline void ss5_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ss5_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void ss5_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     /*  The SS5 register is reset to $00 on reset.
         Bit 5-7: Unused
@@ -136,7 +137,7 @@ static inline void ss5_write_handler(uint8_t control, uint16_t addr, uint8_t dat
 
         if (!(control & C64_ROML) && crt_ptr != crt_rom_ptr)
         {
-            crt_ptr[addr & 0x1fff] = data;
+            crt_ptr[addr & 0x1fff] = (uint8_t)data;
         }
     }
 }

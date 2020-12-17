@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static uint32_t const ef_mode[8] =
 {
     STATUS_LED_OFF|CRT_PORT_ULTIMAX,
@@ -35,12 +36,12 @@ static uint32_t const ef_mode[8] =
 #define EF3_TX_RDY  (0x40)
 #define EF3_NOT_RDY (0x00)
 
-static volatile uint8_t ef3_usb_rx_rdy = EF3_NOT_RDY;
-static volatile uint8_t ef3_usb_tx_rdy = EF3_TX_RDY;
+static volatile uint32_t ef3_usb_rx_rdy = EF3_NOT_RDY;
+static volatile uint32_t ef3_usb_tx_rdy = EF3_TX_RDY;
 
 // EasyFlash 3 USB Data
 static volatile uint8_t ef3_usb_rx_data;
-static volatile uint8_t ef3_usb_tx_data;
+static volatile uint32_t ef3_usb_tx_data;
 
 static inline bool ef3_can_putc(void)
 {
@@ -64,16 +65,16 @@ static uint8_t ef3_getc(void)
 {
     while (ef3_usb_tx_rdy);
 
-    uint8_t data = ef3_usb_tx_data;
+    uint32_t data = ef3_usb_tx_data;
     COMPILER_BARRIER();
     ef3_usb_tx_rdy = EF3_TX_RDY;
-    return data;
+    return (uint8_t)data;
 }
 
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool ef_read_handler(uint8_t control, uint16_t addr)
+static inline bool ef_read_handler(uint32_t control, uint32_t addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -88,7 +89,7 @@ static inline bool ef_read_handler(uint8_t control, uint16_t addr)
             // $de09 EF3 USB Control register
             case 0x09:
             {
-                c64_data_write(ef3_usb_rx_rdy | ef3_usb_tx_rdy);
+                c64_data_write((uint8_t)(ef3_usb_rx_rdy | ef3_usb_tx_rdy));
             }
             return true;
 
@@ -117,7 +118,7 @@ static inline bool ef_read_handler(uint8_t control, uint16_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ef_write_handler(uint8_t control, uint16_t addr, uint8_t data)
+static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
     if (!(control & C64_IO1))
     {
@@ -164,7 +165,7 @@ static inline void ef_write_handler(uint8_t control, uint16_t addr, uint8_t data
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        crt_ram_buf[addr & 0xff] = data;
+        crt_ram_buf[addr & 0xff] = (uint8_t)data;
         return;
     }
 }

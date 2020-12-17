@@ -1,15 +1,20 @@
 ifndef version
-version := 1.xx
+version := 1.XX
 endif
 export version
+
+ifndef type
+type := PAL
+endif
+export type
 
 ######################################
 # target
 ######################################
-TARGET = KungFuFlash_v$(version)
+TARGET = KungFuFlash_v$(version)_$(type)
 
 LAUNCHER_DIR = ../launcher/
-LAUNCHER = $(LAUNCHER_DIR)build/KungFuLauncher_v$(version).bin
+LAUNCHER = $(LAUNCHER_DIR)build/KungFuLauncher_v$(version)_$(type).bin
 
 ######################################
 # building variables
@@ -81,7 +86,8 @@ AS_DEFS =
 
 # C defines
 C_DEFS =  \
--DSTM32F405xx
+-DSTM32F405xx \
+-D${type}
 
 # AS includes
 AS_INCLUDES =
