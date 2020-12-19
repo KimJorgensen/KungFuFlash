@@ -67,8 +67,9 @@ However, it can be challenging to get the C64 bus timing correct in software and
 Even though Kung Fu Flash has been tested on different models of the Commodore 64, there is a chance that it doesn't work correctly on your specific model.
 Use it at your own risk!
 
-Kung Fu Flash will only work with the PAL version of the Commodore 64 or Commodore 128. The NTSC version is currently not supported.
-Disk drive emulation is using kernal vectors and will not work with fast loaders. Currently REL files are not supported and there is no write support.
+Kung Fu Flash will work with the PAL version of the Commodore 64 or Commodore 128. Support for the NTSC version is still considered experimental.
+
+Disk drive emulation is using kernal vectors and will not work with fast loaders or software that uses direct hardware access which a lot of games does. Currently REL files are not supported and there is only limited write support.
 
 ## Thanks
 Kung Fu Flash was based on or uses other open source projects:
