@@ -260,18 +260,18 @@ static void c64_clock_config()
 }
 
 // C64_BUS_HANDLER timing
-#define NTSC_PHI2_HIGH      91
+#define NTSC_PHI2_HIGH      93
 #define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 41)
 #define NTSC_PHI2_LOW       142
 
-#define PAL_PHI2_HIGH       96
+#define PAL_PHI2_HIGH       98
 #define PAL_PHI2_INT        (PAL_PHI2_HIGH - 43)
 #define PAL_PHI2_LOW        149
 
 // C64_VIC_BUS_HANDLER timing
 #ifdef NTSC
 
-#define PHI2_CPU_START      94
+#define PHI2_CPU_START      96
 #define PHI2_WRITE_DELAY    126
 #define PHI2_CPU_END        NTSC_PHI2_LOW
 
@@ -289,7 +289,7 @@ static void c64_clock_config()
 
 #else // PAL
 
-#define PHI2_CPU_START      100
+#define PHI2_CPU_START      102
 #define PHI2_WRITE_DELAY    130
 #define PHI2_CPU_END        PAL_PHI2_LOW
 
