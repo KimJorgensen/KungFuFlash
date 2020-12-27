@@ -24,6 +24,7 @@
 ;
 
 .import init_system_constants_light
+.import start_basic
 .include "ef3usb_macros.s"
 
 ; 6502 Instructions
@@ -35,7 +36,6 @@ RTS_INSTRUCTION = $60
 LUKING          = $f5af                 ; Print "SEARCHING"
 LODING          = $f5d2                 ; Print "LOADING"
 SAVING          = $f68f                 ; Print "SAVING"
-CINT	        = $ff81                 ; Initialize screen editor
 RESTOR          = $ff8a                 ; Restore I/O vectors
 BSOUT           = $ffd2                 ; Write byte to default output
 
@@ -44,6 +44,7 @@ NMINV           = $0318
 IOPEN           = $031a
 ICLOSE          = $031c
 ICHKIN          = $031e
+ICKOUT          = $0320
 ICLRCH          = $0322
 IBASIN          = $0324
 IGETIN          = $032a
@@ -96,7 +97,6 @@ tmp1            = $fd
 tmp2            = $fe
 tmp3            = $ff
 
-trampoline              = $0100
 ef3usb_send_receive     = $0100
 start_commands          = $8000
 
@@ -155,15 +155,7 @@ _disk_mount_and_load:
 
         lda start_commands              ; First byte is device number
         sta kff_device_number
-
         jsr copy_disable_ef_rom
-
-        ; === Start BASIC ===
-        ldx #basic_mount_starter_end - basic_mount_starter
-:       lda basic_mount_starter,x
-        sta trampoline,x
-        dex
-        bpl :-
 
         lda IOPEN                       ; Store old IOPEN vector
         sta old_open_vector
@@ -179,6 +171,11 @@ _disk_mount_and_load:
         sta old_chkin_vector
         lda ICHKIN + 1
         sta old_chkin_vector + 1
+
+        lda ICKOUT                      ; Store old ICKOUT vector
+        sta old_ckout_vector
+        lda ICKOUT + 1
+        sta old_ckout_vector + 1
 
         lda ICLRCH                      ; Store old ICLRCH vector
         sta old_clrch_vector
@@ -211,9 +208,7 @@ _disk_mount_and_load:
         sta old_save_vector + 1
 
         jsr install_disk_vectors
-
-        lda #EASYFLASH_KILL
-        jmp trampoline
+        jmp start_basic
 .endproc
 
 ; =============================================================================
@@ -232,6 +227,11 @@ install_disk_vectors:
         sta ICHKIN
         lda #>chkin_trampoline
         sta ICHKIN + 1
+
+        lda #<ckout_trampoline          ; Install new CKOUT handler
+        sta ICKOUT
+        lda #>ckout_trampoline
+        sta ICKOUT + 1
 
         lda #<clrch_trampoline          ; Install new CLRCH handler
         sta ICLRCH
@@ -266,15 +266,6 @@ install_disk_vectors:
         rts
 
 ; =============================================================================
-basic_mount_starter:
-.org trampoline
-        sta EASYFLASH_CONTROL
-        jsr CINT                        ; Initialize screen editor
-        cli
-        jmp ($a000)                     ; Start BASIC
-.reloc
-basic_mount_starter_end:
-
 ef3usb_send_receive_rom_addr:
 ; Make sure a wait_usb_tx_ok macro inserted before calling
 ; Not included here to keep stack usage low
@@ -312,11 +303,11 @@ zp_backup:
         .byte $ff,$ff,$ff,$ff,$ff
 filename_len:
         .byte $00
-; TODO: 38 bytes are allocated for filenames. It should be 41 chars long.
+; TODO: 35 bytes are allocated for filenames. It should be 41 chars long.
 filename:
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
         .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00,$00,$00,$00,$00,$00
+        .byte $00,$00,$00
 filename_end:
 
 kff_device_number:
@@ -333,6 +324,8 @@ old_open_vector:
 old_close_vector:
         .byte $00,$00
 old_chkin_vector:
+        .byte $00,$00
+old_ckout_vector:
         .byte $00,$00
 old_clrch_vector:
         .byte $00,$00
@@ -369,6 +362,10 @@ close_trampoline:
 chkin_trampoline:
         jsr enable_ef_rom
         jmp kff_chkin
+
+ckout_trampoline:
+        jsr enable_ef_rom
+        jmp kff_ckout
 
 clrch_trampoline:
         jsr enable_ef_rom
@@ -763,15 +760,16 @@ kff_chkin:
         txa                             ; Find logical file (in X)
         ldx LDTND
 :       dex
-        bmi @normal_chkin               ; Not found
+        bmi normal_chkin                ; Not found
         cmp LAT,x
         bne :-
         sta LA                          ; Store logical file
 
         lda FAT,x                       ; Lookup device
         cmp kff_device_number
-        bne @normal_chkin               ; Not KFF device
+        bne normal_chkin                ; Not KFF device
 
+send_talk_cmd:
         sta FA                          ; Store device
         sta DFLTN
         lda SAT,x                       ; Lookup secondary address
@@ -792,12 +790,44 @@ kff_chkin:
         ldx tmp1
         jmp disable_ef_rom
 
-@normal_chkin:
+normal_chkin:
         lda #JMP_INSTRUCTION            ; Setup jmp to old CHKIN
         sta return_inst
         lda old_chkin_vector
         sta return_inst + 1
         lda old_chkin_vector + 1
+        sta return_inst + 2
+
+        ldx tmp1
+        jmp disable_ef_rom
+.endproc
+
+; "Export" function
+send_talk_cmd = kff_chkin::send_talk_cmd
+
+; =============================================================================
+.proc kff_ckout
+kff_ckout:
+        stx tmp1
+        txa                             ; Find logical file (in X)
+        ldx LDTND
+:       dex
+        bmi @normal_ckout               ; Not found
+        cmp LAT,x
+        bne :-
+        sta LA                          ; Store logical file
+
+        lda FAT,x                       ; Lookup device
+        cmp kff_device_number
+        bne @normal_ckout               ; Not KFF device
+        jmp send_talk_cmd
+
+@normal_ckout:
+        lda #JMP_INSTRUCTION            ; Setup jmp to old CKOUT
+        sta return_inst
+        lda old_ckout_vector
+        sta return_inst + 1
+        lda old_ckout_vector + 1
         sta return_inst + 2
 
         ldx tmp1

@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #define DAT_FILENAME "/KungFuFlash.dat"
 #define FW_NAME_SIZE 20
 
@@ -511,6 +512,15 @@ static void basic_no_commands(void)
     sprint((char *)dat_buffer, "%c%c", device_number_d64(), 0);
 }
 
+static void basic_loading(const char *filename)
+{
+    // Setup string to print at BASIC start-up
+    char *dest = (char *)crt_ram_buf + LOADING_OFFSET;
+    dest = convert_to_screen_code(dest, "LOADING ");
+    dest = convert_to_screen_code(dest, filename);
+    *dest = 0;
+}
+
 static bool chdir_last(void)
 {
     bool res = false;
@@ -533,6 +543,17 @@ static bool chdir_last(void)
     return res;
 }
 
+static void sanitize_sd_filename(char *dest, const char *src, uint8_t size)
+{
+    for(uint8_t i=0; i<size && *src; i++)
+    {
+        char c = sanitize_char(*src++);
+        *dest++ = ff_wtoupper(c);
+    }
+
+    *dest = 0;
+}
+
 static void send_prg(void)
 {
     const char *name;
@@ -542,12 +563,12 @@ static void send_prg(void)
     }
     else
     {
-        name = dat_file.file;
+        // Limit filename to one line on the screen
+        sanitize_sd_filename(scratch_buf, dat_file.file, 31);
+        name = scratch_buf;
     }
 
-    sprint(scratch_buf, "Loading...\r\n\r\n%s", name);
-    c64_send_message(scratch_buf);
-
+    basic_loading(name);
     if(!c64_send_prg(dat_buffer, dat_file.prg.size))
     {
         system_restart();
@@ -659,6 +680,8 @@ static bool c64_set_mode(void)
             c64_disable();
             ef_init();
             c64_enable();
+
+            basic_loading("FROM USB");
             c64_send_message("Communicating with USB...");
             result = true;
         }

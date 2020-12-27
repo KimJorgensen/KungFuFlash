@@ -123,6 +123,16 @@ static inline bool c64_send_wait_for_reset(void)
     return false;
 }
 
+static char sanitize_char(char c)
+{
+    if (c == '\r' || c == '\n')
+    {
+        c = '_';
+    }
+
+    return c;
+}
+
 static char petscii_to_ascii(char c)
 {
     if (c & 0x80)
@@ -209,6 +219,51 @@ static bool c64_send_text(const char *cmd, const void *text)
     }
 
     return true;
+}
+
+// From https://sta.c64.org/cbm64pettoscr.html
+static char * convert_to_screen_code(char *dest, const char *src)
+{
+    while (*src)
+    {
+        char c = *src++;
+        if (c <= 0x1f)
+        {
+            c |= 0x80;
+        }
+        else if (c <= 0x3f)
+        {
+            // No conversion
+        }
+        else if (c <= 0x5f)
+        {
+            c &= ~0x40;
+        }
+        else if (c <= 0x7f)
+        {
+            c &= ~0x20;
+        }
+        else if (c <= 0x9f)
+        {
+            c |= 0x40;
+        }
+        else if (c <= 0xbf)
+        {
+            c &= ~0x40;
+        }
+        else if (c <= 0xfe)
+        {
+            c &= ~0x80;
+        }
+        else
+        {
+            c = 0x5e;
+        }
+
+        *dest++ = c;
+    }
+
+    return dest;
 }
 
 static bool c64_send_message(const char *text)

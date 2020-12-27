@@ -26,8 +26,9 @@
 #define SELECTED_ELEMENT 0xa0
 #define TEXT_ELEMENT     0xe0
 
-#define BASIC_CMD_BUF_SIZE 80
-#define SAVE_BUFFER_OFFSET 0x70
+#define BASIC_CMD_BUF_SIZE  80
+#define LOADING_OFFSET      0x80
+#define SAVE_BUFFER_OFFSET  0x70
 
 typedef enum {
     CMD_NONE = 0x00,

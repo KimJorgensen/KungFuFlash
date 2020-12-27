@@ -20,6 +20,7 @@
 ;    misrepresented as being the original software.
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
+
 .importzp   ptr1, ptr2, ptr3, ptr4
 .importzp   tmp1, tmp2, tmp3, tmp4
 .import     popa, popax
@@ -31,12 +32,24 @@
 .include "ef3usb_macros.s"
 
 EASYFLASH_CONTROL = $de02
+EASYFLASH_RAM     = $df00
 EASYFLASH_KILL    = $04
 EASYFLASH_16K     = $07
 
 trampoline = $0100
-start_addr = $fb
+IMAIN      = $0302
+IBASIN     = $0324
 
+MAIN       = $a483      ; Normal BASIC warm start
+BACL       = $e394      ; BASIC cold start entry point
+INIT       = $e397      ; Initialize BASIC RAM
+CINT	   = $ff81      ; Initialize screen editor
+RESTOR     = $ff8a      ; Restore I/O vectors
+SETLFS     = $ffba      ; Set logical, first, and second address
+
+; Align with commands.h
+LOADING_OFFSET  = $80
+LOADING_TEXT    = EASYFLASH_RAM + LOADING_OFFSET
 
 .code
 .if 1=0
@@ -75,8 +88,11 @@ dump_mem:
 .export _usbtool_prg_load_and_run
 _usbtool_prg_load_and_run:
         sei
+        ldx #$ff                        ; Reset stack
+        txs
+
         jsr init_system_constants_light
-        jsr $ff8a   ; Restore Kernal Vectors
+        jsr RESTOR                      ; Restore kernal vectors
 
         ; clear start of BASIC area
         lda #$00
@@ -84,15 +100,140 @@ _usbtool_prg_load_and_run:
         sta $0801
         sta $0802
 
-        ldx #$19    ; ZP size - 1 from linker config
+        ; set current file (emulate read from drive 8)
+        lda #$01
+        ldx #$08
+        tay
+        jsr SETLFS                       ; Set file parameters
+
+        ; === copy to EF RAM ===
+        ldx #ef_ram_end - ef_ram_start
+:
+        lda ef_ram_start, x
+        sta EASYFLASH_RAM, x
+        dex
+        bpl :-
+
+        lda IBASIN                      ; Store old BASIN vector
+        sta old_basin_vector
+        lda IBASIN + 1
+        sta old_basin_vector + 1
+
+        lda #<basin_trampoline          ; Install new BASIN handler
+        sta IBASIN
+        lda #>basin_trampoline
+        sta IBASIN + 1
+
+        ; === Start BASIC ===
+.export start_basic
+start_basic:
+        ldx #basic_starter_end - basic_starter
+:
+        lda basic_starter, x
+        sta trampoline, x
+        dex
+        bpl :-
+
+        ; Setup init BASIC vectors (needed for JiffyDOS)
+        lda BACL + 1
+        sta init_basic + 1
+        lda BACL + 2
+        sta init_basic + 2
+
+        lda #EASYFLASH_KILL
+        jmp trampoline
+.endproc
+
+; =============================================================================
+basic_starter:
+.org trampoline
+        sta EASYFLASH_CONTROL
+        jsr CINT                        ; Initialize screen editor
+
+init_basic:
+        jsr $ffff                       ; Initialize BASIC vectors
+        lda #<MAIN                      ; Restore BASIC warm start for C64GS
+        sta IMAIN
+        lda #>MAIN
+        sta IMAIN + 1
+
+        cli
+        jmp INIT                        ; Start BASIC
+.reloc
+basic_starter_end:
+
+; =============================================================================
+ef_ram_start:
+.org EASYFLASH_RAM
+start_addr:
+        .byte $ff,$ff
+old_basin_vector:
+        .byte $ff,$ff
+
+basin_trampoline:
+        sei
+        txa
+        pha
+        tya
+        pha
+        lda #EASYFLASH_16K
+        sta EASYFLASH_CONTROL
+        jmp kff_load_prg
+
+disable_ef_rom:
+        pla
+        tay
+        pla
+        tax
+        lda #EASYFLASH_KILL
+        sta EASYFLASH_CONTROL
+        cli
+basin_return:
+        jmp $ffff                       ; Address will be replaced
+
+.if * > LOADING_TEXT
+    .error "Not enough space in EF RAM for loading text"
+.endif
+zp_backup:
+.reloc
+ef_ram_end:
+
+; =============================================================================
+kff_load_prg:
+        lda old_basin_vector            ; Restore old BASIN vector
+        sta IBASIN
+        lda old_basin_vector + 1
+        sta IBASIN + 1
+
+        ldx #$00                        ; Print loading
+@load_cpy:
+        lda LOADING_TEXT, x
+        beq @load_end
+        sta $04f0, x
+        lda $286                        ; Current color
+        sta $d8f0, x
+        inx
+        bne @load_cpy
+@load_end:
+
+        ldx #$00                        ; Put command in keyboard buffer
+@cmd_cpy:
+        lda run_command, x
+        beq @cmd_end
+        sta $0277, x
+        inx
+        bne @cmd_cpy
+@cmd_end:
+        stx $c6                         ; Length of buffer
+
+        ldx #$19                        ; ZP size - 1 from linker config
 @backup_zp:
         lda $02, x
-        sta $df00, x
+        sta zp_backup, x
         dex
         bpl @backup_zp
 
         jsr _ef3usb_fload
-
         sta start_addr
         stx start_addr + 1
 
@@ -108,84 +249,37 @@ _usbtool_prg_load_and_run:
 
         jsr _ef3usb_fclose
 
-        ldx #$19    ; ZP size - 1 from linker config
+        ldx #$19                        ; ZP size - 1 from linker config
 @restore_zp:
-        lda $df00, x
+        lda zp_backup, x
         sta $02, x
         dex
         bpl @restore_zp
 
-        lda #$01    ; set current file (emulate read from drive 8)
-        ldx #$08
-        tay
-        jsr $ffba   ; SETLFS - set file parameters
-
         ; start the program
-        ; looks like BASIC?
         lda start_addr
         ldx start_addr + 1
-        cmp #<$0801
+        cpx #>$0801                     ; looks like BASIC?
         bne @no_basic
-        cpx #>$0801
-        bne @no_basic
+        cmp #<($0801 + 1)
+ @no_basic:
+        bcs @machine_code
 
-        ; === start basic prg ===
-        ldx #basic_starter_end - basic_starter
-:
-        lda basic_starter, x
-        sta trampoline, x
-        dex
-        bpl :-
-        bmi @run_it
+        ; === start basic program ===
+        lda IBASIN                      ; Call current BASIN vector
+        sta basin_return + 1
+        lda IBASIN + 1
+        sta basin_return + 2
+        jmp disable_ef_rom
 
         ; === start machine code ===
-@no_basic:
-        ldx #asm_starter_end - asm_starter
-:
-        lda asm_starter, x
-        sta trampoline, x
-        dex
-        bpl :-
+@machine_code:
+        sta basin_return + 1
+        stx basin_return + 2
+        jmp disable_ef_rom
 
-        lda start_addr
-        sta trampoline_jmp_addr + 1
-        lda start_addr + 1
-        sta trampoline_jmp_addr + 2
-@run_it:
-        lda #EASYFLASH_KILL
-        jmp trampoline
-.endproc
-
-; =============================================================================
-basic_starter:
-.org trampoline
-        sta EASYFLASH_CONTROL
-        jsr $ff81   ; Initialize screen editor
-
-        ; for BASIC programs
-        jsr $e453   ; Initialize Vectors
-        jsr $e3bf   ; Initialize BASIC RAM
-
-        jsr $a659   ; Set character pointer and CLR
-        jmp $a7ae   ; Interpreter loop (RUN)
-.reloc
-basic_starter_end:
-
-; =============================================================================
-asm_starter:
-.org trampoline
-        sta EASYFLASH_CONTROL
-        jsr $ff81   ; Initialize screen editor
-
-        ; for BASIC programs (here too?)
-        jsr $e453   ; Initialize Vectors
-        jsr $e3bf   ; Initialize BASIC RAM
-
-trampoline_jmp_addr:
-        jmp $beef
-.reloc
-asm_starter_end:
-
+run_command:
+        .byte $11, $11, "run:", $0d, $00
 
 .bss
 cmd_buffer:

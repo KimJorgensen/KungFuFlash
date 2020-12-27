@@ -41,22 +41,12 @@ static void sprint_u16_left(char *buffer, uint16_t val)
     }
 }
 
-static char d64_sanitize_char(char c)
-{
-    if (c == '\r' || c == '\n')
-    {
-        c = '_';
-    }
-
-    return c;
-}
-
 static void d64_sanitize_filename(char *dest, const char *src)
 {
     char c;
     while ((c = *src++) && c != 0xa0)
     {
-        *dest++ = d64_sanitize_char(c);
+        *dest++ = sanitize_char(c);
     }
 
     *dest = 0;
@@ -70,7 +60,7 @@ static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
         if (c)
         {
             src++;
-            *dest++ = d64_sanitize_char(c);
+            *dest++ = sanitize_char(c);
         }
         else
         {
