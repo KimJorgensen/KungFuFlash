@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -29,6 +29,7 @@
  *
  * Newer versions might be available here: http://www.sascha-bader.de/html/code.html
  */
+
 #include <stdio.h>
 #include <conio.h>
 #include <string.h>
@@ -46,10 +47,8 @@ void clearArea(int xpos, int ypos, int xsize, int ysize)
 void drawFrame(void)
 {
     // top
-    gotoxy(0, 0);
-    cputc(CH_ULCORNER);
-    gotoxy(SCREENW-1, 0);
-    cputc(CH_URCORNER);
+    cputcxy(0, 0, CH_ULCORNER);
+    cputcxy(SCREENW-1, 0, CH_URCORNER);
 
     // left
     cvlinexy(0, 1, SCREENH - 3);

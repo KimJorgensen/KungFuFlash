@@ -23,7 +23,7 @@ static void c64_ef3_read(void *buffer, size_t size)
 {
     uint8_t *buf_ptr = (uint8_t *)buffer;
 
-    while (size--)
+    for (; size; size--)
     {
         uint8_t c = ef3_getc();
         *buf_ptr++ = c;
@@ -34,7 +34,7 @@ static void c64_ef3_write(const void *buffer, size_t size)
 {
     const uint8_t *buf_ptr = (const uint8_t *)buffer;
 
-    while (size--)
+    for (; size; size--)
     {
         ef3_putc(*buf_ptr++);
     }
@@ -298,6 +298,13 @@ static inline uint8_t c64_receive_byte(void)
 static inline void c64_receive_data(void *buffer, size_t size)
 {
     c64_ef3_read(buffer, size);
+}
+
+static void c64_receive_string(char *buffer)
+{
+    uint8_t size = c64_receive_byte();
+    c64_receive_data(buffer, size);
+    buffer[size] = 0;
 }
 
 static inline bool c64_got_command(void)

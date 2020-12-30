@@ -29,12 +29,12 @@
  *
  * Newer versions might be available here: http://www.sascha-bader.de/html/code.html
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include <conio.h>
 #include "dir.h"
 #include "kff_usb.h"
 
@@ -44,12 +44,13 @@
 void readDir(Directory *dir)
 {
     // Initialize directory
-    dir->name[0] = 0;
+    dir->name[0] = ' ';
+    dir->name[1] = 0;
     dir->no_of_elements = 0;
     dir->text_elements = 0;
     dir->selected = 0;
 
-    ef3usb_receive_data(dir->name, DIR_NAME_LENGTH);
+    kff_receive_data(dir->name, DIR_NAME_LENGTH);
     readDirPage(dir);
 }
 
@@ -61,7 +62,7 @@ uint8_t readDirPage(Directory *dir)
 
     do
     {
-        ef3usb_receive_data(element, ELEMENT_LENGTH);
+        kff_receive_data(element, ELEMENT_LENGTH);
         if (element[0] == 0)
         {
             // end of dir

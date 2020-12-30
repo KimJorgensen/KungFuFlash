@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -29,13 +29,25 @@
  *
  * Newer versions might be available here: http://www.sascha-bader.de/html/code.html
  */
+
 #ifndef SCREEN_H
 #define SCREEN_H
+
+#include <conio.h>
+#include <stdint.h>
+
+#define SCREEN_RAM ((unsigned char *)0x0400)
 
 #define SCREENH 25
 #define BOTTOM (SCREENH-1)
 #define SCREENW 40
 #define DIRH 22
+
+#define TEXTC COLOR_LIGHTGREEN
+#define BACKC COLOR_VIOLET
+#define SEARCHC COLOR_GRAY2
+#define WARNC COLOR_YELLOW
+#define ERRORC COLOR_LIGHTRED
 
 void clearArea(int xpos, int ypos, int xsize, int ysize);
 void drawFrame(void);

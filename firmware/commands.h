@@ -18,9 +18,14 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define DIR_NAME_LENGTH 34
+#define DIR_NAME_LENGTH 36
 #define ELEMENT_LENGTH 38
 #define MAX_ELEMENTS_PAGE 22
+#define SEARCH_LENGTH 26
+
+// Use non-breaking spaces as first character in dir name
+#define SEARCH_SUPPORTED 0xa0
+#define CLEAR_SEARCH     0xe0
 
 // Use non-breaking spaces as first character for element type
 #define SELECTED_ELEMENT 0xa0

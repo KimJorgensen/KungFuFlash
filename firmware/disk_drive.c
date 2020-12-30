@@ -639,11 +639,9 @@ static D64 * disk_receive_channel(D64 *channels)
     return channels + channel;
 }
 
-static void disk_receive_filename(char *filename)
+static inline void disk_receive_filename(char *filename)
 {
-    uint8_t file_len = c64_receive_byte();
-    c64_receive_data(filename, file_len);
-    filename[file_len] = 0;
+    c64_receive_string(filename);
 }
 
 static void disk_loop(void)

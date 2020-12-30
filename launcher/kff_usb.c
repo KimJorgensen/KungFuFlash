@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,35 +17,93 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #include "kff_usb.h"
+#include "screen.h"
 
 static uint8_t cmd_buf[] = "kff:\x00\x00";
+static uint8_t xpos, color;
+static uint16_t count;
 
-uint8_t ef3usb_receive_byte(void)
+static void startProgress(void)
 {
-    while (!(USB_STATUS & USB_RX_READY));
+    uint8_t i;
+
+    xpos = 0;
+    color = BACKC;
+    count = 450;
+
+    for (i=1; i<SCREENW-1; i++)
+    {
+        SCREEN_RAM[i] |= 0x80;
+        COLOR_RAM[i] = SEARCHC;
+    }
+}
+
+static void progress(void)
+{
+    while (!(USB_STATUS & USB_RX_READY))
+    {
+        if (--count == 0)
+        {
+            count = 150;
+            if (xpos >= SCREENW-2)
+            {
+                xpos = 0;
+                color = color == BACKC ? SEARCHC : BACKC;
+            }
+
+            COLOR_RAM[++xpos] = color;
+        }
+    }
+}
+
+static void kff_send_data(void *data, uint16_t size)
+{
+    startProgress();
+    ef3usb_send_data(data, size);
+}
+
+static uint8_t kff_receive_byte(void)
+{
+    progress();
     return USB_DATA;
 }
 
-void ef3usb_send_byte(uint8_t data)
+void kff_receive_data(void* data, uint16_t size)
 {
-    while (!(USB_STATUS & USB_TX_READY));
-    USB_DATA = data;
+    progress();
+    ef3usb_receive_data(data, size);
 }
 
 uint8_t kff_send_command(uint8_t cmd)
 {
     cmd_buf[4] = cmd;
-    ef3usb_send_data(cmd_buf, 5);
+    kff_send_data(cmd_buf, 5);
 
-    return ef3usb_receive_byte();
+    return kff_receive_byte();
+}
+
+static void kff_send_ext_header(uint8_t cmd, uint8_t data)
+{
+    cmd_buf[4] = cmd;
+    cmd_buf[5] = data;
+    kff_send_data(cmd_buf, 6);
 }
 
 uint8_t kff_send_ext_command(uint8_t cmd, uint8_t data)
 {
-    cmd_buf[4] = cmd;
-    cmd_buf[5] = data;
-    ef3usb_send_data(cmd_buf, 6);
+    kff_send_ext_header(cmd, data);
+    return kff_receive_byte();
+}
 
-    return ef3usb_receive_byte();
+uint8_t kff_send_data_command(uint8_t cmd, uint8_t *data, uint8_t size)
+{
+    kff_send_ext_header(cmd, size);
+    if (size)
+    {
+        ef3usb_send_data(data, size);
+    }
+
+    return kff_receive_byte();
 }

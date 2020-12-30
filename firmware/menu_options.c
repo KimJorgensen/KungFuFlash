@@ -25,7 +25,8 @@ static void options_dir(OPTIONS_STATE *state)
 {
     c64_send_reply(REPLY_READ_DIR);
 
-    to_petscii_pad(scratch_buf, state->title, DIR_NAME_LENGTH);
+    scratch_buf[0] = ' ';
+    to_petscii_pad(scratch_buf + 1, state->title, DIR_NAME_LENGTH-1);
     c64_send_data(scratch_buf, DIR_NAME_LENGTH);
 
     for (uint8_t i=0; i<state->no_of_elements; i++)

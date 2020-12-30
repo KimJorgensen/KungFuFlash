@@ -53,6 +53,8 @@ static void updateScreen(void);
 
 static void help(void);
 static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected);
+static bool isSearchChar(uint8_t c);
+static uint8_t search(uint8_t c);
 static void showDir(void);
 static void updateDir(uint8_t last_selected);
 static void printDirPage(void);
@@ -69,13 +71,11 @@ static void showMessage(const char *text, uint8_t color);
 static bool isC128 = false;
 
 static char linebuffer[SCREENW+1];
+static char inputBuffer[SEARCH_LENGTH+1];
+static char searchBuffer[SEARCH_LENGTH+1];
+static uint8_t searchLen;
 static uint8_t *bigBuffer = NULL;
 static Directory *dir = NULL;
-
-static const uint8_t textc = COLOR_LIGHTGREEN;
-static const uint8_t backc = COLOR_VIOLET;
-static const uint8_t warnc = COLOR_YELLOW;
-static const uint8_t errorc = COLOR_LIGHTRED;
 
 #ifdef NTSC
 #define KUNG_FU_FLASH_VER "Kung Fu Flash " ## VERSION "n"
@@ -97,20 +97,20 @@ static const char menuBar[] =    {"          " KUNG_FU_FLASH_VER "  <F1> Help"};
 
 int main(void)
 {
-    initScreen(COLOR_BLACK, COLOR_BLACK, textc);
+    initScreen(COLOR_BLACK, COLOR_BLACK, TEXTC);
 
     dir = (Directory *)malloc(sizeof(Directory));
     bigBuffer = (uint8_t *)dir;
 
     if (dir == NULL)
     {
-        showMessage("Failed to allocate memory.", errorc);
+        showMessage("Failed to allocate memory.", ERRORC);
         while (true);
     }
 
     if (joy_install(&joy_static_stddrv) != JOY_ERR_OK)
     {
-        showMessage("Failed to install joystick driver.", errorc);
+        showMessage("Failed to install joystick driver.", ERRORC);
         while (true);
     }
 
@@ -139,18 +139,18 @@ static void mainLoop(void)
 
         if (cmd == NULL)
         {
-            showMessage("Communication with cartridge failed.", errorc);
+            showMessage("Communication with cartridge failed.", ERRORC);
         }
         else if (cmd[0] == 'm' && cmd[1] == 's')    // Show message
         {
-            uint8_t color = textc;                  // msg: Normal message
+            uint8_t color = TEXTC;                  // msg: Normal message
             if (cmd[2] == 'w')                      // msw: Warning message
             {
-                color = warnc;
+                color = WARNC;
             }
             else if (cmd[2] == 'e')                 // mse: Error message
             {
-                color = errorc;
+                color = ERRORC;
             }
 
             text = usb_read_text();
@@ -162,7 +162,7 @@ static void mainLoop(void)
             }
             else if (cmd[2] == 'f')                 // msf: Flash programming message
             {
-                textcolor(errorc);
+                textcolor(ERRORC);
                 cprintf("PLEASE DO NOT POWER OFF OR RESET");
             }
 
@@ -191,7 +191,7 @@ static void mainLoop(void)
         }
         else
         {
-            showMessage("Received unsupported command.", errorc);
+            showMessage("Received unsupported command.", ERRORC);
             cprintf("Command: %s", cmd);
             ef3usb_send_str("etyp");
         }
@@ -216,11 +216,10 @@ static void updateScreen(void)
 {
     clrscr();
     revers(0);
-    textcolor(backc);
+    textcolor(BACKC);
     drawFrame();
-    gotoxy(0, BOTTOM);
     revers(1);
-    cputs(menuBar);
+    cputsxy(0, BOTTOM, menuBar);
     revers(0);
 
     showDir();
@@ -231,11 +230,7 @@ static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected)
     bool quit_browser = false;
     uint8_t data, reply;
 
-    if (cmd != CMD_SELECT)
-    {
-        reply = kff_send_command(cmd);
-    }
-    else
+    if (cmd == CMD_SELECT)
     {
         data = dir->selected;
         if (isC128)
@@ -248,6 +243,14 @@ static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected)
         }
 
         reply = kff_send_ext_command(cmd, data);
+    }
+    else if (cmd == CMD_DIR)
+    {
+        reply = kff_send_data_command(cmd, searchBuffer, searchLen);
+    }
+    else
+    {
+        reply = kff_send_command(cmd);
     }
 
     switch (reply)
@@ -276,7 +279,7 @@ static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected)
                 dir->selected = dir->text_elements;
             }
 
-            printDirPage();
+            showDir();
             break;
 
         case REPLY_EXIT_MENU:
@@ -306,7 +309,7 @@ static void browserLoop(void)
         c = kbhit() ? cgetc() : 0;
         if (!c)
         {
-            j = joy_read(1);
+            j = joy_read(JOY_2);
             c = JOY_UP(j) ? CH_CURS_UP :
                 JOY_DOWN(j) ? CH_CURS_DOWN :
                 JOY_LEFT(j) ? CH_CURS_LEFT :
@@ -381,12 +384,26 @@ static void browserLoop(void)
 
             // --- leave directory
             case CH_DEL:
-                kff_cmd = CMD_DIR_UP;
+                if (searchBuffer[0] && *dir->name != ' ')
+                {
+                    kff_cmd = search(c);
+                }
+                else
+                {
+                    kff_cmd = CMD_DIR_UP;
+                }
                 break;
 
             // --- root directory
             case CH_HOME:
-                kff_cmd = CMD_DIR_ROOT;
+                if (searchBuffer[0] && *dir->name != ' ')
+                {
+                    kff_cmd = search(c);
+                }
+                else
+                {
+                    kff_cmd = CMD_DIR_ROOT;
+                }
                 break;
 
             case CH_CURS_DOWN:
@@ -471,6 +488,13 @@ static void browserLoop(void)
             case CH_STOP:
                 kff_cmd = CMD_RESET;
                 break;
+
+            default:
+                if (isSearchChar(c) && *dir->name != ' ')
+                {
+                    kff_cmd = search(c);
+                }
+                break;
         }
 
         if (kff_cmd != CMD_NONE)
@@ -485,25 +509,123 @@ static void browserLoop(void)
     }
 }
 
+static bool isSearchChar(uint8_t c)
+{
+    return (c >= 0x20 && c <= 0x5f) || (c >= 0xc1 && c <= 0xda);
+}
+
+static uint8_t search(uint8_t c)
+{
+    uint16_t cursor_delay;
+    bool changed = false;
+    uint8_t i, cursor_on, last_selected = dir->selected;
+
+    dir->selected++;
+    printElement(last_selected);
+    dir->selected = last_selected;
+
+    textcolor(TEXTC);
+    revers(1);
+    memcpy(inputBuffer, searchBuffer, searchLen+1);
+
+    while (c != CH_ENTER)
+    {
+        if (c == CH_DEL)
+        {
+            if (searchLen)
+            {
+                inputBuffer[--searchLen] = 0;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else if (c == CH_HOME)
+        {
+            searchLen = 0;
+            inputBuffer[0] = 0;
+            break;
+        }
+        else if (isSearchChar(c) && searchLen < SEARCH_LENGTH)
+        {
+            inputBuffer[searchLen++] = c;
+            inputBuffer[searchLen] = 0;
+        }
+
+        sprintf(linebuffer, "> Search: %-26s <", inputBuffer);
+        cputsxy(1, 0, linebuffer);
+
+        cursor_on = 0;
+        cursor_delay = 0;
+        while (true)
+        {
+            if (cursor_delay == 0)
+            {
+                revers(cursor_on);
+                cputcxy(11 + searchLen, 0, ' ');
+
+                cursor_delay = 2200;
+                cursor_on = !cursor_on;
+            }
+            cursor_delay--;
+
+            if (kbhit())
+            {
+                c = cgetc();
+                break;
+            }
+
+            if (getJoy())
+            {
+                while(getJoy());
+                c = CH_ENTER;
+                break;
+            }
+        }
+        revers(1);
+    }
+
+    for (i=0; i<=searchLen; i++)
+    {
+        if (searchBuffer[i] != inputBuffer[i])
+        {
+            changed = true;
+            searchBuffer[i] = inputBuffer[i];
+        }
+    }
+
+    if (!changed)
+    {
+        showDir();
+        return CMD_NONE;
+    }
+
+    return CMD_DIR;
+}
+
 static void showDir(void)
 {
-    char *title;
-    if (dir->name[0] != NULL)
+    if (*dir->name == CLEAR_SEARCH)
     {
-        sprintf(linebuffer, "> %-34s <", dir->name);
-        title = linebuffer;
+        searchLen = 0;
+        searchBuffer[0] = 0;
+    }
+
+    if (searchBuffer[0] && *dir->name != ' ')
+    {
+        sprintf(linebuffer, "> Search: %-26s <", searchBuffer);
     }
     else
     {
-        title = "                                      ";
+        sprintf(linebuffer, ">%-36s<", dir->name);
     }
 
-    gotoxy(1, 0);
-    textcolor(backc);
+    textcolor(BACKC);
     revers(1);
-    cputs(title);
-    revers(0);
+    cputsxy(1, 0, linebuffer);
 
+    revers(0);
     printDirPage();
 }
 
@@ -511,51 +633,35 @@ static void help(void)
 {
     clrscr();
     revers(0);
-    textcolor(textc);
-    gotoxy(0, 0);
-    cputs(programBar);
-    textcolor(backc);
-    gotoxy(10, 1);
-    cputs("\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3");
+    textcolor(TEXTC);
+    cputsxy(0, 0, programBar);
+    textcolor(BACKC);
+    cputsxy(10, 1, "\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3\xa3");
 
-    gotoxy(2, 2);
-    cputs("github.com/KimJorgensen/KungFuFlash");
+    cputsxy(2, 2, "github.com/KimJorgensen/KungFuFlash");
 
-    textcolor(textc);
-    gotoxy(0, 5);
-    cputs("<CRSR> or Joy       Change selection");
-    gotoxy(0, 6);
-    cputs("<RETURN> or Fire    Run/Change Dir");
-    gotoxy(0, 7);
-    cputs(" + <SHIFT> or Hold  Options");
-    gotoxy(0, 8);
-    cputs("<HOME>              Root Dir");
-    gotoxy(0, 9);
-    cputs("<DEL>               Dir Up");
-    gotoxy(0, 10);
-    cputs("<F1>                Help");
-    gotoxy(0, 11);
-    cputs("<F5>                Settings");
-    gotoxy(0, 12);
-    cputs("<F6>                C128 Mode");
-    gotoxy(0, 13);
-    cputs("<F7>                BASIC (Cart Active)");
-    gotoxy(0, 14);
-    cputs("<F8>                Kill");
-    gotoxy(0, 15);
-    cputs("<RUN/STOP>          Reset");
+    textcolor(TEXTC);
+    cputsxy(0, 5, "<CRSR> or Joy       Change selection");
+    cputsxy(0, 6, "<RETURN> or Fire    Run/Change Dir");
+    cputsxy(0, 7, " + <SHIFT> or Hold  Options");
+    cputsxy(0, 8, "<HOME>              Root Dir");
+    cputsxy(0, 9, "<DEL>               Dir Up");
+    cputsxy(0, 10, "<A-Z> and <0-9>     Search");
+    cputsxy(0, 11, "<F1>                Help");
+    cputsxy(0, 12, "<F5>                Settings");
+    cputsxy(0, 13, "<F6>                C128 Mode");
+    cputsxy(0, 14, "<F7>                BASIC (Cart Active)");
+    cputsxy(0, 15, "<F8>                Kill");
+    cputsxy(0, 16, "<RUN/STOP>          Reset");
 
-    gotoxy(0, 17);
-    cputs("Use joystick in port 2");
+    cputsxy(0, 18, "Use joystick in port 2");
 
     textcolor(COLOR_RED);
-    gotoxy(0, 19);
-    cputs("KUNG FU FLASH IS PROVIDED WITH NO");
-    gotoxy(0, 20);
-    cputs("WARRANTY OF ANY KIND.");
-    gotoxy(0, 21);
+    cputsxy(0, 20, "KUNG FU FLASH IS PROVIDED WITH NO");
+    cputsxy(0, 21, "WARRANTY OF ANY KIND.");
     textcolor(COLOR_LIGHTRED);
-    cputs("USE IT AT YOUR OWN RISK!");
+    cputsxy(0, 22, "USE IT AT YOUR OWN RISK!");
+
     gotoxy(0, 24);
     waitKey();
     updateScreen();
@@ -567,7 +673,7 @@ static void updateDir(uint8_t last_selected)
     printElement(dir->selected);
 }
 
-static void printDirPage()
+static void printDirPage(void)
 {
     uint8_t element_no = 0;
 
@@ -579,8 +685,7 @@ static void printDirPage()
     // clear empty lines
     for (;element_no < DIRH; element_no++)
     {
-        gotoxy(1, 1+element_no);
-        cputs("                                      ");
+        cputsxy(1, 1+element_no, "                                      ");
     }
 }
 
@@ -591,11 +696,11 @@ static void printElement(uint8_t element_no)
     element = dir->elements[element_no];
     if (element[0] == TEXT_ELEMENT)
     {
-        textcolor(warnc);
+        textcolor(WARNC);
     }
     else
     {
-        textcolor(textc);
+        textcolor(TEXTC);
     }
 
     if (element_no == dir->selected)
@@ -607,8 +712,7 @@ static void printElement(uint8_t element_no)
         revers(0);
     }
 
-    gotoxy(1, 1+element_no);
-    cputs(element);
+    cputsxy(1, 1+element_no, element);
     revers(0);
 }
 
@@ -617,16 +721,13 @@ static void showMessage(const char *text, uint8_t color)
     clrscr();
 
     revers(1);
-    textcolor(backc);
-    gotoxy(0, 0);
-    cputs("                                        ");
-    gotoxy(0, BOTTOM);
-    cputs(programBar);
+    textcolor(BACKC);
+    cputsxy(0, 0, "                                        ");
+    cputsxy(0, BOTTOM, programBar);
     revers(0);
 
     textcolor(color);
-    gotoxy(0, 3);
-    cputs(text);
+    cputsxy(0, 3, text);
 
     cputs("\r\n\r\n\r\n");
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,15 +17,17 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #ifndef KFF_USB_H
 #define KFF_USB_H
 
 #include <stdint.h>
 #include "ef3usb.h"
 
-uint8_t ef3usb_receive_byte(void);
-void ef3usb_send_byte(uint8_t data);
 uint8_t kff_send_command(uint8_t cmd);
 uint8_t kff_send_ext_command(uint8_t cmd, uint8_t data);
+uint8_t kff_send_data_command(uint8_t cmd, uint8_t *data, uint8_t size);
+
+void kff_receive_data(void* data, uint16_t size);
 
 #endif

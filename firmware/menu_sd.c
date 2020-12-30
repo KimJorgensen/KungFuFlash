@@ -63,9 +63,21 @@ static void sd_format_element(char *buffer, FILINFO *info)
     }
 }
 
+static void sd_send_not_found(SD_STATE *state)
+{
+    to_petscii_pad(scratch_buf, " no files found", ELEMENT_LENGTH);
+    if (state->search[0])
+    {
+        scratch_buf[0] = SELECTED_ELEMENT;
+    }
+
+    c64_send_data(scratch_buf, ELEMENT_LENGTH);
+}
+
 static uint8_t sd_send_page(SD_STATE *state, uint8_t selected_element)
 {
     bool send_dot_dot = !state->in_root && state->page_no == 0;
+    bool send_not_found = state->page_no == 0;
 
     FILINFO file_info;
     uint8_t element;
@@ -86,16 +98,24 @@ static uint8_t sd_send_page(SD_STATE *state, uint8_t selected_element)
                 file_info.fname[0] = 0;
             }
 
-            if (!file_info.fname[0])
+            if (file_info.fname[0])
+            {
+                send_not_found = false;
+            }
+            else
             {
                 // End of dir
                 dir_close(&state->end_page);
                 state->dir_end = true;
 
+                if (send_not_found)
+                {
+                    sd_send_not_found(state);
+                }
+
                 send_page_end();
                 break;
             }
-
         }
 
         sd_format_element(scratch_buf, &file_info);
@@ -112,7 +132,15 @@ static uint8_t sd_send_page(SD_STATE *state, uint8_t selected_element)
 
 static void handle_dir_open(SD_STATE *state)
 {
-    if (!dir_open(&state->start_page, ""))
+    // Append star to end of search string
+    size_t search_len = strlen(state->search);
+    if (search_len && state->search[search_len-1] != '*')
+    {
+        state->search[search_len] = '*';
+        state->search[search_len + 1] = 0;
+    }
+
+    if (!dir_open(&state->start_page, state->search))
     {
         handle_failed_to_read_sd();
     }
@@ -257,6 +285,7 @@ static void handle_dir_command(SD_STATE *state)
 
     dir_current(dat_file.path, sizeof(dat_file.path));
     state->in_root = format_path(scratch_buf, false);
+    scratch_buf[0] = state->search[0] ? SEARCH_SUPPORTED : CLEAR_SEARCH;
     dbg("Reading path %s\n", dat_file.path);
 
     // Search for last selected element
@@ -314,7 +343,11 @@ static void handle_dir_command(SD_STATE *state)
         }
     }
 
-    if (found && get_file_type(&file_info) == FILE_D64 &&
+    if (!found)
+    {
+        dat_file.file[0] = 0;
+    }
+    else if (get_file_type(&file_info) == FILE_D64 &&
         dat_file.prg.element != ELEMENT_NOT_SELECTED)
     {
         menu_state = d64_menu_init(file_info.fname);
@@ -354,6 +387,7 @@ static void handle_change_dir(SD_STATE *state, char *path, bool select_old)
         dat_file.file[0] = 0;
     }
 
+    state->search[0] = 0;
     if (!dir_change(path))
     {
         handle_failed_to_read_sd();
@@ -455,7 +489,8 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
-static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t flags, uint8_t element)
+static bool handle_load_file(SD_STATE *state, const char *file_name,
+                             uint8_t file_type, uint8_t flags, uint8_t element)
 {
     bool exit_menu = false;
 
@@ -579,6 +614,7 @@ static bool handle_load_file(const char *file_name, uint8_t file_type, uint8_t f
             }
             else
             {
+                state->search[0] = 0;
                 dat_file.prg.element = 0;
                 menu_state = d64_menu_init(file_name);
                 menu_state->dir(menu_state);
@@ -682,6 +718,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     if (file_info.fname[0] == 0)
     {
         // File not not found
+        state->search[0] = 0;
         handle_dir_command(state);
         return exit_menu;
     }
@@ -703,7 +740,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     }
     else
     {
-        exit_menu = handle_load_file(file_info.fname, file_type, flags, element);
+        exit_menu = handle_load_file(state, file_info.fname, file_type, flags, element);
     }
 
     return exit_menu;

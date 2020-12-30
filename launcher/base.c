@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -29,13 +29,14 @@
  *
  * Newer versions might be available here: http://www.sascha-bader.de/html/code.html
  */
+
 #include <stdint.h>
 #include <stdio.h>
 #include <conio.h>
 #include <joystick.h>
 #include "base.h"
 
-static int getJoy(void)
+static uint8_t getJoy(void)
 {
     uint8_t debounce = 0;
 

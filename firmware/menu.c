@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #include "menu.h"
 #include "menu_sd.h"
 #include "menu_d64.h"
@@ -36,6 +37,7 @@ static void menu_loop()
     }
 
     menu_state = sd_menu_init();
+    char *search = sd_state.search;
 
     dbg("Waiting for commands...\n");
     bool should_save_dat = true;
@@ -58,6 +60,8 @@ static void menu_loop()
                 break;
 
             case CMD_DIR:
+                c64_receive_string(search);
+                convert_to_ascii(search, (uint8_t *)search, SEARCH_LENGTH+1);
                 menu_state->dir(menu_state);
                 break;
 
@@ -264,6 +268,7 @@ static const char * to_petscii_pad(char *dest, const char *src, uint8_t size)
 static bool format_path(char *buf, bool include_file)
 {
     bool in_root = false;
+    *buf++ = ' ';
 
     uint16_t len;
     for (len = 0; len < sizeof(dat_file.path) && dat_file.path[len]; len++)
@@ -292,9 +297,9 @@ static bool format_path(char *buf, bool include_file)
         buf[0] = '.';
         buf[1] = 0;
     }
-    else if (len > DIR_NAME_LENGTH)
+    else if (len > DIR_NAME_LENGTH-2)
     {
-        index = len - DIR_NAME_LENGTH;
+        index = len - (DIR_NAME_LENGTH-2);
         buf[index] = '.';
         buf[index+1] = '.';
     }
@@ -303,7 +308,7 @@ static bool format_path(char *buf, bool include_file)
         in_root = true;
     }
 
-    to_petscii_pad(buf, buf + index, DIR_NAME_LENGTH);
+    to_petscii_pad(buf, buf + index, DIR_NAME_LENGTH-1);
     return in_root;
 }
 

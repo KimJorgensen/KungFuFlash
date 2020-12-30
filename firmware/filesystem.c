@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2020 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static FATFS fs;
 
 static bool filesystem_mount(void)
@@ -173,9 +174,15 @@ static bool dir_current(char *path, size_t path_size)
     return res == FR_OK;
 }
 
-static bool dir_open(DIR *dir, const char *path)
+static bool dir_open(DIR *dir, const char *pattern)
 {
-    FRESULT res = f_opendir(dir, path);
+    if (!pattern || !pattern[0])
+    {
+        pattern = "*";
+    }
+    dir->pat = pattern;
+
+    FRESULT res = f_opendir(dir, "");
     if (res != FR_OK)
     {
         err("f_opendir failed (%u)\n", res);
@@ -187,10 +194,22 @@ static bool dir_open(DIR *dir, const char *path)
 
 static bool dir_read(DIR *dir, FILINFO *file_info)
 {
-    FRESULT res = f_readdir(dir, file_info);
+    FRESULT res;
+    do
+    {
+        res = f_findnext(dir, file_info);
+
+        // Ignore dot files
+        if (file_info->fname[0] != '.')
+        {
+            break;
+        }
+    }
+    while (res == FR_OK);
+
     if (res != FR_OK)
     {
-        err("f_readdir failed (%u)\n", res);
+        err("f_findnext failed (%u)\n", res);
     }
 
     led_on();
