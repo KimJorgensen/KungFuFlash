@@ -564,7 +564,7 @@ static void send_prg(void)
     else
     {
         // Limit filename to one line on the screen
-        sanitize_sd_filename(scratch_buf, dat_file.file, 31);
+        sanitize_sd_filename(scratch_buf, dat_file.file, 32);
         name = scratch_buf;
     }
 
