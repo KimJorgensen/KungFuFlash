@@ -109,23 +109,15 @@ static const char * settings_memexpansion_text(void)
 
 static bool settings_memexpansion_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
 {
-	uint8_t expansion;
-/*
-	expansion=(settings_flags & 0x30);	//DAT_FLAG_MEMEXPANSION_MSK);
-	expansion+=0x10;
-	expansion&=0x30;	//DAT_FLAG_MEMEXPANSION_MSK;
-	settings_flags = (settings_flags & 0xCF ) | expansion;
-*/
+    uint8_t expansion;
 
-expansion = (settings_flags & DAT_FLAG_MEMEXPANSION_MSK) >> DAT_FLAG_MEMEXPANSION_POS;
-expansion ++;
-if(expansion==3) expansion=0;		// slot 4 had no handler so roll over
-expansion <<= DAT_FLAG_MEMEXPANSION_POS;
-expansion &= DAT_FLAG_MEMEXPANSION_MSK;
+    expansion = (settings_flags & DAT_FLAG_MEMEXPANSION_MSK) >> DAT_FLAG_MEMEXPANSION_POS;
+    expansion ++;
+    if(expansion==3) expansion=0;		// slot 4 had no handler so roll over
+    expansion <<= DAT_FLAG_MEMEXPANSION_POS;
+    expansion &= DAT_FLAG_MEMEXPANSION_MSK;
 
-	settings_flags = (settings_flags & ~DAT_FLAG_MEMEXPANSION_MSK) | expansion;
-
-
+    settings_flags = (settings_flags & ~DAT_FLAG_MEMEXPANSION_MSK) | expansion;
 
     options_element_text(element, settings_memexpansion_text());
     menu_state->dir(menu_state); // Refresh settings

@@ -180,7 +180,6 @@ static inline bool expert_read_handler(uint32_t control, uint32_t addr)
     // access to IO1 releases NMI
     if (!(control & C64_IO1))
     {
-//	c64_irq_nmi(C64_IRQ_NMI_HIGH);
 	expert_mode=EXPERT_IDLE;
     }
 
@@ -221,7 +220,6 @@ static inline void expert_write_handler(uint32_t control, uint32_t addr, uint32_
     // access to IO1 releases NMI
     if (!(control & C64_IO1))
     {
-//	c64_irq_nmi(C64_IRQ_NMI_HIGH);
 	expert_mode=EXPERT_IDLE;
     }
 
@@ -252,7 +250,6 @@ static void expert_expansion_init(void)
 {
 	int i=0;
 
-//	crt_ptr = crt_banks[0];
 	crt_ptr = (uint8_t*)scratch_buf+8192;
 
 	if(expert_signature())
