@@ -97,6 +97,41 @@ static bool settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_
     return false;
 }
 
+static const char * settings_memexpansion_text(void)
+{
+    sprint(scratch_buf, "Expansion on F8: %s",
+           ((settings_flags & DAT_FLAG_MEMEXPANSION_2) ?				
+		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "---" : "Expert") :	
+		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "GEORam-64K" : "None")) );
+
+    return scratch_buf;
+}
+
+static bool settings_memexpansion_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+{
+	uint8_t expansion;
+/*
+	expansion=(settings_flags & 0x30);	//DAT_FLAG_MEMEXPANSION_MSK);
+	expansion+=0x10;
+	expansion&=0x30;	//DAT_FLAG_MEMEXPANSION_MSK;
+	settings_flags = (settings_flags & 0xCF ) | expansion;
+*/
+
+expansion = (settings_flags & DAT_FLAG_MEMEXPANSION_MSK) >> DAT_FLAG_MEMEXPANSION_POS;
+expansion ++;
+if(expansion==3) expansion=0;		// slot 4 had no handler so roll over
+expansion <<= DAT_FLAG_MEMEXPANSION_POS;
+expansion &= DAT_FLAG_MEMEXPANSION_MSK;
+
+	settings_flags = (settings_flags & ~DAT_FLAG_MEMEXPANSION_MSK) | expansion;
+
+
+
+    options_element_text(element, settings_memexpansion_text());
+    menu_state->dir(menu_state); // Refresh settings
+    return false;
+}
+
 static void handle_settings(void)
 {
     settings_flags = dat_file.flags;
@@ -105,6 +140,7 @@ static void handle_settings(void)
     options_add_text_element(options, settings_basic_change, settings_basic_text());
     options_add_text_element(options, settings_autostart_change, settings_autostart_text());
     options_add_text_element(options, settings_device_change, settings_device_text());
+    options_add_text_element(options, settings_memexpansion_change, settings_memexpansion_text());
     options_add_text_element(options, settings_save, "Save");
     options_add_dir(options, "Cancel");
     handle_options(options);

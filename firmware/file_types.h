@@ -83,6 +83,11 @@ typedef enum {
     CRT_GMOD2
 } CRT_TYPE;
 
+#define EXP_NONE	0xFFF0
+#define EXP_GEORAM	0xFFF1
+#define EXP_EXPERT	0xFFF2
+#define EXP_RES		0xFFF3	// reserve
+
 typedef enum {
     CRT_CHIP_ROM = 0x00,
     CRT_CHIP_RAM,
@@ -140,11 +145,15 @@ typedef enum {
     DAT_FLAG_PERSIST_BASIC      = 0x01,
     DAT_FLAG_AUTOSTART_D64      = 0x02,
     DAT_FLAG_DEVICE_NUM_D64_1   = 0x04,
-    DAT_FLAG_DEVICE_NUM_D64_2   = 0x08
+    DAT_FLAG_DEVICE_NUM_D64_2   = 0x08,
+    DAT_FLAG_MEMEXPANSION_1     = 0x10,
+    DAT_FLAG_MEMEXPANSION_2     = 0x20,
 } DAT_FLAGS;
 
 #define DAT_FLAG_DEVICE_D64_POS 0x02
 #define DAT_FLAG_DEVICE_D64_MSK (0x03 << DAT_FLAG_DEVICE_D64_POS)
+#define DAT_FLAG_MEMEXPANSION_POS 0x04
+#define DAT_FLAG_MEMEXPANSION_MSK (0x03 << DAT_FLAG_MEMEXPANSION_POS)
 
 typedef enum {
     DAT_NONE = 0x00,
@@ -155,7 +164,7 @@ typedef enum {
     DAT_KERNAL,
     DAT_BASIC,
     DAT_KILL,
-    DAT_KILL_C128
+    DAT_KILL_C128,
 } DAT_BOOT_TYPE;
 
 typedef enum {

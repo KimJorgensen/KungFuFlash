@@ -38,6 +38,8 @@ The following cartridge types are currently supported:
 * Super Snapshot v5
 * Comal-80
 * EasyFlash
+* Expert Cartridge
+* Georam expansion module (only the first 64K is available)
 
 ## Supported File Types
 The following file types are currently supported:
@@ -70,6 +72,16 @@ Use it at your own risk!
 Kung Fu Flash will work with the PAL version of the Commodore 64 or Commodore 128. Support for the NTSC version is still considered experimental.
 
 Disk drive emulation is using kernal vectors and will not work with fast loaders or software that uses direct hardware access which a lot of games does. Currently REL files are not supported and there is only limited write support.
+
+Georam expansion only has 64kbyte due to microcontroller limitations.
+
+## Expansion
+
+Currently 2 expansions can be selected in the setting menu (F5). Doing a kill (F8) will start this cart.
+
+Expert cartridge starts in 'PRG' mode, after the first reset it is switched to 'ON' mode. Jumping into the menu (using the Menu button) will reset the mode to 'PRG' (if F8 is pressed there)
+
+Georam only has 64kbyte of memory for now. 
 
 ## Thanks
 Kung Fu Flash was based on or uses other open source projects:
