@@ -79,7 +79,7 @@ Georam expansion only has 64kbyte due to microcontroller limitations.
 
 Currently 2 expansions can be selected in the setting menu (F5). Doing a kill (F8) will start this cart.
 
-Expert cartridge starts in 'PRG' mode, after the first reset it is switched to 'ON' mode. Jumping into the menu (using the Menu button) will reset the mode to 'PRG' (if F8 is pressed there)
+Expert cartridge starts in 'PRG' mode, after the first reset it is switched to 'ON' mode. Jumping into the menu (using the Menu button) will reset the mode to 'PRG' (if F8 is pressed there). To start the payload use the 'RESTORE' key (freeze button does nothing)
 
 Georam only has 64kbyte of memory for now. 
 
