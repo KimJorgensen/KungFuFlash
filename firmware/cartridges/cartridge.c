@@ -31,6 +31,7 @@
 #include "super_snapshot_5.c"
 #include "easyflash.c"
 #include "comal80.c"
+#include "warpspeed.c"
 
 static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 {
@@ -53,6 +54,9 @@ static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 
         case CRT_EPYX_FASTLOAD:
             return epyx_handler;
+
+        case CRT_WARP_SPEED:
+            return warpspeed_handler;
 
         case CRT_C64_GAME_SYSTEM_SYSTEM_3:
             return c64gs_handler;
@@ -103,6 +107,9 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 
         case CRT_EPYX_FASTLOAD:
             return epyx_init;
+
+        case CRT_WARP_SPEED:
+            return warpspeed_init;
 
         case CRT_ZAXXON_SUPER_ZAXXON:
             return zaxxon_init;
