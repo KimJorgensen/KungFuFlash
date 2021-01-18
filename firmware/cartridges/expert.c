@@ -20,19 +20,19 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define EXPERT_IDLE		0	// waiting for button
-#define EXPERT_ACTIVE		1	// button pressed
-#define EXPERT_ULTIMAX		2	// ultimax 
-#define EXPERT_PROGRAM		3	// RAM can be programmed
+#define EXPERT_PROGRAM		0	// RAM can be programmed
+#define EXPERT_IDLE		1	// waiting for button
+#define EXPERT_ACTIVE		2	// button pressed
+#define EXPERT_ULTIMAX		3	// ultimax 
 
 static uint32_t expert_mode;
 
 static uint32_t const expert_modes[4] =
 {
+    STATUS_LED_OFF|CRT_PORT_NONE,		// program
     STATUS_LED_OFF|CRT_PORT_NONE,		// idle
     STATUS_LED_ON|CRT_PORT_NONE,		// active
-    STATUS_LED_ON|CRT_PORT_ULTIMAX,		// memacces at 0xe000 or 0x8000
-    STATUS_LED_OFF|CRT_PORT_NONE		// program
+    STATUS_LED_ON|CRT_PORT_ULTIMAX		// memacces at 0xe000 or 0x8000
 };
 
 
@@ -178,7 +178,8 @@ static inline bool expert_read_handler(uint32_t control, uint32_t addr)
     }
 
     // access to IO1 releases NMI
-    if (!(control & C64_IO1))
+//    if (!(control & C64_IO1))
+    if ((!(control & C64_IO1))&&expert_mode)
     {
 	expert_mode=EXPERT_IDLE;
     }
@@ -188,6 +189,21 @@ static inline bool expert_read_handler(uint32_t control, uint32_t addr)
     {
         freezer_state = FREEZE_START;
     }
+
+/*
+	// special button handles toglling between on and prg
+    if (control & SPECIAL_BTN)
+    {
+        freezer_button = FREEZE_PRESSED;
+    }
+    else if (freezer_button)
+    {
+        freezer_button = FREEZE_RELEASED;
+
+	if(expert_mode==EXPERT_IDLE) expert_mode=EXPERT_PROGRAM;
+	else if(expert_mode==EXPERT_PROGRAM) expert_mode=EXPERT_IDLE;
+    }
+*/
 
     return false;
 }
@@ -218,7 +234,8 @@ static inline void expert_write_handler(uint32_t control, uint32_t addr, uint32_
     }
 
     // access to IO1 releases NMI
-    if (!(control & C64_IO1))
+//    if (!(control & C64_IO1))
+    if ((!(control & C64_IO1))&&expert_mode)
     {
 	expert_mode=EXPERT_IDLE;
     }

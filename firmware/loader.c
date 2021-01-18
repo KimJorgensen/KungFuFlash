@@ -749,7 +749,6 @@ static bool c64_set_mode(void)
 		    }
 
 		    expansion=0xFFF0+((dat_file.flags&DAT_FLAG_MEMEXPANSION_MSK)>>DAT_FLAG_MEMEXPANSION_POS);
-		    //expansion=0xFFF0+((dat_file.flags&0x30)>>4);
 
 		    c64_crt_control(STATUS_LED_ON|CRT_PORT_NONE);
 		    // Try prevent triggering bug in H.E.R.O. No effect at power-on though
