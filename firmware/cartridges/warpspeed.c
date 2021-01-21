@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen and Sven Oliver (SvOlli) Moll
+ * Copyright (c) 2019-2021 Kim Jørgensen and Sven Oliver (SvOlli) Moll
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -46,11 +46,8 @@ static inline bool warpspeed_read_handler(uint32_t control, uint32_t addr)
     /* ROM access */
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        if (crt_rom_ptr)
-        {
-            c64_data_write(crt_rom_ptr[addr & 0x3fff]);
-            return true;
-        }
+        c64_data_write(crt_ptr[addr & 0x3fff]);
+        return true;
     }
 
     return false;
@@ -63,13 +60,10 @@ static inline void warpspeed_write_handler(uint32_t control, uint32_t addr, uint
 {
     if (!(control & C64_IO1))
     {
-        crt_rom_ptr = crt_ptr;
         c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
     }
-    
-    if (!(control & C64_IO2))
+    else if (!(control & C64_IO2))
     {
-        crt_rom_ptr = NULL;
         c64_crt_control(STATUS_LED_ON|CRT_PORT_NONE);
     }
 }
@@ -77,8 +71,6 @@ static inline void warpspeed_write_handler(uint32_t control, uint32_t addr, uint
 static void warpspeed_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
-    crt_rom_ptr = crt_ptr;
 }
 
-// Support MAX cartridges where character and sprite data is read from the cartridge
-C64_VIC_BUS_HANDLER(warpspeed)
+C64_BUS_HANDLER(warpspeed)

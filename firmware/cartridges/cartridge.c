@@ -18,6 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 #include "cartridge.h"
+/* ordered by cartridge id */
 #include "crt_normal.c"
 #include "action_replay_4x.c"
 #include "kcs_power_cartridge.c"
@@ -25,13 +26,13 @@
 #include "simons_basic.c"
 #include "epyx_fastload.c"
 #include "c64gs_system_3.c"
+#include "warpspeed.c"
 #include "dinamic.c"
 #include "zaxxon.c"
 #include "magic_desk.c"
 #include "super_snapshot_5.c"
 #include "easyflash.c"
 #include "comal80.c"
-#include "warpspeed.c"
 
 static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 {
@@ -55,11 +56,11 @@ static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
         case CRT_EPYX_FASTLOAD:
             return epyx_handler;
 
-        case CRT_WARP_SPEED:
-            return warpspeed_handler;
-
         case CRT_C64_GAME_SYSTEM_SYSTEM_3:
             return c64gs_handler;
+
+        case CRT_WARP_SPEED:
+            return warpspeed_handler;
 
         case CRT_DINAMIC:
             return dinamic_handler;
