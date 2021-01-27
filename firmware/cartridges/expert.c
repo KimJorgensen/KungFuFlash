@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * KungFuFlash Copyright (c) 2019-2021 Kim Jørgensen
  *
- * Expert cart support written and (c) 2020 Chris van Dongen
+ * Expert cart support written and (c) 2020-2021 Chris van Dongen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -24,15 +24,17 @@
 #define EXPERT_IDLE		1	// waiting for button
 #define EXPERT_ACTIVE		2	// button pressed
 #define EXPERT_ULTIMAX		3	// ultimax 
+#define EXPERT_OFF		4	// expert is hidden/off
 
 static uint32_t expert_mode;
 
-static uint32_t const expert_modes[4] =
+static uint32_t const expert_modes[5] =
 {
-    STATUS_LED_OFF|CRT_PORT_NONE,		// program
-    STATUS_LED_OFF|CRT_PORT_NONE,		// idle
-    STATUS_LED_ON|CRT_PORT_NONE,		// active
-    STATUS_LED_ON|CRT_PORT_ULTIMAX		// memacces at 0xe000 or 0x8000
+    STATUS_LED_OFF|CRT_PORT_NONE,		// Orogram
+    STATUS_LED_ON|CRT_PORT_NONE,		// Idle
+    STATUS_LED_ON|CRT_PORT_NONE,		// Active
+    STATUS_LED_ON|CRT_PORT_ULTIMAX,		// Memacces at 0xe000 or 0x8000
+    STATUS_LED_OFF|CRT_PORT_NONE		// Hidden/Off
 };
 
 
@@ -150,15 +152,11 @@ static inline void invalidate_expert_signature(void)
     scratch_buf[10] = 0;
 }
 
-
-
-
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
 static inline bool expert_vic_read_handler(uint32_t control, uint32_t addr)
 {
-
     // no vic read needed
 
     return false;
@@ -177,21 +175,19 @@ static inline bool expert_read_handler(uint32_t control, uint32_t addr)
         return true;
     }
 
-    // access to IO1 releases NMI
-//    if (!(control & C64_IO1))
-    if ((!(control & C64_IO1))&&expert_mode)
+    // access to IO1 switch back to EXPERT_IDLE
+    if ((!(control & C64_IO1))&&(expert_mode!=EXPERT_PROGRAM))
     {
 	expert_mode=EXPERT_IDLE;
     }
 
-    // handle external NMI (freeze button doesn't work)
+    // handle external NMI 
     if ((!((GPIOA->IDR)&GPIO_IDR_ID10))&&(expert_mode==EXPERT_IDLE)) 		// nmi is on gpioa-10
     {
         freezer_state = FREEZE_START;
     }
 
-/*
-	// special button handles toglling between on and prg
+    // special button toggles expert on/off
     if (control & SPECIAL_BTN)
     {
         freezer_button = FREEZE_PRESSED;
@@ -200,10 +196,9 @@ static inline bool expert_read_handler(uint32_t control, uint32_t addr)
     {
         freezer_button = FREEZE_RELEASED;
 
-	if(expert_mode==EXPERT_IDLE) expert_mode=EXPERT_PROGRAM;
-	else if(expert_mode==EXPERT_PROGRAM) expert_mode=EXPERT_IDLE;
+	if(expert_mode==EXPERT_IDLE) expert_mode=EXPERT_OFF;
+	else if(expert_mode==EXPERT_OFF) expert_mode=EXPERT_IDLE;
     }
-*/
 
     return false;
 }
@@ -227,15 +222,14 @@ static inline void expert_early_write_handler(void)
 *************************************************/
 static inline void expert_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
-    if((expert_mode==EXPERT_ACTIVE)&&(((addr&0xe000)==0xe000)||((addr&0xe000)==0x8000)))
+    if((expert_mode==EXPERT_ACTIVE)&&(((addr&0xe000)==0x8000)))
     {
 	c64_crt_control(expert_modes[EXPERT_ULTIMAX]); /* switch to ultimax if we access kernal or roml */
         crt_ptr[addr & 0x1fff]=data;
     }
 
-    // access to IO1 releases NMI
-//    if (!(control & C64_IO1))
-    if ((!(control & C64_IO1))&&expert_mode)
+    // access to IO1 switches back to EXPERT_IDLE
+    if ((!(control & C64_IO1))&&(expert_mode!=EXPERT_PROGRAM))
     {
 	expert_mode=EXPERT_IDLE;
     }
@@ -272,7 +266,6 @@ static void expert_expansion_init(void)
 	if(expert_signature())
 	{
 		expert_mode=EXPERT_ACTIVE;
-
 	}
 	else
 	{
@@ -281,10 +274,10 @@ static void expert_expansion_init(void)
 
 		for(i=0; i<8192; i++) crt_ptr[i]=0x00;
 	}
-
+	
 	c64_crt_control(expert_modes[expert_mode]);
 }
 
-// The freezer reads character data directly from the cartridge
+// contruct Expert handler
 C64_VIC_BUS_HANDLER_EXPERT(expert)
 

@@ -84,9 +84,9 @@ typedef enum {
 } CRT_TYPE;
 
 #define EXP_NONE	0xFFF0
-#define EXP_GEORAM	0xFFF1
-#define EXP_EXPERT	0xFFF2
-#define EXP_RES		0xFFF3	// reserve
+#define EXP_EXPERT	0xFFF1
+#define EXP_RES1	0xFFF2	// reserve
+#define EXP_RES2	0xFFF3	// reserve
 
 typedef enum {
     CRT_CHIP_ROM = 0x00,

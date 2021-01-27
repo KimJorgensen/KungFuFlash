@@ -101,8 +101,8 @@ static const char * settings_memexpansion_text(void)
 {
     sprint(scratch_buf, "Expansion on F8: %s",
            ((settings_flags & DAT_FLAG_MEMEXPANSION_2) ?				
-		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "---" : "Expert") :	
-		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "GEORam-64K" : "None")) );
+		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "---" : "---") :	
+		((settings_flags & DAT_FLAG_MEMEXPANSION_1) ? "Expert" : "None")) );
 
     return scratch_buf;
 }
@@ -113,7 +113,7 @@ static bool settings_memexpansion_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *
 
     expansion = (settings_flags & DAT_FLAG_MEMEXPANSION_MSK) >> DAT_FLAG_MEMEXPANSION_POS;
     expansion ++;
-    if(expansion==3) expansion=0;		// slot 4 had no handler so roll over
+    if(expansion==2) expansion=0;		// slot 3-4 had no handler so roll over
     expansion <<= DAT_FLAG_MEMEXPANSION_POS;
     expansion &= DAT_FLAG_MEMEXPANSION_MSK;
 

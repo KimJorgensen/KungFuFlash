@@ -31,7 +31,7 @@
 #include "super_snapshot_5.c"
 #include "easyflash.c"
 #include "comal80.c"
-#include "georam.c"
+//#include "georam.c"
 #include "expert.c"
 
 static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
@@ -92,9 +92,6 @@ static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 	// expansions like expert and georam
 	case EXP_EXPERT: 
 	    return expert_handler;
-
-	case EXP_GEORAM: 
-	    return georam_handler;
     }
 
     return NULL;
@@ -138,9 +135,6 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 	// expansions
 	case EXP_EXPERT: 
 	    return expert_expansion_init;
-
-	case EXP_GEORAM: 
-	    return georam_init;
 
     }
 
