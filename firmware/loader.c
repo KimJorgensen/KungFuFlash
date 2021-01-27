@@ -725,16 +725,40 @@ static bool c64_set_mode(void)
         break;
 
         case DAT_KILL:
-        {
-            c64_disable();
-            // Also unstoppable!
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_8K);
-            c64_reset(false);
-            delay_ms(300);
-            c64_crt_control(CRT_PORT_NONE);
-            result = true;
-        }
-        break;
+	{
+		uint16_t expansion;
+
+		if((dat_file.flags&DAT_FLAG_MEMEXPANSION_MSK)==0)	// no expansion is selected
+		{
+		    c64_disable();
+		    // Also unstoppable!
+		    c64_crt_control(STATUS_LED_OFF|CRT_PORT_8K);
+		    c64_reset(false);
+		    delay_ms(300);
+		    c64_crt_control(CRT_PORT_NONE);
+		    result = true;
+		}
+		else
+		{
+		    if (!c64_is_reset())
+		    {
+		        // Disable VIC-II output if C64 has been started (needed for FC3)
+		        c64_interface(true);
+		        c64_send_wait_for_reset();
+		        c64_disable();
+		    }
+
+		    expansion=0xFFF0+((dat_file.flags&DAT_FLAG_MEMEXPANSION_MSK)>>DAT_FLAG_MEMEXPANSION_POS);
+
+		    c64_crt_control(STATUS_LED_ON|CRT_PORT_NONE);
+		    // Try prevent triggering bug in H.E.R.O. No effect at power-on though
+		    c64_sync_with_vic();
+		    crt_install_handler(expansion, CRT_FLAG_NONE);
+		    c64_enable();
+		    result = true;
+		}
+	}
+	break;
 
         case DAT_KILL_C128:
         {

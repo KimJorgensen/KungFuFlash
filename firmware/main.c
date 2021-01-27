@@ -55,6 +55,7 @@ int main(void)
 
     if (!auto_boot())
     {
+	invalidate_expert_signature();	// pressing menu will invalidate Expert mem
         c64_enable();
         menu_loop();
     }
