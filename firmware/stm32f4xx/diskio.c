@@ -419,7 +419,7 @@ DRESULT disk_read(BYTE pdrv, BYTE* buf, DWORD sector, UINT count)
 {
     led_toggle();
 
-    if (count < 1 || count > 127)
+    if (count < 1 || count > 128)
     {
         return RES_PARERR;
     }
@@ -495,7 +495,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
 {
     led_toggle();
 
-    if (count < 1 || count > 127)
+    if (count < 1 || count > 128)
     {
         return RES_PARERR;
     }
