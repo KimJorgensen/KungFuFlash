@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,7 @@ static inline bool menu_signature(void)
 
 static inline void invalidate_menu_signature(void)
 {
-    scratch_buf[0] = 0;
+    *((uint32_t *)scratch_buf) = 0;
 }
 
 /*************************************************

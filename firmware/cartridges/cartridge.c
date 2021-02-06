@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #include "cartridge.h"
 /* ordered by cartridge id */
 #include "crt_normal.c"
@@ -31,8 +32,9 @@
 #include "zaxxon.c"
 #include "magic_desk.c"
 #include "super_snapshot_5.c"
-#include "easyflash.c"
 #include "comal80.c"
+#include "easyflash.c"
+#include "freeze_machine.c"
 
 static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
 {
@@ -88,6 +90,10 @@ static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
             {
                 return ef_sdio_handler;
             }
+
+        case CRT_FREEZE_FRAME:
+        case CRT_FREEZE_MACHINE:
+            return fm_handler;
     }
 
     return NULL;
@@ -127,6 +133,10 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
 
         case CRT_EASYFLASH:
             return ef_init;
+
+        case CRT_FREEZE_FRAME:
+        case CRT_FREEZE_MACHINE:
+            return fm_init;
     }
 
     return NULL;
