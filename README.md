@@ -32,12 +32,15 @@ The following cartridge types are currently supported:
 * Ocean type 1
 * Epyx Fastload
 * C64 Game System, System 3
+* WarpSpeed
 * Dinamic
 * Zaxxon, Super Zaxxon
 * Magic Desk, Domark, HES Australia
 * Super Snapshot v5
 * Comal-80
 * EasyFlash
+* Freeze Frame
+* Freeze Machine
 
 ## Supported File Types
 The following file types are currently supported:
