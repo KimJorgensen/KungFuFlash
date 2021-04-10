@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,8 +17,15 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #include "file_types.h"
 #include "d64.h"
+
+static inline bool prg_size_valid(uint32_t size)
+{
+    // PRG should at least have a 2 byte load address and 1 byte of data
+    return size > 2 && size < 64*1024;
+}
 
 static bool compare_extension(char *ext1, const char *ext2)
 {
@@ -42,7 +49,7 @@ static bool compare_extension(char *ext1, const char *ext2)
 
 static uint8_t get_filename_length(const char *filename, uint8_t *extension)
 {
-    *extension = FF_LFN_BUF-1;
+    *extension = FF_LFN_BUF;
 
     uint8_t length = 0;
     for (; length < FF_LFN_BUF; length++)
@@ -61,6 +68,11 @@ static uint8_t get_filename_length(const char *filename, uint8_t *extension)
         }
     }
 
+    if (*extension > length)
+    {
+        *extension = length;
+    }
+
     return length;
 }
 
@@ -75,12 +87,21 @@ static uint8_t get_file_type(FILINFO *info)
     uint8_t extension;
     uint8_t length = get_filename_length(filename, &extension);
 
-    if ((length - extension) >= 4)
+    uint8_t extension_length = length - extension;
+    if (extension_length == 0)
+    {
+        // Treat extensionless files as PRG
+        if (prg_size_valid(info->fsize))
+        {
+            return FILE_PRG;
+        }
+    }
+    else if (extension_length >= 4)
     {
         filename += extension + 1;
         if (compare_extension(filename, "PRG"))
         {
-            if (info->fsize > 2 && info->fsize < 64*1024)
+            if (prg_size_valid(info->fsize))
             {
                 return FILE_PRG;
             }

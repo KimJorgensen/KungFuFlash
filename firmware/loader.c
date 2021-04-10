@@ -28,12 +28,6 @@
 #define EAPI_OFFSET 0x3800
 #define EAPI_SIZE   0x300
 
-static inline bool prg_size_valid(uint16_t size)
-{
-    // PRG should at least have a 2 byte load address and 1 byte of data
-    return size > 2;
-}
-
 static bool prg_load_file(FIL *file)
 {
     uint16_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
