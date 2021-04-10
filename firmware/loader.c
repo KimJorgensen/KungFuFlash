@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -436,7 +436,7 @@ static bool load_dat(void)
 static bool auto_boot(void)
 {
     load_dat();
-    if (menu_signature() || menu_button())
+    if (menu_signature() || menu_button_pressed())
     {
         menu_button_wait_release();
         invalidate_menu_signature();

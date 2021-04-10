@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
 #define FIRMWARE_SIZE   (48*1024)
@@ -35,6 +36,9 @@
 
 // 16kB scratch buffer
 __attribute__((__section__(".sram"))) static char scratch_buf[16*1024];
+
+// Uninitialized data section
+#define uninit __attribute__((__section__(".uninit")))
 
 static bool filesystem_unmount(void);
 static void system_restart(void);

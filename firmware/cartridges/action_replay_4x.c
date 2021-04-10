@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -66,12 +66,12 @@ static inline bool ar4x_read_handler(uint32_t control, uint32_t addr)
 
     if (control & SPECIAL_BTN)
     {
-        freezer_button = FREEZE_PRESSED;
+        special_button = SPECIAL_PRESSED;
     }
-    else if (freezer_button)
+    else if (special_button)
     {
         c64_irq_nmi(C64_IRQ_NMI_LOW);
-        freezer_button = FREEZE_RELEASED;
+        special_button = SPECIAL_RELEASED;
         freezer_state = FREEZE_START;
     }
 

@@ -18,8 +18,8 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-// Use scratch_buf to store the reset toggle
-#define RESET_TOOGLE *((uint32_t *)scratch_buf)
+// Use menu signature buf to store the reset toggle
+#define RESET_TOOGLE *MEMU_SIGNATURE_BUF
 static uint32_t io1_state;
 
 /*************************************************
@@ -58,12 +58,12 @@ static inline bool fm_read_handler(uint32_t control, uint32_t addr)
 
     if (control & SPECIAL_BTN)
     {
-        freezer_button = FREEZE_PRESSED;
+        special_button = SPECIAL_PRESSED;
     }
-    else if (freezer_button)
+    else if (special_button)
     {
         c64_irq_nmi(C64_NMI_LOW);
-        freezer_button = FREEZE_RELEASED;
+        special_button = SPECIAL_RELEASED;
         freezer_state = FREEZE_START;
     }
 

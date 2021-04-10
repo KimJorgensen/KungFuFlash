@@ -178,6 +178,18 @@ SECTIONS
     __bss_end__ = _ebss;
   } >CCMRAM
 
+  /* Uninitialized data section, not initialized to zero */
+  .uninit (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _suninit = .;      /* create a global symbol at uninit start */
+    *(.uninit)         /* .uninit sections */
+    *(.uninit*)        /* .uninit* sections */
+
+    . = ALIGN(4);
+    _euninit = .;      /* define a global symbol at uninit end */
+  } >CCMRAM
+
   /* User_heap_stack section, used to check that there is enough CCMRAM left */
   ._user_heap_stack :
   {

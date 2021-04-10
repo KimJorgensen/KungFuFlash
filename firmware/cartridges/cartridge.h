@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #define CRT_PORT_NONE       (C64_EXROM_HIGH|C64_GAME_HIGH)  // No cartridge
 #define CRT_PORT_8K         (C64_EXROM_LOW|C64_GAME_HIGH)   // 8k cartridge
 #define CRT_PORT_16K        (C64_EXROM_LOW|C64_GAME_LOW)    // 16k cartridge
@@ -111,12 +112,13 @@ static uint8_t * const crt_banks[64] =
     CRT_FLASH_BANK(63)
 };
 
-#define FREEZE_RELEASED 0
-#define FREEZE_PRESSED  1
+#define SPECIAL_RELEASED    0
+#define SPECIAL_PRESSED     1
+#define SPECIAL_LONG_PRESS  0x100000
 
 #define FREEZE_RESET    0
 #define FREEZE_START    1
 #define FREEZE_3_WRITES 4   // 3 Consecutive writes after FREEZE_START
 
-static uint32_t freezer_button;
+static uint32_t special_button;
 static uint32_t freezer_state;

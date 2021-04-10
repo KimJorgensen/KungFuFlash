@@ -19,20 +19,22 @@
  */
 
 #define MENU_RAM_SIGNATURE  "KungFu:Menu"
+#define MEMU_SIGNATURE_BUF  ((uint32_t *)scratch_buf)
 
 static inline void set_menu_signature(void)
 {
-    memcpy(scratch_buf, MENU_RAM_SIGNATURE, sizeof(MENU_RAM_SIGNATURE));
+    memcpy(MEMU_SIGNATURE_BUF, MENU_RAM_SIGNATURE, sizeof(MENU_RAM_SIGNATURE));
 }
 
 static inline bool menu_signature(void)
 {
-    return memcmp(scratch_buf, MENU_RAM_SIGNATURE, sizeof(MENU_RAM_SIGNATURE)) == 0;
+    return memcmp(MEMU_SIGNATURE_BUF, MENU_RAM_SIGNATURE,
+                  sizeof(MENU_RAM_SIGNATURE)) == 0;
 }
 
 static inline void invalidate_menu_signature(void)
 {
-    *((uint32_t *)scratch_buf) = 0;
+    *MEMU_SIGNATURE_BUF = 0;
 }
 
 /*************************************************
@@ -95,14 +97,14 @@ static void c64_data_config(void)
 * Menu button & special button on PA4 & PA5
 * Returned as 32 bit value for performance
 *************************************************/
-#define C64_WRITE   0x01    // R/W on PA0
-#define C64_IO1     0x02    // IO1 on PA1
-#define C64_IO2     0x04    // IO1 on PA2
-#define C64_BA      0x08    // BA on PA3
-#define MENU_BTN    0x10    // Menu button on PA4
-#define SPECIAL_BTN 0x20    // Special button on PA5
-#define C64_ROML    0x40    // ROML on PA6
-#define C64_ROMH    0x80    // ROMH on PA7
+#define C64_WRITE   0x0001  // R/W on PA0
+#define C64_IO1     0x0002  // IO1 on PA1
+#define C64_IO2     0x0004  // IO1 on PA2
+#define C64_BA      0x0008  // BA on PA3
+#define MENU_BTN    0x0010  // Menu button on PA4
+#define SPECIAL_BTN 0x0020  // Special button on PA5
+#define C64_ROML    0x0040  // ROML on PA6
+#define C64_ROMH    0x0080  // ROMH on PA7
 
 static inline uint32_t c64_control_read()
 {
@@ -127,6 +129,36 @@ static void c64_sync_with_vic(void)
             timer_reset();
         }
     }
+}
+
+/*************************************************
+* C64 IRQ and NMI on PA9 & PA10
+*************************************************/
+#define C64_IRQ     0x0200  // IRQ on PA9
+#define C64_NMI     0x0400  // NMI on PA10
+
+#define C64_IRQ_HIGH        GPIO_BSRR_BS9
+#define C64_IRQ_LOW         GPIO_BSRR_BR9
+#define C64_NMI_HIGH        GPIO_BSRR_BS10
+#define C64_NMI_LOW         GPIO_BSRR_BR10
+#define C64_IRQ_NMI_HIGH    (C64_IRQ_HIGH|C64_NMI_HIGH)
+#define C64_IRQ_NMI_LOW     (C64_IRQ_LOW|C64_NMI_LOW)
+
+static inline void c64_irq_nmi(uint32_t state)
+{
+    GPIOA->BSRR = state;
+}
+
+static void c64_irq_config(void)
+{
+    c64_irq_nmi(C64_IRQ_NMI_HIGH);
+
+    // Set PA9 & PA10 as open-drain
+    GPIOA->OTYPER |= GPIO_OTYPER_OT9|GPIO_OTYPER_OT10;
+
+    // Set PA9 & PA10 as output
+    MODIFY_REG(GPIOA->MODER, GPIO_MODER_MODER9|GPIO_MODER_MODER10,
+                GPIO_MODER_MODER9_0|GPIO_MODER_MODER10_0);
 }
 
 /*************************************************
@@ -172,33 +204,6 @@ static void c64_crt_config(void)
     // Set PC13-PC15 as output
     MODIFY_REG(GPIOC->MODER, GPIO_MODER_MODER13|GPIO_MODER_MODER14|GPIO_MODER_MODER15,
                GPIO_MODER_MODER13_0|GPIO_MODER_MODER14_0|GPIO_MODER_MODER15_0);
-}
-
-/*************************************************
-* C64 IRQ and NMI on PA9 & PA10
-*************************************************/
-#define C64_IRQ_HIGH        GPIO_BSRR_BS9
-#define C64_IRQ_LOW         GPIO_BSRR_BR9
-#define C64_NMI_HIGH        GPIO_BSRR_BS10
-#define C64_NMI_LOW         GPIO_BSRR_BR10
-#define C64_IRQ_NMI_HIGH    (C64_IRQ_HIGH|C64_NMI_HIGH)
-#define C64_IRQ_NMI_LOW     (C64_IRQ_LOW|C64_NMI_LOW)
-
-static inline void c64_irq_nmi(uint32_t state)
-{
-    GPIOA->BSRR = state;
-}
-
-static void c64_irq_config(void)
-{
-    c64_irq_nmi(C64_IRQ_NMI_HIGH);
-
-    // Set PA9 & PA10 as open-drain
-    GPIOA->OTYPER |= GPIO_OTYPER_OT9|GPIO_OTYPER_OT10;
-
-    // Set PA9 & PA10 as output
-    MODIFY_REG(GPIOA->MODER, GPIO_MODER_MODER9|GPIO_MODER_MODER10,
-                GPIO_MODER_MODER9_0|GPIO_MODER_MODER10_0);
 }
 
 /*************************************************
@@ -585,24 +590,24 @@ static void c64_reset_config(void)
 /*************************************************
 * Menu button and special button on PA4 & PA5
 *************************************************/
-static inline bool menu_button(void)
+static inline bool menu_button_pressed(void)
 {
     return (GPIOA->IDR & GPIO_IDR_ID4) != 0;
 }
 
 static void menu_button_wait_release(void)
 {
-    while (menu_button());
+    while (menu_button_pressed());
 }
 
-static inline bool special_button(void)
+static inline bool special_button_pressed(void)
 {
     return (GPIOA->IDR & GPIO_IDR_ID5) != 0;
 }
 
 static void special_button_wait_release(void)
 {
-    while (special_button());
+    while (special_button_pressed());
 }
 
 void EXTI4_IRQHandler(void)
