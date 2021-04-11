@@ -125,7 +125,7 @@ static inline void kcs_write_handler(uint32_t control, uint32_t addr, uint32_t d
     }
 }
 
-static void kcs_init(void)
+static void kcs_init(DAT_CRT_HEADER *crt_header)
 {
     kcs_register = 0;
     c64_crt_control(kcs_mode[kcs_register]);

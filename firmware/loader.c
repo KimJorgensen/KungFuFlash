@@ -23,7 +23,8 @@
 
 #define CRT_SIGNATURE "C64 CARTRIDGE   "
 #define CRT_CHIP_SIGNATURE "CHIP"
-#define CRT_VERSION 0x100
+#define CRT_VERSION_1_0 0x100
+#define CRT_VERSION_1_1 0x101
 
 #define EAPI_OFFSET 0x3800
 #define EAPI_SIZE   0x300
@@ -94,7 +95,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
         }
     }
 
-    if (header->version != CRT_VERSION)
+    if (header->version < CRT_VERSION_1_0 || header->version > CRT_VERSION_1_1)
     {
         wrn("Unsupported CRT version: %x\n", header->version);
         return false;
@@ -108,10 +109,11 @@ static bool crt_write_header(FIL *file, uint16_t type, uint8_t exrom, uint8_t ga
     CRT_HEADER header;
     memcpy(header.signature, CRT_SIGNATURE, sizeof(header.signature));
     header.header_length = __REV(sizeof(CRT_HEADER));
-    header.version = __REV16(CRT_VERSION);
+    header.version = __REV16(CRT_VERSION_1_0);
     header.cartridge_type = __REV16(type);
     header.exrom = exrom;
     header.game = game;
+    header.hardware_revision = 0;
     memset(header.reserved, 0, sizeof(header.reserved));
 
     for (uint8_t i=0; i<sizeof(header.cartridge_name); i++)
@@ -587,7 +589,8 @@ static bool load_d64(void)
 static void c64_launcher_mode(void)
 {
     crt_ptr = CRT_LAUNCHER_BANK;
-    crt_install_handler(CRT_EASYFLASH, CRT_FLAG_NONE);
+    ef_init(NULL);
+    C64_INSTALL_HANDLER(ef_sdio_handler);
 }
 
 static bool c64_set_mode(void)
@@ -663,7 +666,7 @@ static bool c64_set_mode(void)
             c64_crt_control(state);
             // Try prevent triggering bug in H.E.R.O. No effect at power-on though
             c64_sync_with_vic();
-            crt_install_handler(dat_file.crt.type, dat_file.crt.flags);
+            crt_install_handler(&dat_file.crt);
             c64_enable();
             result = true;
         }
@@ -672,7 +675,7 @@ static bool c64_set_mode(void)
         case DAT_USB:
         {
             c64_disable();
-            ef_init();
+            ef_init(NULL);
             c64_enable();
 
             basic_loading("FROM USB");
@@ -689,7 +692,7 @@ static bool c64_set_mode(void)
             }
 
             c64_disable();
-            ef_init();
+            ef_init(NULL);
 
             // Copy Launcher to memory to allow bank switching in EasyFlash emulation
             // BASIC commands to run are placed at the start of flash ($8000)

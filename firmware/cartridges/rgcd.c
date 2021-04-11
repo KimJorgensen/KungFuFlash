@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2020 Christian Graefe
  * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
@@ -19,24 +18,16 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
+static uint8_t rgcd_bank_xor;
+
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool zaxxon_read_handler(uint32_t control, uint32_t addr)
+static inline bool rgcd_read_handler(uint32_t control, uint32_t addr)
 {
     if (!(control & C64_ROML))
     {
-        // lower bank is fixed and only 4k
-        c64_data_write(crt_rom_ptr[addr & 0x0fff]);
-
-        // switch upper bank
-        crt_ptr = crt_banks[addr & 0x1000 ? 1 : 0];
-
-        return true;
-    }
-    else if (!(control & C64_ROMH))
-    {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        c64_data_write(crt_ptr[addr & 0x1fff]);
         return true;
     }
 
@@ -46,15 +37,33 @@ static inline bool zaxxon_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void zaxxon_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void rgcd_write_handler(uint32_t control, uint32_t addr, uint32_t data)
 {
-    // No write support
+    if (!(control & C64_IO1))
+    {
+        if (!(data & 0x8))
+        {
+            uint8_t bank = (data ^ rgcd_bank_xor) & 0x7;
+            crt_ptr = crt_banks[bank];
+        }
+        else
+        {
+            // Disable cartridge
+            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+        }
+    }
 }
 
-static void zaxxon_init(DAT_CRT_HEADER *crt_header)
+static void rgcd_init(DAT_CRT_HEADER *crt_header)
 {
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
-    crt_rom_ptr = crt_banks[0];
+    // Hucky cartridge has the banks in reverse order
+    if (crt_header->hw_rev)
+    {
+        crt_ptr = crt_banks[0x7];
+        rgcd_bank_xor = 0x7;
+    }
+
+    c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }
 
-C64_BUS_HANDLER(zaxxon)
+C64_BUS_HANDLER(rgcd)

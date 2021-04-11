@@ -92,13 +92,13 @@ static inline void fm_write_handler(uint32_t control, uint32_t addr, uint32_t da
     // Not needed
 }
 
-static void fm_init(void)
+static void fm_init(DAT_CRT_HEADER *crt_header)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
     io1_state = STATUS_LED_OFF|CRT_PORT_NONE;
 
     // Toggle ROM A14 on reset if 32 kb cartridge
-    if (RESET_TOOGLE == 1 && dat_file.crt.banks > 1)
+    if (RESET_TOOGLE == 1 && crt_header->banks > 1)
     {
         RESET_TOOGLE = 0;
         crt_ptr = crt_banks[1];
@@ -111,7 +111,7 @@ static void fm_init(void)
     }
 
     // Set ROM A13 on IO2 read if freeze machine
-    if (dat_file.crt.type == CRT_FREEZE_MACHINE)
+    if (crt_header->type == CRT_FREEZE_MACHINE)
     {
         crt_rom_ptr = crt_ptr + 0x2000;
     }

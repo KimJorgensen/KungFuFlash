@@ -35,8 +35,9 @@
 #include "comal80.c"
 #include "easyflash.c"
 #include "freeze_machine.c"
+#include "rgcd.c"
 
-static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
+static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
 {
     switch (cartridge_type)
     {
@@ -94,12 +95,15 @@ static void (*crt_get_handler(uint16_t cartridge_type, bool vic_support)) (void)
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:
             return fm_handler;
+
+        case CRT_RGCD:
+            return rgcd_handler;
     }
 
     return NULL;
 }
 
-static void (*crt_get_init(uint16_t cartridge_type)) (void)
+static void (*crt_get_init(uint32_t cartridge_type)) (DAT_CRT_HEADER *)
 {
     switch (cartridge_type)
     {
@@ -137,25 +141,29 @@ static void (*crt_get_init(uint16_t cartridge_type)) (void)
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:
             return fm_init;
+
+        case CRT_RGCD:
+            return rgcd_init;
     }
 
     return NULL;
 }
 
-static void crt_install_handler(uint16_t cartridge_type, uint8_t flags)
+static void crt_install_handler(DAT_CRT_HEADER *crt_header)
 {
-    void (*init)(void) = crt_get_init(cartridge_type);
+    uint32_t cartridge_type = crt_header->type;
+    void (*init)(DAT_CRT_HEADER *) = crt_get_init(cartridge_type);
     if (init)
     {
-        init();
+        init(crt_header);
     }
 
-    bool vic_support = (flags & CRT_FLAG_VIC) != 0;
+    bool vic_support = (crt_header->flags & CRT_FLAG_VIC) != 0;
     void (*handler)(void) = crt_get_handler(cartridge_type, vic_support);
     C64_INSTALL_HANDLER(handler);
 }
 
-static bool crt_is_supported(uint16_t cartridge_type)
+static bool crt_is_supported(uint32_t cartridge_type)
 {
     return crt_get_handler(cartridge_type, false) != NULL;
 }

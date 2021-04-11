@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-// From http://vice-emu.sourceforge.net/vice_16.html
+// From https://vice-emu.sourceforge.io/vice_17.html
 typedef enum {
     CRT_NORMAL_CARTRIDGE = 0x00,
     CRT_ACTION_REPLAY,
@@ -80,7 +80,21 @@ typedef enum {
     CRT_RGCD,
     CRT_RR_NET_MK3,
     CRT_EASYCALC,
-    CRT_GMOD2
+    CRT_GMOD2,
+    CRT_MAX_BASIC,
+    CRT_GMOD3,
+    CRT_ZIPP_CODE_48,
+    CRT_BLACKBOX_V8,
+    CRT_BLACKBOX_V3,
+    CRT_BLACKBOX_V4,
+    CRT_REX_RAM_FLOPPY,
+    CRT_BIS_PLUS,
+    CRT_SD_BOX,
+    CRT_MULTIMAX,
+    CRT_BLACKBOX_V9,
+    CRT_LT_KERNAL_HOST_ADAPTOR,
+    CRT_RAMLINK,
+    CRT_HERO
 } CRT_TYPE;
 
 typedef enum {
@@ -99,7 +113,8 @@ typedef struct
     uint16_t cartridge_type;
     uint8_t exrom;
     uint8_t game;
-    uint8_t reserved[6];
+    uint8_t hardware_revision;
+    uint8_t reserved[5];
     uint8_t cartridge_name[32];
 } CRT_HEADER;
 
@@ -170,6 +185,7 @@ typedef enum {
 typedef struct
 {
     uint16_t type;          // CRT_TYPE
+    uint8_t hw_rev;         // Cartridge hardware revision
     uint8_t exrom;          // EXROM line status
     uint8_t game;           // GAME line status
     uint8_t banks;          // Number of 16k CRT banks in use (0-64)

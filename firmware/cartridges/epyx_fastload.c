@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 static uint16_t epyx_cycles;
 
 /*************************************************
@@ -59,7 +60,7 @@ static inline void epyx_write_handler(uint32_t control, uint32_t addr, uint32_t 
     // No write support
 }
 
-static void epyx_init(void)
+static void epyx_init(DAT_CRT_HEADER *crt_header)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }

@@ -588,6 +588,7 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
 
             uint32_t flash_hash = crt_calc_flash_crc(banks);
             dat_file.crt.type = header.cartridge_type;
+            dat_file.crt.hw_rev = header.hardware_revision;
             dat_file.crt.exrom = header.exrom;
             dat_file.crt.game = header.game;
             dat_file.crt.banks = banks;

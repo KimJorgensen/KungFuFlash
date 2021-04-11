@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -59,7 +59,7 @@ static inline void magic_desk_write_handler(uint32_t control, uint32_t addr, uin
     }
 }
 
-static void magic_desk_init(void)
+static void magic_desk_init(DAT_CRT_HEADER *crt_header)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }

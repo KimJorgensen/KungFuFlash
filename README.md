@@ -41,6 +41,7 @@ The following cartridge types are currently supported:
 * EasyFlash
 * Freeze Frame
 * Freeze Machine
+* RGCD, Hucky
 
 ## Supported File Types
 The following file types are currently supported:

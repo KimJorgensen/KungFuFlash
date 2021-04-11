@@ -27,7 +27,7 @@
  * still it's twice as fast as JiffyDOS and can load to RAM at $D000-$DFFF,
  * and also packs a lot of features.
  * the original hardware features also a C128 mode, which can't be recreated
- * using a crt image. 
+ * using a crt image.
  */
 
 /*************************************************
@@ -42,7 +42,7 @@ static inline bool warpspeed_read_handler(uint32_t control, uint32_t addr)
         c64_data_write(crt_ptr[addr & 0x1fff]);
         return true;
     }
-    
+
     /* ROM access */
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -68,7 +68,7 @@ static inline void warpspeed_write_handler(uint32_t control, uint32_t addr, uint
     }
 }
 
-static void warpspeed_init(void)
+static void warpspeed_init(DAT_CRT_HEADER *crt_header)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
 }
