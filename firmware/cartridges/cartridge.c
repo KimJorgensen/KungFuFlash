@@ -35,6 +35,7 @@
 #include "super_snapshot_5.c"
 #include "comal80.c"
 #include "easyflash.c"
+#include "prophet64.c"
 #include "freeze_machine.c"
 #include "rgcd.c"
 
@@ -95,6 +96,9 @@ static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
             {
                 return ef_sdio_handler;
             }
+
+        case CRT_PROPHET64:
+            return prophet64_handler;
 
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:

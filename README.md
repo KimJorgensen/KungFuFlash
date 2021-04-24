@@ -40,6 +40,7 @@ The following cartridge types are currently supported:
 * Super Snapshot v5
 * Comal-80
 * EasyFlash
+* Prophet64
 * Freeze Frame
 * Freeze Machine
 * RGCD, Hucky
