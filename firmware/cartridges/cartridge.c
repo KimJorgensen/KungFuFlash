@@ -25,6 +25,7 @@
 #include "kcs_power_cartridge.c"
 #include "final_cartridge_3.c"
 #include "simons_basic.c"
+#include "super_games.c"
 #include "epyx_fastload.c"
 #include "c64gs_system_3.c"
 #include "warpspeed.c"
@@ -55,6 +56,9 @@ static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
 
         case CRT_SIMONS_BASIC:
             return simons_basic_handler;
+
+        case CRT_SUPER_GAMES:
+            return super_games_handler;
 
         case CRT_EPYX_FASTLOAD:
             return epyx_handler;

@@ -29,6 +29,7 @@ The following cartridge types are currently supported:
 * Final Cartridge III(+)
 * Simons' BASIC
 * Fun Play, Power Play
+* Super Games
 * Ocean type 1
 * Epyx Fastload
 * C64 Game System, System 3
