@@ -126,7 +126,7 @@ static inline void fc3_write_handler(uint32_t control, uint32_t addr, uint32_t d
     }
 }
 
-static void fc3_init(DAT_CRT_HEADER *crt_header)
+static void fc3_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
     c64_irq_nmi(C64_NMI_LOW);

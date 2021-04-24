@@ -51,7 +51,7 @@ static inline void zaxxon_write_handler(uint32_t control, uint32_t addr, uint32_
     // No write support
 }
 
-static void zaxxon_init(DAT_CRT_HEADER *crt_header)
+static void zaxxon_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
     crt_rom_ptr = crt_banks[0];

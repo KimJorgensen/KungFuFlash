@@ -170,7 +170,7 @@ static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t da
     }
 }
 
-static void ef_init(DAT_CRT_HEADER *crt_header)
+static void ef_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_ULTIMAX);
 }

@@ -59,7 +59,7 @@ static inline void magic_desk_write_handler(uint32_t control, uint32_t addr, uin
     }
 }
 
-static void magic_desk_init(DAT_CRT_HEADER *crt_header)
+static void magic_desk_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }

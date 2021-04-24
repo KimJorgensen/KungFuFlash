@@ -589,7 +589,7 @@ static bool load_d64(void)
 static void c64_launcher_mode(void)
 {
     crt_ptr = CRT_LAUNCHER_BANK;
-    ef_init(NULL);
+    ef_init();
     C64_INSTALL_HANDLER(ef_sdio_handler);
 }
 
@@ -675,7 +675,7 @@ static bool c64_set_mode(void)
         case DAT_USB:
         {
             c64_disable();
-            ef_init(NULL);
+            ef_init();
             c64_enable();
 
             basic_loading("FROM USB");
@@ -692,7 +692,7 @@ static bool c64_set_mode(void)
             }
 
             c64_disable();
-            ef_init(NULL);
+            ef_init();
 
             // Copy Launcher to memory to allow bank switching in EasyFlash emulation
             // BASIC commands to run are placed at the start of flash ($8000)

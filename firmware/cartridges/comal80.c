@@ -47,7 +47,7 @@ static inline void comal80_write_handler(uint32_t control, uint32_t addr, uint32
     }
 }
 
-static void comal80_init(DAT_CRT_HEADER *crt_header)
+static void comal80_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
 }

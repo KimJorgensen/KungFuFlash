@@ -142,7 +142,7 @@ static inline void ss5_write_handler(uint32_t control, uint32_t addr, uint32_t d
     }
 }
 
-static void ss5_init(DAT_CRT_HEADER *crt_header)
+static void ss5_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_ULTIMAX);
     crt_rom_ptr = crt_banks[0];

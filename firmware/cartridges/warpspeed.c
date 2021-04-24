@@ -68,7 +68,7 @@ static inline void warpspeed_write_handler(uint32_t control, uint32_t addr, uint
     }
 }
 
-static void warpspeed_init(DAT_CRT_HEADER *crt_header)
+static void warpspeed_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
 }

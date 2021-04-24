@@ -153,7 +153,7 @@ static inline void ar4x_write_handler(uint32_t control, uint32_t addr, uint32_t 
     }
 }
 
-static void ar4x_init(DAT_CRT_HEADER *crt_header)
+static void ar4x_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
     crt_rom_ptr = crt_ptr;

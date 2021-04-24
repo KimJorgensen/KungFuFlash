@@ -103,61 +103,67 @@ static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
     return NULL;
 }
 
-static void (*crt_get_init(uint32_t cartridge_type)) (DAT_CRT_HEADER *)
+static void crt_init(DAT_CRT_HEADER *crt_header)
 {
-    switch (cartridge_type)
+    switch (crt_header->type)
     {
         case CRT_ACTION_REPLAY:
-            return ar4x_init;
+            ar4x_init();
+            break;
 
         case CRT_KCS_POWER_CARTRIDGE:
-            return kcs_init;
+            kcs_init();
+            break;
 
         case CRT_FINAL_CARTRIDGE_III:
-            return fc3_init;
+            fc3_init();
+            break;
 
         case CRT_EPYX_FASTLOAD:
-            return epyx_init;
+            epyx_init();
+            break;
 
         case CRT_WARP_SPEED:
-            return warpspeed_init;
+            warpspeed_init();
+            break;
 
         case CRT_ZAXXON_SUPER_ZAXXON:
-            return zaxxon_init;
+            zaxxon_init();
+            break;
 
         case CRT_FUN_PLAY_POWER_PLAY:
         case CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA:
-            return magic_desk_init;
+            magic_desk_init();
+            break;
 
         case CRT_SUPER_SNAPSHOT_V5:
-            return ss5_init;
+            ss5_init();
+            break;
 
         case CRT_COMAL_80:
-            return comal80_init;
+            comal80_init();
+            break;
 
         case CRT_EASYFLASH:
-            return ef_init;
+            ef_init();
+            break;
 
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:
-            return fm_init;
+            fm_init(crt_header);
+            break;
 
         case CRT_RGCD:
-            return rgcd_init;
+            rgcd_init(crt_header);
+            break;
     }
-
-    return NULL;
 }
 
 static void crt_install_handler(DAT_CRT_HEADER *crt_header)
 {
-    uint32_t cartridge_type = crt_header->type;
-    void (*init)(DAT_CRT_HEADER *) = crt_get_init(cartridge_type);
-    if (init)
-    {
-        init(crt_header);
-    }
+    crt_init(crt_header);
 
+    uint32_t cartridge_type = crt_header->type;
     bool vic_support = (crt_header->flags & CRT_FLAG_VIC) != 0;
     void (*handler)(void) = crt_get_handler(cartridge_type, vic_support);
     C64_INSTALL_HANDLER(handler);

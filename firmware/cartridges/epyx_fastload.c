@@ -60,7 +60,7 @@ static inline void epyx_write_handler(uint32_t control, uint32_t addr, uint32_t 
     // No write support
 }
 
-static void epyx_init(DAT_CRT_HEADER *crt_header)
+static void epyx_init(void)
 {
     c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
 }
