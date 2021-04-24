@@ -179,7 +179,8 @@ static int32_t crt_get_offset(CRT_CHIP_HEADER *header, uint16_t cartridge_type)
     {
         // Suport ROML only cartridges with more than 64 banks
         if(header->image_size <= 8*1024 &&
-           cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA)
+           (cartridge_type == CRT_FUN_PLAY_POWER_PLAY ||
+            cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA))
         {
             bool odd_bank = header->bank & 1;
             header->bank >>= 1;
