@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,6 +21,7 @@
  * Based on https://github.com/dmitrystu/libusb_stm32
  * Apache License 2.0
  */
+
 #include "stm32.h"
 #include "usb.h"
 #include "usb_cdc.h"
@@ -215,6 +216,7 @@ static uint32_t ubuf[0x20];
 
 static uint8_t utx_fifo[0x200], urx_fifo[0x200];
 static volatile uint32_t utx_pos = 0, urx_pos = 0;
+static volatile bool utx_wait = false, urx_wait = false;
 
 static struct usb_cdc_line_coding cdc_line = {
     .dwDTERate          = 38400,
@@ -261,7 +263,7 @@ static usbd_respond cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_cal
         case USB_CDC_SET_CONTROL_LINE_STATE:
             return usbd_ack;
         case USB_CDC_SET_LINE_CODING:
-            memcpy( req->data, &cdc_line, sizeof(cdc_line));
+            memcpy(&cdc_line, req->data, sizeof(cdc_line));
             return usbd_ack;
         case USB_CDC_GET_LINE_CODING:
             dev->status.data_ptr = &cdc_line;
@@ -280,14 +282,13 @@ static void usb_putc(char ch)
     // Wait for room in the fifo
     while (utx_pos >= (sizeof(utx_fifo) - 1));
 
-    _BCL(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
+    utx_wait = true;
     __DSB();
-    (void)utx_pos; // Needed for some reason
 
     utx_fifo[utx_pos++] = ch;
+    COMPILER_BARRIER();
 
-    __DSB();
-    _BST(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
+    utx_wait = false;
 }
 
 static inline bool usb_gotc(void)
@@ -300,45 +301,52 @@ static char usb_getc(void)
     // wait for data
     while (!usb_gotc());
 
-    _BCL(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
+    urx_wait = true;
     __DSB();
 
     char ch = urx_fifo[0];
     memmove(&urx_fifo[0], &urx_fifo[1], --urx_pos);
+    COMPILER_BARRIER();
 
+    urx_wait = false;
     __DSB();
-    _BST(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
+
+    // Enable interrupt if room in buffer
+    if (urx_pos <= (sizeof(urx_fifo) - CDC_DATA_SZ))
+    {
+        _BST(OTG->GINTMSK, USB_OTG_GINTMSK_RXFLVLM);
+    }
+
     return ch;
 }
 
 /* CDC loop callback. Both for the Data IN and Data OUT endpoint */
 static void cdc_rx_tx(usbd_device *dev, uint8_t event, uint8_t ep) {
-    int _t;
+    if (event == usbd_evt_eptx) {
+        uint32_t pos = utx_pos;
+        uint16_t len = 0;
+        if (!utx_wait) {
+            len = (pos < CDC_DATA_SZ) ? pos : CDC_DATA_SZ;
+        }
 
-    switch (event) {
-    case usbd_evt_eptx:
-        _t = usbd_ep_write(dev, CDC_TXD_EP, &utx_fifo[0],
-                           (utx_pos < CDC_DATA_SZ) ? utx_pos : CDC_DATA_SZ);
+        int32_t _t = usbd_ep_write(dev, ep, &utx_fifo[0], len);
         if (_t > 0) {
-            utx_pos -= _t;
-            memmove(&utx_fifo[0], &utx_fifo[_t], utx_pos);
+            pos -= _t;
+            memmove(&utx_fifo[0], &utx_fifo[_t], pos);
+            utx_pos = pos;
         }
-        break;
-    case usbd_evt_eprx:
-        if (urx_pos < (sizeof(urx_fifo) - CDC_DATA_SZ)) {
-            _t = usbd_ep_read(dev, CDC_RXD_EP, &urx_fifo[urx_pos], CDC_DATA_SZ);
+    } else {
+        uint32_t pos = urx_pos;
+        if (!urx_wait && pos <= (sizeof(urx_fifo) - CDC_DATA_SZ)) {
+            int32_t _t = usbd_ep_read(dev, ep, &urx_fifo[pos], CDC_DATA_SZ);
             if (_t > 0) {
-                urx_pos += _t;
+                urx_pos = pos + _t;
             }
+        } else {
+            // Disable interrupt otherwise we will be called again immediately,
+            // preventing anybody from reading the buffer
+            _BCL(OTG->GINTMSK, USB_OTG_GINTMSK_RXFLVLM);
         }
-        else
-        {
-            // RX buffer full. Disable interrupt otherwise we will be called
-            // again immediately, preventing anybody from reading the buffer
-            _BCL(OTG->GAHBCFG, USB_OTG_GAHBCFG_GINT);
-        }
-    default:
-        break;
     }
 }
 

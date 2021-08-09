@@ -209,7 +209,7 @@ static void usbd_process_eptx(usbd_device *dev, uint8_t ep) {
     case usbd_ctl_txdata:
         _t = _MIN(dev->status.data_count, dev->status.ep0size);
         dev->driver->ep_write(ep, dev->status.data_ptr, _t);
-        dev->status.data_ptr = (uint8_t *)(dev->status.data_ptr) + _t;
+        dev->status.data_ptr = (uint8_t*)dev->status.data_ptr + _t;
         dev->status.data_count -= _t;
         /* if all data is not sent */
         if (0 != dev->status.data_count) break;
@@ -270,7 +270,7 @@ static void usbd_process_eprx(usbd_device *dev, uint8_t ep) {
         } else if (dev->status.data_count != _t) {
         /* if all data payload was not received yet */
             dev->status.data_count -= _t;
-            dev->status.data_ptr = (uint8_t *)(dev->status.data_ptr) + _t;
+            dev->status.data_ptr = (uint8_t*)dev->status.data_ptr + _t;
             return;
         }
         break;
@@ -301,8 +301,6 @@ static void usbd_process_eprx(usbd_device *dev, uint8_t ep) {
                 dev->status.control_state = usbd_ctl_ztxdata;
             }
             usbd_process_eptx(dev, ep | 0x80);
-            return;
-
         } else {
             /* confirming by ZLP in STATUS_IN stage */
             dev->driver->ep_write(ep | 0x80, 0, 0);
@@ -314,7 +312,7 @@ static void usbd_process_eprx(usbd_device *dev, uint8_t ep) {
         break;
     default:
         usbd_stall_pid(dev, ep);
-        return;
+        break;
     }
 }
 
@@ -338,6 +336,7 @@ static void usbd_process_ep0 (usbd_device *dev, uint8_t event, uint8_t ep) {
         break;
     }
 }
+
 
 /** \brief General event processing callback
  * \param dev usb device

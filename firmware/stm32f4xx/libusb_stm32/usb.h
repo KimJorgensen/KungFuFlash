@@ -46,7 +46,8 @@
 
 #elif defined(STM32L432xx) || defined(STM32L433xx) || \
       defined(STM32L442xx) || defined(STM32L443xx) || \
-      defined(STM32L452xx) || defined(STM32L462xx)
+      defined(STM32L452xx) || defined(STM32L462xx) || \
+      defined(STM32G4)
 
     #define USBD_STM32L433
 
@@ -90,6 +91,28 @@
 
     #define USBD_STM32F429FS
     #define USBD_STM32F429HS
+
+    #if !defined(__ASSEMBLER__)
+    extern const struct usbd_driver usbd_otgfs;
+    extern const struct usbd_driver usbd_otghs;
+    #if defined(USBD_PRIMARY_OTGHS)
+    #define usbd_hw usbd_otghs
+    #else
+    #define usbd_hw usbd_otgfs
+    #endif
+    #endif  //__ASSEMBLER__
+
+#elif defined(STM32F411xE) || defined(STM32F401xC) || defined(STM32F401xE)
+
+    #define USBD_STM32F429FS
+    #if !defined(__ASSEMBLER__)
+    extern const struct usbd_driver usbd_otgfs;
+    #endif
+    #define usbd_hw usbd_otgfs
+
+#elif defined(STM32F446xx) || defined(STM32F722xx) || defined (STM32F745xx)
+    #define USBD_STM32F446FS
+    #define USBD_STM32F446HS
 
     #if !defined(__ASSEMBLER__)
     extern const struct usbd_driver usbd_otgfs;

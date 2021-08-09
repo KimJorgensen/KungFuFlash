@@ -24,6 +24,7 @@
 #if defined(__DOXYGEN__)
 /**\name Compile-time control macros
  * @{ */
+#define USBD_PINS_REMAP     /**<\brief Remap USB pins for uC with low pin count packages.*/
 #define USBD_SOF_DISABLED   /**<\brief Disables SOF handling.*/
 #define USBD_VBUS_DETECT    /**<\brief Enables Vbus detection for L4/F4 driver.*/
 #define USBD_DP_PORT        /**<\brief DP pullup port for F103/F303 driver.*/
@@ -31,12 +32,15 @@
 #define USBD_SOF_OUT        /**<\brief Enables SOF output pin for F4 OTGFS. */
 #define USBD_PRIMARY_OTGHS  /**<\brief Sets OTGHS as primary interface for F4*/
 #define USBD_USE_EXT_ULPI   /**<\brief Enables external ULPI interface for OTGHS */
+#define USB_PMA_SIZE        /**<\brief PMA memoty size in bytes. Adjust this for
+                              * the devices that shares PMA memory with CAN in case
+                              * of both USB and CAN in use to avoid data corruption. */
 /** @} */
 #endif
 
 /**\addtogroup USBD_HW USB hardware driver
- * \brief Contains HW driver API
  * @{ */
+
 /**\anchor USB_EVENTS
  * \name USB device events
  * @{ */
@@ -49,7 +53,7 @@
 #define usbd_evt_epsetup    6   /**<\brief Setup packet received.*/
 #define usbd_evt_error      7   /**<\brief Data error.*/
 #define usbd_evt_count      8
-/** @} */
+/** @}*/
 
 /**\anchor USB_LANES_STATUS
  * \name USB lanes connection states
@@ -68,7 +72,7 @@
 #define USBD_HW_BC          (1 << 1)    /**<\brief Battery charging detection supported.*/
 #define USND_HW_HS          (1 << 2)    /**<\brief High speed supported.*/
 #define USBD_HW_ENABLED     (1 << 3)    /**<\brief USB device enabled. */
-#define USBD_HW_ENUMSPEED   (2 << 4)    /**<\brief USB device enumeration speed mask.*/
+#define USBD_HW_ENUMSPEED   (3 << 4)    /**<\brief USB device enumeration speed mask.*/
 #define USBD_HW_SPEED_NC    (0 << 4)    /**<\brief Not connected */
 #define USBD_HW_SPEED_LS    (1 << 4)    /**<\brief Low speed */
 #define USBD_HW_SPEED_FS    (2 << 4)    /**<\brief Full speed */
@@ -101,8 +105,9 @@
 
 #if !defined(__ASSEMBLER__)
 #include <stdbool.h>
-
-/**\brief USB device machine states.*/
+#include <stddef.h>
+/** @brief USB device machine states
+ */
 enum usbd_machine_state {
     usbd_state_disabled,
     usbd_state_disconnected,
@@ -122,15 +127,6 @@ enum usbd_ctl_state {
                                  * for the TX completion.*/
     usbd_ctl_statusin,          /**<\brief STATUS-IN stage.*/
     usbd_ctl_statusout,         /**<\brief STATUS-OUT stage.*/
-};
-
-/**\brief Asynchronous device control commands.*/
-enum usbd_commands {
-    usbd_cmd_enable,            /**<\brief Enables device.*/
-    usbd_cmd_disable,           /**<\brief Disables device.*/
-    usbd_cmd_connect,           /**<\brief Connects device to host.*/
-    usbd_cmd_disconnect,        /**<\brief Disconnects device from host.*/
-    usbd_cmd_reset,             /**<\brief Resets device.*/
 };
 
 /**\brief Reporting status results.*/
@@ -264,6 +260,7 @@ typedef void (*usbd_hw_ep_deconfig)(uint8_t ep);
  * \param buf pointer to read buffer
  * \param blen size of the read buffer in bytes
  * \return size of the actually received data, -1 on error.
+ * \note if data does not fit buffer it will be truncated
  */
 typedef int32_t (*usbd_hw_ep_read)(uint8_t ep, void *buf, uint16_t blen);
 
@@ -351,7 +348,7 @@ inline static void usbd_init(usbd_device *dev, const struct usbd_driver *drv,
     dev->status.ep0size = ep0size;
     dev->status.data_ptr = buffer;
     dev->status.data_buf = buffer;
-    dev->status.data_maxsize = bsize - __builtin_offsetof(usbd_ctlreq, data);
+    dev->status.data_maxsize = bsize - offsetof(usbd_ctlreq, data);
 }
 
 /**\brief Polls USB for events
