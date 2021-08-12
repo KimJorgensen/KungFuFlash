@@ -1,0 +1,1160 @@
+;=======================================================
+;     ********************************************
+;            EeasyFlash III BBS
+;     ********************************************
+;                     tomcat@sgn.net
+;=======================================================
+
+;
+;
+; $E50A PLOT    : CLC!!!  .Y and .X registers
+; $AB1E STROUT  : .Y and .A registers (low, high) , zero terminated
+;
+;-----------------------------------------------------------------------
+
+;--- Zeropages:
+
+len_lo          = $31
+len_hi          = $32
+len_hi_hi       = $33
+
+numretr         = $34
+
+mychecksum      = $35
+checkcalc       = $36
+
+zp_dest_lo	= $38		;|word pointer - Destination
+zp_dest_hi	= $39	        ;|
+
+  zp_src_lo	= $e4		;|word pointer - Source
+  zp_src_hi	= $e5		;|
+
+
+tmpalo          = $3a
+tmpahi          = $3b
+tmpclo          = $3c
+tmpchi          = $3d
+
+retries         = $3e
+indicator       = $3f
+
+indaddlo        = $31
+indaddhi        = $32
+
+templo          = $43
+temphi          = $44
+
+zerop           = $f4
+
+;------------ SERIAL DRIVE/IDE64 compatible kernal calls ------------
+ROM_status      = $ffb7
+Rom_Setlfs      = $ffba
+Rom_Setnam      = $ffbd
+Rom_Open        = $ffc0
+Rom_Close       = $ffc3
+Rom_Chkin       = $ffc6
+Rom_Chkout      = $ffc9
+Rom_Clrchn      = $ffcc
+Rom_Chrin       = $ffcf
+Rom_Chrout      = $ffd2
+Rom_Getin       = $ffe4
+Rom_Clall       = $ffe7
+
+datachan        = 2             ;2-14 for data channel
+
+USBStatus       = $DE09
+USBData         = $DE0A
+
+;------------------------------------------------------------------
+; MACROS
+;------------------------------------------------------------------
+print           .macro
+                ldy #>\1
+                lda #<\1
+                jsr $ab1e
+                .endm
+                
+printat         .macro
+                clc
+                ldx #\2
+                ldy #\1
+                jsr $e50a
+                #print \3
+                .endm
+
+printcenter     .macro
+                clc
+                ldx #\1
+                ldy #20-(((\3-1)-\2)/2)
+                jsr $e50a
+                #print \2
+                .endm
+
+;**********************************************************************
+
+;this creates a basic start
+        *=$0801
+
+        ;SYS 2064
+        .byte $0C,$08,$0A,$00,$9E,$20,$32,$30,$36,$34,$00,$00,$00,$00,$00
+
+                sei
+
+                lda $ba
+				bne +
+				lda #$08
+				sta $ba
++                
+                tsx
+                stx restart+1 
+
+                lda #$37
+                sta $01
+
+				jsr handshake
+
+restart         ldx #00
+                txs
+
+                jsr displaymenu
+
+                #print clrscr           ; return to basic
+                rts
+
+
+get_byte                        ; gets one byte from usb
+                bit USBStatus
+                bpl get_byte
+                lda USBData
+                rts
+        
+send_byte
+        	bit USBStatus
+	        bvc send_byte           ; check if ready to send a byte
+                sta USBData             ; send back the byte
+                rts
+
+connected	.byte $00				
+
+handshake
+testbyte		jsr get_byte
+				cmp #$cc
+				bne testbyte
+				lda #$01
+				jsr send_byte
+				lda #$02
+				jsr send_byte
+				lda #$03
+				jsr send_byte
+				rts
+
+loadedconfig	.byte $00
+
+;------------------------------------------------------------------
+; ROUTINE : DISPLAY MENU
+;------------------------------------------------------------------
+displaymenu
+
+menustart       = 0
+
+; $E50A PLOT    : CLC!!!  .Y and .X registers
+; $AB1E STROUT  : .Y and .A registers (low, high) , zero terminated
+
+                lda #$00
+                sta $d020
+                sta $d021
+
+                #print clrscr
+                #printcenter menustart,title,titlend
+                #printcenter 24,title4,title4end
+                #printcenter menustart+2,title2,title2end
+				
+;				jmp emu
+				
+				lda loadedconfig
+				bne +
+				lda #$ff
+				sta loadedconfig
+				jsr get_byte
+				jsr get_byte
+				jsr usbload
++				
+				
+emu
+                #print clrscr
+                #printcenter menustart,title,titlend
+
+				lda connected
+				bne +
+                #printcenter 24,title4,title4end
+				jmp notconnected
++
+                #printcenter 24,title5,title5end
+notconnected
+
+                #printcenter menustart+2,title3,title3end
+
+				ldx #menustart+4
+				stx printaddy+1
+				lda #$00
+				sta printaddx+1
+				lda #<add1
+				sta printtxtl+1
+				lda #>add1
+				sta printtxth+1
+				lda #35
+				sta print20len+1
+				jsr print20
+
+				ldx #menustart+4
+				stx printaddy+1
+				lda #35
+				sta printaddx+1
+				lda #<port1
+				sta printtxtl+1
+				lda #>port1
+				sta printtxth+1
+				lda #6
+				sta print20len+1
+				jsr print20
+				
+                jmp handlemenu
+
+clrscr          .byte $9b,147,0
+
+printadd        
+				clc
+printaddy      	ldx #$00
+printaddx      	ldy #$00
+				jsr $e50a
+printtxth      	ldy #$00
+printtxtl      	lda #$00
+				jsr $ab1e
+				rts
+
+print20
+				jsr printadd
+				
+				lda printtxtl+1
+				clc
+print20len		adc #35
+				sta printtxtl+1
+				bcc +
+				lda printtxth+1
+				clc
+				adc #01
+				sta printtxth+1
+
++				
+				ldx printaddy+1
+				inx
+				stx printaddy+1
+				cpx #menustart+4+20
+				bne print20
+
+				rts
+
+
+screenaddl		.byte <0, <40, <80, <120, <160, <200, <240, <280, <320, <360, <400, <440, <480, <520, <560, <600
+                .byte <640, <680, <720, <760, <800, <840, <880, <920, <960
+screenaddh		.byte >0, >40, >80, >120, >160, >200, >240, >280, >320, >360, >400, >440, >480, >520, >560, >600
+                .byte >640, >680, >720, >760, >800, >840, >880, >920, >960
+				
+screenaddress = $04
+
+drawinversed
+				lda menusel
+				clc
+				adc #04
+				tax
+				lda screenaddl,x
+				sta drawinadd1+1
+				sta drawinadd2+1
+				lda screenaddh,x
+				clc
+				adc #screenaddress
+				sta drawinadd1+2
+				sta drawinadd2+2
+
+				ldx #$00
+-				
+drawinadd1		lda $ffff,x
+				clc
+drawinwhat		adc #$80
+drawinadd2		sta $ffff,x
+				
+				inx
+				cpx #40
+				bne -
+				rts
+
+emptyline
+				lda menusel
+				clc
+				adc #04
+				tax
+				lda screenaddl,x
+				sta emptyinadd+1
+				lda screenaddh,x
+				clc
+				adc #screenaddress
+				sta emptyinadd+2
+
+				ldx #$00
+-		
+				lda #' '
+emptyinadd		sta $ffff,x
+				
+				inx
+				cpx #40
+				bne -
+				rts
+
+menusel			.byte 0
+				
+;_----------------------------------------------------
+				
+handlemenu
+				jsr drawinversed
+
+menukeys		
+
+				lda #$ff				; signal we are waiting in the menu
+				jsr send_byte
+				lda #$00
+				jsr send_byte
+
+				jsr get_byte
+				jsr get_byte
+
+				jsr $ffe4
+                beq menukeys
+		
+				cmp #$91	; UP
+				bne +
+				jmp menuup
+				
++				cmp #$11	; DOWN
+				bne +
+				jmp menudown
+				
++				cmp #$0d	; ENTER
+				bne +
+				jmp menuenter
+				
++				cmp #$45	; E
+				bne +
+				jmp menuedit
+				
++				cmp #$53	; S
+				bne +
+				jmp menusave
+				
++				cmp #$52	; R
+				bne +
+				jmp menureturn
+				
++				jmp menukeys
+
+menureturn
+				jsr drawinversed
+				lda connected
+				beq +
+				; We are connected, return to terminal here
+				lda #$ff
+				jsr send_byte
+				lda #$03
+				jsr send_byte	; tell pc we are not in menu
+				
+				jsr restorescreen
+				
+				lda #$00
+				jmp returnfrommenu
+				
++				jmp handlemenu
+
+menusave
+				jsr drawinversed
+				jsr usbsave
+				jmp handlemenu
+
+menuup
+				jsr drawinversed
+				lda menusel
+				beq +
+				sec
+				sbc #01
+				sta menusel
++				jmp handlemenu
+				
+menudown
+				jsr drawinversed
+				lda menusel
+				cmp #19
+				beq +
+				clc
+				adc #01
+				sta menusel
++				jmp handlemenu
+				
+menuenter
+ 				lda #$ff			; signal server to connect
+				jsr send_byte
+				jsr send_byte
+
+				lda #$00
+				sta connected
+
+				lda #<add1
+				sta sendingaddr+1
+				lda #>add1
+				sta sendingaddr+2
+				
+				ldx menusel
+adjustaddr				
+				cpx #$00
+				beq adjusted
+				lda sendingaddr+1
+				clc
+				adc #35
+				sta sendingaddr+1
+				bcc adjusted2
+				lda sendingaddr+2
+				clc
+				adc #01
+				sta sendingaddr+2
+adjusted2
+				dex
+				jmp adjustaddr
+adjusted
+
+				ldx #$00
+sendingaddr		
+				lda add1,x
+				beq +
+				jsr send_byte
+				inx
+				jmp sendingaddr
++
+
+				lda #<port1
+				sta sendingport+1
+				lda #>port1
+				sta sendingport+2
+				
+				ldx menusel
+adjustport
+				cpx #$00
+				beq adjustedport
+				lda sendingport+1
+				clc
+				adc #6
+				sta sendingport+1
+				bcc adjustedport2
+				lda sendingport+2
+				clc
+				adc #01
+				sta sendingport+2
+adjustedport2
+				dex
+				jmp adjustport
+				
+adjustedport
+				ldx #$00
+sendingport	
+				lda port1,x
+				beq +
+				jsr send_byte
+				inx
+				jmp sendingport
++
+
+				jmp startterminal
+
+get_out_edit2
+				jmp get_out_edit
+				
+;----------------------------------------------
+menuedit
+				jsr emptyline
+				
+				lda menusel
+				clc
+				adc #04
+				tax
+				ldy #$00
+				jsr $fff0
+				
+   			    lda #>TEXTfilter
+				ldx #<TEXTfilter
+				ldy #39
+				jsr FILTERED_INPUT
+				
+				bcs get_out_edit2		; run stop pressed, get out
+
+				; clear the hostname and port number
+				
+				ldx menusel
+				lda addlookupl,x
+				sta spaceout+1
+				sta copytext1+1
+				lda addlookuph,x
+				sta spaceout+2
+				sta copytext1+2
+				lda portlookupl,x
+				sta spaceout2+1
+				sta copyport1+1
+				sta copyport2+1
+				sta copyport3+1
+				lda portlookuph,x
+				sta spaceout2+2
+				sta copyport1+2
+				sta copyport2+2
+				sta copyport3+2
+				
+				lda #' '
+				ldx #33
+
+spaceout		sta $ffff,x
+				dex
+				bpl spaceout
+
+				ldx #4
+
+spaceout2		sta $ffff,x
+				dex
+				bpl spaceout2
+
+				; Copy the text over
+				
+				ldx #$00
+				lda GOTINPUT,x
+				beq get_out_edit
+-				
+				lda GOTINPUT,x
+				beq copiedover
+				cmp #':'
+				beq gotport
+copytext1		sta $ffff,x
+				inx
+				cpx #34
+				bcc -
+copiedover		; no port entered... assume its 23 :)
+				ldx #3
+				lda #'2'
+copyport1		sta $ffff,x
+				lda #'3'
+				inx
+copyport2		sta $ffff,x
+				jmp get_out_edit
+gotport				
+				; Get to the end of the port number
+-				inx
+				lda GOTINPUT,x
+				bne -
+				dex
+				
+				ldy #04
+				
+-				lda GOTINPUT,x
+				cmp #' '
+				beq +
+				cmp #':'
+				beq +
+copyport3		sta $ffff,y
+				dex
+				dey
+				jmp -
++
+get_out_edit
+				lda #$01			; return to menu, no cursor
+				sta $cc
+				jsr emu
+				jmp handlemenu
+				
+;-------------------------------------------------------------------------				
+startterminal				
+                #print clrscr
+
+testbyte2		jsr get_byte
+				cmp #$cc
+				beq +
+				cmp #$ee
+				bne testbyte2
+				
+				lda #$ff
+				sta connected		; we are connected !
+				jmp handlemenuloop
++				
+				; Connect failed !
+				lda #$01			; return to menu, no cursor
+				sta $cc
+				jsr displaymenu
+				jmp handlemenu
+				
+handlemenuloop
+				jsr get_byte
+				bne +				; got 01-ff
+				jsr get_byte
+				bne skipupdate		; got 00 = ok, ff = skip update
++
+				sta storedbyte+1
+
+				lda $cc		; cursor disabled ?
+				bne +
+				lda #$01
+				sta $cc
+				lda #$20
+				jsr $ea1c	; disable cursor
++				
+storedbyte		lda #$00
+				pha
+				jsr $ffd2			; text output
+				pla
+				cmp #$22
+				bne +				; special handling of "
+				jsr $ffd2
+				lda #$14
+				jsr $ffd2
+				
++
+				jmp handlemenuloop
+skipupdate
+				jsr $ffe4			; key press check - if no output on screen
+				cmp #$88			; MENU KEY PRESSED , $88 = F7, $03 = RUN/STOP
+				bne +
+
+				jsr backupscreen
+				
+				lda #$01			; return to menu, no cursor
+				sta $cc
+				jmp emu
+
+returnfrommenu				
++				jsr send_byte
+				lda #$00
+				sta $cc				; enable cursor
+
+				jmp handlemenuloop
+
+backupscreen
+				ldx #$00
+-				lda $0400,x
+				sta screenb,x
+				lda $0400+$100,x
+				sta screenb+$100,x
+				lda $0400+$200,x
+				sta screenb+$200,x
+				lda $0400+$300,x
+				sta screenb+$300,x
+				lda $d800,x
+				sta attrb,x
+				lda $d800+$100,x
+				sta attrb+$100,x
+				lda $d800+$200,x
+				sta attrb+$200,x
+				lda $d800+$300,x
+				sta attrb+$300,x
+				inx
+				bne -
+
+				sec
+				jsr $fff0
+				stx cursorbc
+				sty cursorbr
+				lda $286
+				sta colorb
+				
+				rts
+
+restorescreen
+				ldx #$00
+-				lda screenb,x
+				sta $0400,x
+				lda screenb+$100,x
+				sta $0400+$100,x
+				lda screenb+$200,x
+				sta $0400+$200,x
+				lda screenb+$300,x
+				sta $0400+$300,x
+				lda attrb,x
+				sta $d800,x
+				lda attrb+$100,x
+				sta $d800+$100,x
+				lda attrb+$200,x
+				sta $d800+$200,x
+				lda attrb+$300,x
+				sta $d800+$300,x
+				inx
+				bne -
+
+				lda colorb
+				sta $286
+				ldx cursorbc
+				ldy cursorbr
+				clc
+				jsr $fff0
+				
+				
+				rts
+
+
+usbsave
+ 				lda #$ff			; signal server to save
+				jsr send_byte
+				lda #$01
+				jsr send_byte
+
+                lda #<add1
+                sta zp_dest_lo
+                lda #>add1
+                sta zp_dest_hi
+
+                lda #<(portend-add1)
+                sta zp_src_lo
+				jsr send_byte
+                lda #>(portend-add1)
+                sta zp_src_hi
+				jsr send_byte
+
+nextsavebyte2   ldy #$00
+                lda (zp_dest_lo),y
+                
+                jsr send_byte
+                
+                inc zp_dest_lo
+                bne +
+                inc zp_dest_hi
++               
+                jsr decadd
+                bne nextsavebyte2
+
+				rts
+ 
+usbload
+ 				lda #$ff			; signal server to load
+				jsr send_byte
+				lda #$02
+				jsr send_byte
+
+                lda #<add1
+                sta zp_dest_lo
+                lda #>add1
+                sta zp_dest_hi
+
+                lda #<(portend-add1)
+                sta zp_src_lo
+				jsr send_byte
+                lda #>(portend-add1)
+                sta zp_src_hi
+				jsr send_byte
+
+				jsr get_byte
+				beq +
+				rts
++				
+nextloadbyte2   ldy #$00
+				jsr get_byte
+                sta (zp_dest_lo),y
+                
+                inc zp_dest_lo
+                bne +
+                inc zp_dest_hi
++               
+                jsr decadd
+                bne nextloadbyte2
+
+				rts
+ 
+				
+cursorbc		.byte $05			
+cursorbr		.byte $00		
+colorb			.byte $00	
+				
+title           .text $05, $0e, " EasyFlash3 BBS 1.0",0
+titlend
+title2          .text $99, " Loading Configuration ...",$9b,0
+title2end
+title3          .text $99, " RETURN=select, E=edit, S=save to disk",$9b,0
+title3end
+title4     		.text $99, "F7 will return to this menu",0
+title4end
+title5     		.text $99, "Press R to return to terminal",0
+title5end
+
+addlookupl	.byte <add1,<add2,<add3,<add4,<add5,<add6,<add7,<add8,<add9,<add10,<add11,<add12,<add13,<add14,<add15,<add16,<add17
+			.byte <add18,<add19,<add20
+
+addlookuph	.byte >add1,>add2,>add3,>add4,>add5,>add6,>add7,>add8,>add9,>add10,>add11,>add12,>add13,>add14,>add15,>add16,>add17
+			.byte >add18,>add19,>add20
+
+portlookupl	.byte <port1,<port2,<port3,<port4,<port5,<port6,<port7,<port8,<port9,<port10,<port11,<port12,<port13,<port14,<port15,<port16,<port17
+			.byte <port18,<port19,<port20
+
+portlookuph	.byte >port1,>port2,>port3,>port4,>port5,>port6,>port7,>port8,>port9,>port10,>port11,>port12,>port13,>port14,>port15,>port16,>port17
+			.byte >port18,>port19,>port20
+
+				      ;1234567890123456789012345678901234567890
+add1			.text "the-hidden.hopto.org              ",0
+add2			.text "afterlife.dynu.com                ",0
+add3			.text "antidote.triad.se                 ",0
+add4			.text "                                  ",0
+add5			.text "                                  ",0
+add6			.text "                                  ",0
+add7			.text "                                  ",0
+add8			.text "                                  ",0
+add9			.text "                                  ",0
+add10			.text "                                  ",0
+add11			.text "                                  ",0
+add12			.text "                                  ",0
+add13			.text "                                  ",0
+add14			.text "                                  ",0
+add15			.text "                                  ",0
+add16			.text "                                  ",0
+add17			.text "                                  ",0
+add18			.text "                                  ",0
+add19			.text "                                  ",0
+add20			.text "                                  ",0
+addend
+
+port1			.text "64128",0
+port2			.text " 6400",0
+port3			.text "64128",0
+port4			.text "     ",0
+port5			.text "     ",0
+port6			.text "     ",0
+port7			.text "     ",0
+port8			.text "     ",0
+port9			.text "     ",0
+port10			.text "     ",0
+port11			.text "     ",0
+port12			.text "     ",0
+port13			.text "     ",0
+port14			.text "     ",0
+port15			.text "     ",0
+port16			.text "     ",0
+port17			.text "     ",0
+port18			.text "     ",0
+port19			.text "     ",0
+port20			.text "     ",0
+portend
+
+filler			.byte $00, $00, $00				
+;======================================================================
+;Input a string and store it in GOTINPUT, terminated with a null byte.
+;x:a is a pointer to the allowed list of characters, null-terminated.
+;max # of chars in y returns num of chars entered in y.
+;======================================================================
+
+GETIN = $ffe4
+
+; Main entry
+FILTERED_INPUT
+  sty MAXCHARS
+  stx CHECKALLOWED+1
+  sta CHECKALLOWED+2
+
+	lda #$00
+	sta $cc				; enable cursor
+
+  ;Zero characters received.
+  lda #$00
+  sta INPUT_Y
+
+;Wait for a character.
+INPUT_GET
+  jsr GETIN
+  beq INPUT_GET
+
+  sta LASTCHAR
+
+  cmp #$14               ;Delete
+  beq DELETE
+
+  cmp #$0d               ;Return
+  beq INPUT_DONE
+
+  cmp #$03               ;Run/Stop
+  beq INPUT_RS
+
+  ;Check the allowed list of characters.
+  ldx #$00
+CHECKALLOWED
+  lda $FFFF,x           ;Overwritten
+  beq INPUT_GET         ;Reached end of list (0)
+
+  cmp LASTCHAR
+  beq INPUTOK           ;Match found
+
+  ;Not end or match, keep checking
+  inx
+  jmp CHECKALLOWED
+
+INPUTOK
+  ;End reached?
+  lda INPUT_Y
+  cmp MAXCHARS
+  beq INPUT_GET
+
+  lda LASTCHAR          ;Get the char back
+  ldy INPUT_Y
+  sta GOTINPUT,y        ;Add it to string
+  jsr $ffd2             ;Print it
+
+  inc INPUT_Y           ;Next character
+
+  jmp INPUT_GET
+
+INPUT_DONE
+   ldy INPUT_Y
+   lda #$00
+   sta GOTINPUT,y   ;Zero-terminate
+   clc
+   rts
+
+INPUT_RS
+	sec
+	rts
+
+; Delete last character.
+DELETE
+  ;First, check if we're at the beginning.  If so, just exit.
+  lda INPUT_Y
+  bne DELETE_OK
+  jmp INPUT_GET
+
+  ;At least one character entered.
+DELETE_OK
+  ;Move pointer back.
+  dec INPUT_Y
+
+  ;Store a zero over top of last character, just in case no other characters are entered.
+  ldy INPUT_Y
+  lda #$00
+  sta GOTINPUT,y
+
+				lda #$01
+				sta $cc
+				lda #$20
+				jsr $ea1c	; disable cursor
+				
+  ;Print the delete char
+  lda #157
+  jsr $ffd2
+  lda #' '
+  jsr $ffd2
+  lda #157
+  jsr $ffd2
+				lda #$00
+				sta $cc
+
+  ;Wait for next char
+  jmp INPUT_GET
+
+
+ scrtname          .text "s0:"                   
+ filename .text "ef3book"
+ filenameend
+ filenamelen = filenameend - filename
+ scrtnamelen = filenameend - scrtname
+  
+;------------------------------------------------------------------
+; ROUTINE : KERNAL saver (also saves 2 bytes start address)
+;------------------------------------------------------------------
+kernalsave
+             	lda #0                  ; just incase
+				sta $98
+
+                lda #datachan                 ;Filenumber+Data channel
+                ldx $ba                 ;put the value of $ba here
+                ldy #15
+                jsr Rom_SetLfs
+                lda #scrtnamelen
+                ldx #<scrtname
+                ldy #>scrtname
+                jsr Rom_Setnam
+                jsr Rom_Open            ;returns clc/sec on error                
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+
+                lda #datachan           ;Filenumber+Data channel
+                ldx $ba                 ;put the value of $ba here
+                ldy #1
+                jsr Rom_SetLfs
+                lda #filenamelen
+                ldx #<filename
+                ldy #>filename
+                jsr Rom_Setnam
+                jsr Rom_Open            ;returns clc/sec on error                
+                bcs showerror22          ;device off/busy error
+                ldx #datachan
+                jsr Rom_Chkout           ;Set data channel to input
+                
+                lda #<add1
+                sta zp_dest_lo
+                lda #>add1
+                sta zp_dest_hi
+
+                lda #<(portend-add1)
+                sta zp_src_lo
+                lda #>(portend-add1)
+                sta zp_src_hi
+
+nextsavebyte    ldy #$00
+                lda (zp_dest_lo),y
+                
+                jsr Rom_Chrout
+                
+                inc zp_dest_lo
+                bne +
+                inc zp_dest_hi
++               
+                jsr decadd
+                bne nextsavebyte
+
+                lda #datachan
+                jsr Rom_Close
+                ldx #$00
+                jsr Rom_Chkout
+                
+                rts
+                
+showerror22     jmp showerror           
+  
+  
+  
+;------------------------------------------------------------------
+; ROUTINE : ERROR FLASHING OR DRIVE ERROR
+;------------------------------------------------------------------
+showerror
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+                ldx #$00
+                jsr Rom_Chkout
+                jsr Rom_Chkin                
+                
+                #print clrscr
+                #printat 1,11,linetext
+                #printat 1,12,errortext
+                #printat 1,13,linetext
+                
+errr1           dec $d020
+                jsr $ffe4
+                cmp #$20
+                bne errr1
+                
+                lda #$00
+                sta $d020
+                rts
+                
+;                               1234567890123456789012345678901234567890
+errortext       .text $05, 18, "          error! press <space>        ",146,0
+linetext         .text $05, 18, "                                      ",146, 0
+
+;------------------------------------------------------------------
+; ROUTINE : Decrease length
+;------------------------------------------------------------------
+decadd          dec zp_src_lo
+                lda zp_src_lo
+                cmp #$ff
+                bne notlowest
+                dec zp_src_hi
+                lda zp_src_hi
+                cmp #$ff
+                bne notlowest
+                lda #$00
+notlowest                
+                rts
+
+;------------------------------------------------------------------
+; ROUTINE : KERNAL loader (also loads 2 bytes start address)
+;------------------------------------------------------------------
+kernalload
+;             	lda #0                  ; Just in case
+;	        sta $98
+
+                lda #filenamelen
+                ldx #<filename
+                ldy #>filename
+                jsr Rom_Setnam
+                lda #datachan           ;Filenumber+Data channel
+setdevice       ldx $ba                 ;put the value of $ba here
+                ldy #0
+                jsr Rom_SetLfs
+                jsr Rom_Open            ;returns clc/sec on error                
+                bcs showerror23
+                ldx #datachan
+                jsr Rom_Chkin           ;Set data channel to input
+
+                lda #<add1
+                sta zp_dest_lo
+                lda #>add1
+                sta zp_dest_hi
+                
+                lda #<(portend-add1)
+                sta zp_src_lo
+                lda #>(portend-add1)
+                sta zp_src_hi
+
+                ldy #$00
+
+nextloadbyte    jsr Rom_Chrin
+                tax
+                jsr ROM_status          ;check status byte
+                and #%10000011
+                bne showerror23
+                txa
+                sta (zp_dest_lo),y
+                
+                inc zp_dest_lo
+                bne +
+                inc zp_dest_hi
++               
+                jsr decadd
+                bne nextloadbyte
+
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+                
+                rts
+				
+showerror23     
+                lda #datachan
+                jsr Rom_Close
+                jsr Rom_ClrChn
+                ldx #$00
+                jsr Rom_Chkout
+                jsr Rom_Chkin                
+
+				rts           
+				
+;=================================================
+;Some example filters
+;=================================================
+
+;IPADDRESS
+;  dc.b "1234567890.",0
+
+TEXTfilter
+  .text "abcdefghijklmnopqrstuvwxyz1234567890.-:",0
+
+;=================================================
+MAXCHARS
+  .byte $00
+
+LASTCHAR
+  .byte $00
+
+INPUT_Y
+  .byte $00
+
+screenb
+	.fill 4*256, $00
+attrb
+	.fill 4*256, $00
+  
+GOTINPUT
+  .byte 39				

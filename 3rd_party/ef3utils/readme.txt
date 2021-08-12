@@ -1,3 +1,18 @@
+EasyFlash 3 USB Utilities V1.93 - Kung Fu Flash version
+-------------------------------------------------------
+
+This directory contains a modified version of "EasyFlash 3 USB Utilities V1.93"
+by Tom-Cat. Original release archive can be found here:
+https://csdb.dk/release/?id=150097
+
+Note that Kung Fu Flash shows up as a standard serial port when connected to a
+PC not requiring any custom drivers to be installed.
+
+
+===============================================================================
+Following is the original readme:
+===============================================================================
+
      ********************************************
        Easy Flash III    USB Transfer Utilities
      ********************************************

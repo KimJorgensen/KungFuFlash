@@ -1,0 +1,49 @@
+EasyFlash3 BBS v1.0 - Kung Fu Flash version
+-------------------------------------------
+
+This directory contains a modified version of "EasyFlash3 BBS 1.0" by Tom-Cat -
+original release archive can be found here: https://csdb.dk/release/?id=159907
+
+A BBS list can be found here: http://cbbsoutpost.servebbs.com/
+
+
+===============================================================================
+Following is the original readme:
+===============================================================================
+
+     ********************************************
+                  EeasyFlash3 BBS
+     ********************************************
+                   tomcat@sgn.net
+				        v1.0
+
+This is a simple BBS client for the C64 that has an
+Easy Flash 3 cartridge connected to the PC via USB
+connection.
+Basically it is a telnet client, but it is mostly
+used to connect to the numerous C64 BBS servers that
+are still out there.
+
+To start just reset your C64 into the Easy Flash 3
+Menu and start the   ef3bbs.exe   on your PC.
+The Client program will be automatically started on
+the c64. There you can select one of the predefined
+bbs addresses or enter your own. If you need to have
+a different port number than 23 then enter it after
+the address separated with a : ... for example:
+  c64.bbs.com:64
+  
+You can save the bookmarks on the PC by pressing the
+S key. They will be automatically loaded next time
+you start the BBS client.
+
+By selecting one of the addresses you will connect
+to the BBS. To return back to the main menu press
+F7. There you can select another BBS and connect to
+that one.
+
+While connected to the BBS you can initiate a file
+transfer to and from the BBS. When you do that you
+must have the file on the PC filesystem and press
+one of the keys for transfer (x and 1 for xmodem
+download and u for x modem upload).

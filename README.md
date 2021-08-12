@@ -57,7 +57,7 @@ The following file types are currently supported:
 The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.
 Kung Fu Flash shows up as a standard serial port when connected to a PC not requiring any custom drivers to be installed.
 This means, however, that the program on the PC side must be modified to support Kung Fu Flash.
-For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3utils) has been included in this repository.
+For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3utils) and [EasyFlash 3 BBS](3rd_party/ef3bbs) has been included in this repository.
 
 ## Firmware Update
 Just place the KungFuFlash_v1.xx.upd file on the SD card and select the file in the launcher to initiate the firmware update.
