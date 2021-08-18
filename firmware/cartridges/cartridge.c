@@ -38,6 +38,7 @@
 #include "prophet64.c"
 #include "freeze_machine.c"
 #include "rgcd.c"
+#include "c128_normal.c"
 
 static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
 {
@@ -106,6 +107,9 @@ static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
 
         case CRT_RGCD:
             return rgcd_handler;
+
+        case CRT_C128_NORMAL_CARTRIDGE:
+            return c128_handler;
     }
 
     return NULL;

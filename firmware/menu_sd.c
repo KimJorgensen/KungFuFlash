@@ -529,6 +529,59 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
         }
         break;
 
+        case FILE_ROM:
+        {
+            if (!(flags & SELECT_FLAG_ACCEPT))
+            {
+                FIL file;
+                handle_file_open(&file, file_name);
+
+                if (rom_load_file(&file) &&
+                    // Look for C128 CRT identifier
+                    (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
+                     memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
+                {
+                    // Show warning on a C64
+                    if (!(flags & SELECT_FLAG_C128))
+                    {
+                        handle_unsupported_warning("Cartridge will only run on a C128",
+                                                   file_name, element);
+                    }
+                    else
+                    {
+                        exit_menu = true;
+                    }
+                }
+                else
+                {
+                    handle_unsupported(file_name);
+                }
+
+                file_close(&file);
+            }
+            else
+            {
+                exit_menu = true;
+            }
+
+            if (exit_menu)
+            {
+                c64_send_exit_menu();
+
+                uint8_t banks = 4;
+                uint32_t flash_hash = crt_calc_flash_crc(banks);
+                dat_file.crt.type = CRT_C128_NORMAL_CARTRIDGE;
+                dat_file.crt.hw_rev = 0;
+                dat_file.crt.exrom = 1;
+                dat_file.crt.game = 1;
+                dat_file.crt.banks = banks;
+                dat_file.crt.flags = CRT_FLAG_VIC;
+                dat_file.crt.flash_hash = flash_hash;
+                dat_file.boot_type = DAT_CRT;
+            }
+        }
+        break;
+
         case FILE_CRT:
         {
             FIL file;

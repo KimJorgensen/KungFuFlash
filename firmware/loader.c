@@ -66,6 +66,14 @@ static bool p00_load_file(FIL *file)
     return false;
 }
 
+static uint16_t rom_load_file(FIL *file)
+{
+    memset(dat_buffer, 0xff, sizeof(dat_buffer));
+
+    uint16_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
+    return len;
+}
+
 static bool crt_load_header(FIL *file, CRT_HEADER *header)
 {
     uint32_t len = file_read(file, header, sizeof(CRT_HEADER));

@@ -94,7 +94,10 @@ typedef enum {
     CRT_BLACKBOX_V9,
     CRT_LT_KERNAL_HOST_ADAPTOR,
     CRT_RAMLINK,
-    CRT_HERO
+    CRT_HERO,
+
+    // KFF specific extensions
+    CRT_C128_NORMAL_CARTRIDGE = 0xFF00
 } CRT_TYPE;
 
 typedef enum {

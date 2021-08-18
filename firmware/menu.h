@@ -33,6 +33,7 @@ static MENU_STATE *menu_state;
 static void handle_failed_to_read_sd(void);
 static void handle_unsupported(const char *file_name);
 static void handle_unsupported_ex(const char *title, const char *message, const char *file_name);
+static void handle_unsupported_warning(const char *message, const char *file_name, uint8_t element_no);
 static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t));
 static void handle_file_options(const char *file_name, uint8_t file_type, uint8_t element_no);
 static void handle_upgrade_menu(const char *firmware, uint8_t element_no);

@@ -162,6 +162,17 @@ static void handle_unsupported(const char *file_name)
     handle_unsupported_ex("Unsupported", "File is not supported or invalid", file_name);
 }
 
+static void handle_unsupported_warning(const char *message, const char *file_name, uint8_t element_no)
+{
+    OPTIONS_STATE *options = build_options("Unsupported", message);
+
+    options_add_text_block(options, file_name);
+    options_add_dir(options, "Cancel");
+    options_add_select(options, "Continue", SELECT_FLAG_ACCEPT, element_no);
+
+    handle_options(options);
+}
+
 static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t))
 {
     OPTIONS_STATE *options = build_options("Unsaved changes",

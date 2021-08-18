@@ -44,11 +44,13 @@ The following cartridge types are currently supported:
 * Freeze Frame
 * Freeze Machine
 * RGCD, Hucky
+* C128 Normal Cartridge (external function ROM)
 
 ## Supported File Types
 The following file types are currently supported:
 
 * Cartridge (CRT)
+* C128 cartridge (ROM, BIN)
 * Disk image (D64, D71, D81)
 * Program (PRG, P00)
 * Firmware update (UPD)

@@ -132,7 +132,7 @@ static uint8_t get_file_type(FILINFO *info)
         else if (compare_extension(filename, "ROM") ||
                  compare_extension(filename, "BIN"))
         {
-            if (info->fsize == 8*1024)
+            if (info->fsize <= sizeof(dat_buffer))
             {
                 return FILE_ROM;
             }
