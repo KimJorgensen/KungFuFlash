@@ -489,6 +489,23 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
+static bool handle_unsupported_crt(void)
+{
+    bool unsupported = !c64_fw_supports_crt();
+    if (unsupported)
+    {
+#ifdef NTSC
+        handle_unsupported_ex("Unsupported",
+            "Please update to PAL firmware to run", dat_file.file);
+#else
+        handle_unsupported_ex("Unsupported",
+            "Please update to NTSC firmware to   run", dat_file.file);
+#endif
+    }
+
+    return unsupported;
+}
+
 static bool handle_load_file(SD_STATE *state, const char *file_name,
                              uint8_t file_type, uint8_t flags, uint8_t element)
 {
@@ -541,6 +558,11 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                     (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
                      memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
                 {
+                    if (handle_unsupported_crt())
+                    {
+                        break;
+                    }
+
                     // Show warning on a C64
                     if (!(flags & SELECT_FLAG_C128))
                     {
@@ -601,15 +623,8 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                 break;
             }
 
-            if (!c64_fw_supports_crt())
+            if (handle_unsupported_crt())
             {
-#ifdef NTSC
-                handle_unsupported_ex("Unsupported",
-                    "Please update to PAL firmware to run", dat_file.file);
-#else
-                handle_unsupported_ex("Unsupported",
-                    "Please update to NTSC firmware to   run", dat_file.file);
-#endif
                 break;
             }
 
