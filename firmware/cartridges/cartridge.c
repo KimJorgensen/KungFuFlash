@@ -99,6 +99,7 @@ static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
             }
 
         case CRT_PROPHET64:
+        case CRT_DREAN:
             return prophet64_handler;
 
         case CRT_FREEZE_FRAME:

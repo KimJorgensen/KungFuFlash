@@ -44,6 +44,7 @@ The following cartridge types are currently supported:
 * Freeze Frame
 * Freeze Machine
 * RGCD, Hucky
+* Drean
 * C128 Normal Cartridge (external function ROM)
 
 ## Supported File Types
