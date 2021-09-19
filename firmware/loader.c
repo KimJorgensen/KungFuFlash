@@ -440,15 +440,33 @@ static bool load_dat(void)
 
 static bool auto_boot(void)
 {
+    bool result = false;
+
     load_dat();
     if (menu_signature() || menu_button_pressed())
     {
-        menu_button_wait_release();
         invalidate_menu_signature();
-        return false;
+
+        uint32_t i = 0;
+        while (menu_button_pressed())
+        {
+            // Menu button long press will start diagnostic
+            if (++i > 1500)
+            {
+                led_off();
+                dat_file.boot_type = DAT_DIAG;
+                result = true;
+            }
+            delay_ms(1);
+        }
+    }
+    else
+    {
+        result = true;
     }
 
-    return true;
+    menu_button_enable();
+    return result;
 }
 
 static bool save_dat(void)
@@ -750,6 +768,13 @@ static bool c64_set_mode(void)
             result = true;
         }
         break;
+
+        case DAT_DIAG:
+        {
+            c64_disable();
+            ef_init();
+            result = true;
+        }
     }
 
     return result;

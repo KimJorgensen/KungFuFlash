@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -19,24 +19,39 @@
  */
 
 // Use EF3 USB registers to communicate with C64
-static void c64_ef3_read(void *buffer, size_t size)
+static inline bool c64_got_byte(void)
+{
+    return ef3_gotc();
+}
+
+static inline uint8_t c64_receive_byte(void)
+{
+    return ef3_getc();
+}
+
+static inline void c64_send_byte(uint8_t data)
+{
+    ef3_putc(data);
+}
+
+static void c64_receive_data(void *buffer, size_t size)
 {
     uint8_t *buf_ptr = (uint8_t *)buffer;
 
     for (; size; size--)
     {
-        uint8_t c = ef3_getc();
+        uint8_t c = c64_receive_byte();
         *buf_ptr++ = c;
     }
 }
 
-static void c64_ef3_write(const void *buffer, size_t size)
+static void c64_send_data(const void *buffer, size_t size)
 {
     const uint8_t *buf_ptr = (const uint8_t *)buffer;
 
     for (; size; size--)
     {
-        ef3_putc(*buf_ptr++);
+        c64_send_byte(*buf_ptr++);
     }
 }
 
@@ -44,10 +59,10 @@ static bool c64_send_command(const char *cmd, const char *exp)
 {
     char buffer[6];
 
-    c64_ef3_write("EFSTART:", 8);
-    c64_ef3_write(cmd, 4);
+    c64_send_data("EFSTART:", 8);
+    c64_send_data(cmd, 4);
 
-    c64_ef3_read(buffer, 5);
+    c64_receive_data(buffer, 5);
     buffer[5] = 0;
 
     if (strcmp(buffer, exp) != 0)
@@ -63,7 +78,7 @@ static bool c64_wait_for_close(void)
 {
     char buffer[2];
 
-    c64_ef3_read(buffer, 2);
+    c64_receive_data(buffer, 2);
     if(buffer[0] != 0 || buffer[1] != 0)
     {
         wrn("Expected close, but got: %02x %02x\n", buffer[0], buffer[1]);
@@ -83,14 +98,14 @@ static bool c64_send_prg(const void *data, uint16_t size)
         return false;
     }
 
-    c64_ef3_read(&tx_size, 2);
+    c64_receive_data(&tx_size, 2);
     if(tx_size > size)
     {
         tx_size = size;
     }
 
-    c64_ef3_write(&tx_size, 2);
-    c64_ef3_write(data, tx_size);
+    c64_send_data(&tx_size, 2);
+    c64_send_data(data, tx_size);
 
     if(!c64_wait_for_close())
     {
@@ -131,6 +146,51 @@ static char sanitize_char(char c)
     }
 
     return c;
+}
+
+// From https://sta.c64.org/cbm64pettoscr.html
+static char * convert_to_screen_code(char *dest, const char *src)
+{
+    while (*src)
+    {
+        char c = *src++;
+        if (c <= 0x1f)
+        {
+            c |= 0x80;
+        }
+        else if (c <= 0x3f)
+        {
+            // No conversion
+        }
+        else if (c <= 0x5f)
+        {
+            c &= ~0x40;
+        }
+        else if (c <= 0x7f)
+        {
+            c &= ~0x20;
+        }
+        else if (c <= 0x9f)
+        {
+            c |= 0x40;
+        }
+        else if (c <= 0xbf)
+        {
+            c &= ~0x40;
+        }
+        else if (c <= 0xfe)
+        {
+            c &= ~0x80;
+        }
+        else
+        {
+            c = 0x5e;
+        }
+
+        *dest++ = c;
+    }
+
+    return dest;
 }
 
 static char petscii_to_ascii(char c)
@@ -201,19 +261,13 @@ static uint16_t convert_to_petscii(char *dest, const char *src)
     return i + 1;
 }
 
-static bool c64_send_text(const char *cmd, const void *text)
+static bool c64_send_petscii(const void *text)
 {
     uint16_t text_len = convert_to_petscii(scratch_buf, text);
+    c64_send_data(&text_len, 2);
+    c64_send_data(scratch_buf, text_len);
 
-    if(!c64_send_command(cmd, "READ"))
-    {
-        return false;
-    }
-
-    c64_ef3_write(&text_len, 2);
-    c64_ef3_write(scratch_buf, text_len);
-
-    if(!c64_wait_for_close())
+    if (!c64_wait_for_close())
     {
         return false;
     }
@@ -221,83 +275,52 @@ static bool c64_send_text(const char *cmd, const void *text)
     return true;
 }
 
-// From https://sta.c64.org/cbm64pettoscr.html
-static char * convert_to_screen_code(char *dest, const char *src)
+static bool c64_send_text(uint8_t color, uint8_t x, uint8_t y, const char *text)
 {
-    while (*src)
+    dbg("Sending text \"%s\"\n", text);
+    if (!c64_send_command("TXT", "READ"))
     {
-        char c = *src++;
-        if (c <= 0x1f)
-        {
-            c |= 0x80;
-        }
-        else if (c <= 0x3f)
-        {
-            // No conversion
-        }
-        else if (c <= 0x5f)
-        {
-            c &= ~0x40;
-        }
-        else if (c <= 0x7f)
-        {
-            c &= ~0x20;
-        }
-        else if (c <= 0x9f)
-        {
-            c |= 0x40;
-        }
-        else if (c <= 0xbf)
-        {
-            c &= ~0x40;
-        }
-        else if (c <= 0xfe)
-        {
-            c &= ~0x80;
-        }
-        else
-        {
-            c = 0x5e;
-        }
-
-        *dest++ = c;
+        return false;
     }
 
-    return dest;
+    c64_send_byte(color);
+    c64_send_byte(x);
+    c64_send_byte(y);
+    return c64_send_petscii(text);
+}
+
+static bool c64_send_message_command(const char *cmd, const char *text)
+{
+    if (!c64_send_command(cmd, "READ"))
+    {
+        return false;
+    }
+
+    return c64_send_petscii(text);
 }
 
 static bool c64_send_message(const char *text)
 {
     dbg("Sending message \"%s\"\n", text);
-    return c64_send_text("MSG", text);
+    return c64_send_message_command("MSG", text);
 }
 
 static bool c64_send_warning(const char *text)
 {
     dbg("Sending warning message \"%s\"\n", text);
-    return c64_send_text("MSW", text);
+    return c64_send_message_command("MSW", text);
 }
 
 static bool c64_send_error(const char *text)
 {
     dbg("Sending error message \"%s\"\n", text);
-    return c64_send_text("MSE", text);
+    return c64_send_message_command("MSE", text);
 }
 
 static bool c64_send_prg_message(const char *text)
 {
     dbg("Sending flash programming message \"%s\"\n", text);
-    return c64_send_text("MSF", text);
-}
-
-static inline uint8_t c64_receive_byte(void)
-{
-    return ef3_getc();
-}
-
-static inline void c64_receive_data(void *buffer, size_t size)
-{
-    c64_ef3_read(buffer, size);
+    return c64_send_message_command("MSF", text);
 }
 
 static void c64_receive_string(char *buffer)
@@ -305,11 +328,6 @@ static void c64_receive_string(char *buffer)
     uint8_t size = c64_receive_byte();
     c64_receive_data(buffer, size);
     buffer[size] = 0;
-}
-
-static inline bool c64_got_command(void)
-{
-    return ef3_gotc();
 }
 
 static uint8_t c64_receive_command(void)
@@ -327,14 +345,9 @@ static uint8_t c64_receive_command(void)
     return cmd_buf[4];
 }
 
-static inline void c64_send_data(const void *buffer, size_t size)
-{
-    c64_ef3_write(buffer, size);
-}
-
 static inline void c64_send_reply(uint8_t reply)
 {
-    c64_send_data(&reply, 1);
+    c64_send_byte(reply);
 }
 
 static void c64_send_exit_menu(void)

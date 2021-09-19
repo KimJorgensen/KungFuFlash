@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -124,7 +124,6 @@ int main(void)
 static void mainLoop(void)
 {
     const char *cmd, *text;
-    bool send_fclose;
     uint8_t i;
 
     // Get command from Kung Fu Flash cartridge using the EF3 USB protocol
@@ -135,7 +134,7 @@ static void mainLoop(void)
 
     while (true)
     {
-        send_fclose = false;
+        bool send_fclose = false;
 
         if (cmd == NULL)
         {
@@ -153,6 +152,7 @@ static void mainLoop(void)
                 color = ERRORC;
             }
 
+            ef3usb_send_str("read");
             text = usb_read_text();
             showMessage(text, color);
 
@@ -165,6 +165,19 @@ static void mainLoop(void)
                 textcolor(ERRORC);
                 cprintf("PLEASE DO NOT POWER OFF OR RESET");
             }
+
+            send_fclose = true;
+        }
+        else if (strcmp(cmd, "txt") == 0)           // Print text
+        {
+            uint8_t cxy[3];
+
+            ef3usb_send_str("read");
+            ef3usb_receive_data(&cxy, sizeof(cxy));
+            text = usb_read_text();
+
+            textcolor(cxy[0]);
+            cputsxy(cxy[1], cxy[2], text);
 
             send_fclose = true;
         }
@@ -203,8 +216,6 @@ static void mainLoop(void)
 static const char *usb_read_text(void)
 {
     uint16_t size;
-
-    ef3usb_send_str("read");
     ef3usb_receive_data(&size, 2);
     ef3usb_receive_data(bigBuffer, size);
     bigBuffer[size] = 0;

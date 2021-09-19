@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,7 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -33,6 +34,7 @@
 #include "menu.c"
 #include "disk_drive.c"
 #include "eapi.c"
+#include "diagnostic.c"
 
 int main(void)
 {
@@ -81,6 +83,10 @@ int main(void)
     {
         eapi_loop();
     }
+    else if (dat_file.boot_type == DAT_DIAG)
+    {
+        diag_loop();
+    }
 
     dbg("In main loop...\n");
     while (true)
@@ -92,7 +98,7 @@ int main(void)
         }
 
         // Forward data from C64 to USB
-        if (ef3_gotc())
+        if (ef3_gotc() && usb_can_putc())
         {
             usb_putc(ef3_getc());
         }

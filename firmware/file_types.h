@@ -173,7 +173,8 @@ typedef enum {
     DAT_KERNAL,
     DAT_BASIC,
     DAT_KILL,
-    DAT_KILL_C128
+    DAT_KILL_C128,
+    DAT_DIAG
 } DAT_BOOT_TYPE;
 
 typedef enum {

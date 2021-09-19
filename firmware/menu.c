@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -45,7 +45,7 @@ static void menu_loop()
     while (!exit_loop)
     {
         uint8_t data;
-        uint8_t command = c64_got_command() ?
+        uint8_t command = c64_got_byte() ?
                           c64_receive_command() : CMD_NONE;
         switch (command)
         {

@@ -244,17 +244,18 @@ static void c64_clock_config()
     // Enable capture 1 and 2
     TIM1->CCER |= TIM_CCER_CC1E|TIM_CCER_CC2E;
 
-    // Disable UEV events and enable counter
-    TIM1->CR1 |= TIM_CR1_UDIS|TIM_CR1_CEN;
-
     /**** Setup phi2 interrupt ****/
 
     // Generate OC3 interrupt before 0.5 of the C64 clock cycle
     // Value set in c64_interface()
-    TIM1->CCR3 = 0;
+    TIM1->CCR3 = 52;
 
-    // Enable compare mode 1. OC3 is high when TIM1_CNT == TIM1_CCR3
-    MODIFY_REG(TIM1->CCMR2, TIM_CCMR2_OC3M, TIM_CCMR2_OC3M_0);
+    // Set CC4IF on timer owerflow
+    TIM1->CCR4 = -1;
+
+    // Enable compare mode 1. OC3 and OC4 is high when TIM1_CNT == TIM1_CCRx
+    MODIFY_REG(TIM1->CCMR2, TIM_CCMR2_OC3M|TIM_CCMR2_OC3M,
+                            TIM_CCMR2_OC3M_0|TIM_CCMR2_OC4M_0);
 
     // Disable all TIM1 (and TIM8) interrupts
     TIM1->DIER = 0;
@@ -262,6 +263,9 @@ static void c64_clock_config()
     // Enable TIM1_CC_IRQn, highest priority
     NVIC_SetPriority(TIM1_CC_IRQn, 0);
     NVIC_EnableIRQ(TIM1_CC_IRQn);
+
+    // Enable counter
+    TIM1->CR1 |= TIM_CR1_CEN;
 }
 
 // C64_BUS_HANDLER timing
@@ -473,11 +477,63 @@ static inline bool c64_fw_supports_crt(void)
 }
 
 /*************************************************
+* C64 diagnostic
+*************************************************/
+#define DIAG_INIT   (0x00)
+#define DIAG_RUN    (0x01)
+#define DIAG_STOP   (0x02)
+
+static volatile uint32_t diag_state;
+static volatile uint32_t diag_phi2_freq;
+
+static void c64_diag_handler(void)
+{
+    // Clear the interrupt flag
+    TIM1->SR = ~TIM_SR_CC3IF;
+    __DSB();
+
+    if (diag_state == DIAG_RUN)
+    {
+        // Count number of interrupts within 1 second (168 MHz)
+        if (DWT->CYCCNT < 168000000)
+        {
+            // Check for timer overflow (no phi2 clock)
+            if (TIM1->SR & TIM_SR_CC4IF)
+            {
+                TIM1->SR = ~TIM_SR_CC4IF;
+            }
+            else
+            {
+                diag_phi2_freq++;
+            }
+        }
+        else
+        {
+            diag_state = DIAG_STOP;
+        }
+    }
+    else if (diag_state == DIAG_INIT)
+    {
+        // Start measuring
+        DWT->CYCCNT = 0;
+        diag_phi2_freq = 0;
+        diag_state = DIAG_RUN;
+    }
+}
+
+/*************************************************
 * C64 interface status
 *************************************************/
 static inline bool c64_interface_active(void)
 {
     return (TIM1->DIER & TIM_DIER_CC3IE) != 0;
+}
+
+static void c64_interface_enable_no_check(void)
+{
+    // Capture/Compare 3 interrupt enable
+    TIM1->SR = ~(TIM_SR_CC3IF|TIM_SR_CC4IF);
+    TIM1->DIER |= TIM_DIER_CC3IE;
 }
 
 static void c64_interface(bool state)
@@ -499,10 +555,10 @@ static void c64_interface(bool state)
     uint32_t led_activity = 0;
 
     // Wait for a valid C64 clock signal
-    while (valid_clock_count < 3)
+    while (valid_clock_count < 5)
     {
         // NTSC: 161-164, PAL: 168-169
-        if(TIM1->CCR1 < 161 || TIM1->CCR1 > 169)
+        if (!(TIM1->SR & TIM_SR_CC1IF) || TIM1->CCR1 < 161 || TIM1->CCR1 > 169)
         {
             valid_clock_count = 0;
 
@@ -541,9 +597,7 @@ static void c64_interface(bool state)
         DWT->COMP1 = PAL_PHI2_LOW;     // before phi2 is low
     }
 
-    // Capture/Compare 3 interrupt enable
-    TIM1->SR = ~TIM_SR_CC3IF;
-    TIM1->DIER |= TIM_DIER_CC3IE;
+    c64_interface_enable_no_check();
 }
 
 /*************************************************
@@ -595,11 +649,6 @@ static inline bool menu_button_pressed(void)
     return (GPIOA->IDR & GPIO_IDR_ID4) != 0;
 }
 
-static void menu_button_wait_release(void)
-{
-    while (menu_button_pressed());
-}
-
 static inline bool special_button_pressed(void)
 {
     return (GPIOA->IDR & GPIO_IDR_ID5) != 0;
@@ -619,6 +668,13 @@ void EXTI4_IRQHandler(void)
     }
 }
 
+static void menu_button_enable(void)
+{
+    // Enable PA4 interrupt
+    EXTI->PR = EXTI_PR_PR4;
+    EXTI->IMR |= EXTI_IMR_MR4;
+}
+
 static void button_config(void)
 {
     // Make PA4 and PA5 input
@@ -628,16 +684,14 @@ static void button_config(void)
     MODIFY_REG(GPIOA->PUPDR, GPIO_PUPDR_PUPD4|GPIO_PUPDR_PUPD5,
                GPIO_PUPDR_PUPD4_1|GPIO_PUPDR_PUPD5_1);
 
-    // Enable EXTI4 interrupt on PA4
-    MODIFY_REG(SYSCFG->EXTICR[1], SYSCFG_EXTICR2_EXTI4, SYSCFG_EXTICR2_EXTI4_PA);
-    EXTI->IMR |= EXTI_IMR_MR4;
-
     // Rising edge trigger on PA4
     EXTI->RTSR |= EXTI_RTSR_TR4;
     EXTI->FTSR &= ~EXTI_FTSR_TR4;
 
+    // EXTI4 interrupt on PA4
+    MODIFY_REG(SYSCFG->EXTICR[1], SYSCFG_EXTICR2_EXTI4, SYSCFG_EXTICR2_EXTI4_PA);
+
     // Enable EXTI4_IRQHandler, lowest priority
-    EXTI->PR = EXTI_PR_PR4;
     NVIC_SetPriority(EXTI4_IRQn, 0x0f);
     NVIC_EnableIRQ(EXTI4_IRQn);
 }

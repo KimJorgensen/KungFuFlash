@@ -277,6 +277,11 @@ static usbd_respond cdc_control(usbd_device *dev, usbd_ctlreq *req, usbd_rqc_cal
     return usbd_fail;
 }
 
+static inline bool usb_can_putc(void)
+{
+    return utx_pos < (sizeof(utx_fifo) - 1);
+}
+
 static void usb_putc(char ch)
 {
     // Wait for room in the fifo
