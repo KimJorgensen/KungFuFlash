@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,6 +20,12 @@
 
 static uint8_t settings_flags;
 
+static void settings_refresh(OPTIONS_ELEMENT *element, const char *text)
+{
+    options_element_text(element, text);
+    menu_state->dir(menu_state); // Refresh settings
+}
+
 static const char * settings_basic_text(void)
 {
     sprint(scratch_buf, "Persist BASIC selection: %s",
@@ -39,8 +45,7 @@ static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element
         settings_flags |= DAT_FLAG_PERSIST_BASIC;
     }
 
-    options_element_text(element, settings_basic_text());
-    menu_state->dir(menu_state); // Refresh settings
+    settings_refresh(element, settings_basic_text());
     return false;
 }
 
@@ -63,8 +68,7 @@ static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *ele
         settings_flags |= DAT_FLAG_AUTOSTART_D64;
     }
 
-    options_element_text(element, settings_autostart_text());
-    menu_state->dir(menu_state); // Refresh settings
+    settings_refresh(element, settings_autostart_text());
     return false;
 }
 
@@ -79,8 +83,7 @@ static bool settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *elemen
     uint8_t device = get_device_number(settings_flags) + 1;
     set_device_number(&settings_flags, device);
 
-    options_element_text(element, settings_device_text());
-    menu_state->dir(menu_state); // Refresh settings
+    settings_refresh(element, settings_device_text());
     return false;
 }
 
