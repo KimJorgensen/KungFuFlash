@@ -551,11 +551,11 @@ static void c64_interface(bool state)
         return;
     }
 
-    uint8_t valid_clock_count = 0;
+    uint32_t valid_clock_count = 0;
     uint32_t led_activity = 0;
 
     // Wait for a valid C64 clock signal
-    while (valid_clock_count < 5)
+    while (valid_clock_count < 100)
     {
         // NTSC: 161-164, PAL: 168-169
         if (!(TIM1->SR & TIM_SR_CC1IF) || TIM1->CCR1 < 161 || TIM1->CCR1 > 169)
