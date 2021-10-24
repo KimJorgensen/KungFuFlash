@@ -288,12 +288,15 @@ static void c64_clock_config()
 #define PHI2_VIC_DELAY      32
 #define PHI2_VIC_END        58
 
-#define C64_CPU_VIC_DELAY() \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
+#define C64_VIC_DELAY_SHORT()   \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();
+
+#define C64_CPU_VIC_DELAY()     \
+    C64_VIC_DELAY_SHORT();      \
     __NOP();
 
 #else // PAL
@@ -306,26 +309,29 @@ static void c64_clock_config()
 #define PHI2_VIC_DELAY      33
 #define PHI2_VIC_END        61
 
-#define C64_CPU_VIC_DELAY() \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
-    __NOP();                \
+#define C64_VIC_DELAY_SHORT()   \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();                    \
+    __NOP();
+
+#define C64_CPU_VIC_DELAY()     \
+    C64_VIC_DELAY_SHORT();      \
     __NOP();
 
 #endif
 
-#define C64_BUS_HANDLER(name)                                                       \
-        C64_BUS_HANDLER_(name##_handler, name##_read_handler, name##_write_handler)
+#define C64_BUS_HANDLER(name)                                                   \
+    C64_BUS_HANDLER_(name##_handler, name##_read_handler, name##_write_handler)
 
-#define C64_BUS_HANDLER_READ(name, read_handler)                                    \
-        C64_BUS_HANDLER_(name##_handler, read_handler, name##_write_handler)
+#define C64_BUS_HANDLER_READ(name, read_handler)                                \
+    C64_BUS_HANDLER_(name##_handler, read_handler, name##_write_handler)
 
-#define C64_BUS_HANDLER_(name, read_handler, write_handler)                     \
-static void name(void)                                                          \
+#define C64_BUS_HANDLER_(handler, read_handler, write_handler)                  \
+static void handler(void)                                                       \
 {                                                                               \
     /* We need to clear the interrupt flag early otherwise the next */          \
     /* interrupt may be delayed */                                              \
@@ -333,7 +339,7 @@ static void name(void)                                                          
     __DSB();                                                                    \
     /* Use debug cycle counter which is faster to access than timer */          \
     DWT->CYCCNT = TIM1->CNT;                                                    \
-    __DMB();                                                                    \
+    COMPILER_BARRIER();                                                         \
     uint32_t phi2_high = DWT->COMP0;                                            \
     while (DWT->CYCCNT < phi2_high);                                            \
     uint32_t addr = c64_addr_read();                                            \
@@ -358,41 +364,62 @@ static void name(void)                                                          
     }                                                                           \
 }
 
-#define C64_VIC_BUS_HANDLER_EX(name)                                                \
-        C64_VIC_BUS_HANDLER_EX_(name##_handler, name##_vic_read_handler,            \
-                                name##_read_handler, name##_early_write_handler,    \
-                                name##_write_handler, C64_VIC_DELAY)
+#define C64_VIC_BUS_HANDLER_EX(name)                                            \
+    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
+                            name##_vic_read_handler, name##_read_handler,       \
+                            name##_early_write_handler, name##_write_handler,   \
+                            C64_VIC_DELAY())
 
-#define C64_VIC_BUS_HANDLER(name)                                                   \
-        C64_VIC_BUS_HANDLER_EX_(name##_handler, name##_read_handler,                \
-                                name##_read_handler, C64_WRITE_DELAY,               \
-                                name##_write_handler, C64_VIC_DELAY)
+#define C64_VIC_BUS_HANDLER(name)                                               \
+    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
+                            name##_read_handler, name##_read_handler,           \
+                            C64_WRITE_DELAY, name##_write_handler,              \
+                            C64_VIC_DELAY())
 
-#define C64_C128_BUS_HANDLER(name)                                                  \
-        C64_VIC_BUS_HANDLER_EX_(name##_handler, name##_read_handler,                \
-                                name##_read_handler, C64_WRITE_DELAY,               \
-                                name##_write_handler, C64_NO_DELAY)
+#define C64_C128_BUS_HANDLER_EX(name)                                           \
+    C64_VIC_BUS_HANDLER_EX_(name##_handler,                                     \
+                            C64_EARLY_CPU_VIC_HANDLER(name),                    \
+                            name##_vic_read_handler, name##_read_handler,       \
+                            C64_WRITE_DELAY, name##_write_handler,              \
+                            C64_EARLY_VIC_HANDLER(name))
+
+#define C64_C128_BUS_HANDLER(name)                                              \
+    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
+                            name##_read_handler, name##_read_handler,           \
+                            C64_WRITE_DELAY, name##_write_handler,              \
+                            C64_NO_DELAY())
+
+#define C64_EARLY_CPU_VIC_HANDLER(name)                                         \
+    /* Note: addr gets overwritten here */                                      \
+    addr = name##_early_vic_handler(addr);                                      \
+    COMPILER_BARRIER();
+
+#define C64_EARLY_VIC_HANDLER(name)                                             \
+    C64_EARLY_CPU_VIC_HANDLER(name);                                            \
+    C64_VIC_DELAY_SHORT();
 
 #define C64_NO_DELAY()
-#define C64_WRITE_DELAY()                                                           \
-    /* Wait for data to become ready on the data bus */                             \
+#define C64_WRITE_DELAY()                                                       \
+    /* Wait for data to become ready on the data bus */                         \
     while (DWT->CYCCNT < PHI2_WRITE_DELAY);
 
-#define C64_VIC_DELAY()                                                             \
-    /* Wait for the control bus to become stable */                                 \
+#define C64_VIC_DELAY()                                                         \
+    /* Wait for the control bus to become stable */                             \
     while (DWT->CYCCNT < PHI2_VIC_DELAY);
 
 // This supports VIC-II reads from the cartridge (i.e. character and sprite data)
 // but uses 100% CPU - other interrupts are not served due to the interrupt priority
-#define C64_VIC_BUS_HANDLER_EX_(name, vic_read_handler, read_handler,           \
-                                early_write_handler, write_handler, vic_delay)  \
-void name(void)                                                                 \
+#define C64_VIC_BUS_HANDLER_EX_(handler, early_cpu_vic_handler,                 \
+                                vic_read_handler, read_handler,                 \
+                                early_write_handler, write_handler,             \
+                                early_vic_handler)                              \
+void handler(void)                                                              \
 {                                                                               \
     /* As we don't return from this handler, we need to do this here */         \
     c64_reset(false);                                                           \
     /* Use debug cycle counter which is faster to access than timer */          \
     DWT->CYCCNT = TIM1->CNT;                                                    \
-    __DMB();                                                                    \
+    COMPILER_BARRIER();                                                         \
     while (true)                                                                \
     {                                                                           \
         /* Wait for CPU cycle */                                                \
@@ -420,7 +447,7 @@ void name(void)                                                                 
         else                                                                    \
         {                                                                       \
             /* Wait for the control bus to become stable */                     \
-            C64_CPU_VIC_DELAY()                                                 \
+            early_cpu_vic_handler;                                              \
             control = c64_control_read();                                       \
             if (vic_read_handler(control, addr))                                \
             {                                                                   \
@@ -432,20 +459,19 @@ void name(void)                                                                 
         if (control & MENU_BTN)                                                 \
         {                                                                       \
             /* Allow the menu button interrupt handler to run */                \
-            c64_interface(false);                                               \
             break;                                                              \
         }                                                                       \
         /* Wait for VIC-II cycle */                                             \
         while (TIM1->CNT >= 80);                                                \
         DWT->CYCCNT = TIM1->CNT;                                                \
-        __DMB();                                                                \
+        COMPILER_BARRIER();                                                     \
         while (DWT->CYCCNT < PHI2_VIC_START);                                   \
         addr = c64_addr_read();                                                 \
         COMPILER_BARRIER();                                                     \
         /* Ideally, we would always wait until PHI2_VIC_DELAY here which is */  \
         /* required when the VIC-II has the bus, but we need more cycles */     \
         /* in C128 2 MHz mode where data is read from flash */                  \
-        vic_delay();                                                            \
+        early_vic_handler;                                                      \
         control = c64_control_read();                                           \
         if (vic_read_handler(control, addr))                                    \
         {                                                                       \
@@ -454,8 +480,9 @@ void name(void)                                                                 
             c64_data_input();                                                   \
         }                                                                       \
     }                                                                           \
-    TIM1->SR = ~TIM_SR_CC3IF;                                                   \
-    __DMB();                                                                    \
+    c64_interface(false);                                                       \
+    /* Ensure interrupt flag is cleared before leaving the handler */           \
+    (void)TIM1->SR;                                                             \
 }
 
 #define C64_INSTALL_HANDLER(handler)                    \

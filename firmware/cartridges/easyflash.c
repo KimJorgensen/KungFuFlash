@@ -72,6 +72,29 @@ static uint8_t ef3_getc(void)
 }
 
 /*************************************************
+* C64 bus read callback (early VIC-II cycle)
+*************************************************/
+static inline uint32_t ef_early_vic_handler(uint32_t addr)
+{
+    // Speculative read
+    return crt_ptr[addr & 0x3fff];
+}
+
+/*************************************************
+* C64 bus read callback (VIC-II cycle)
+*************************************************/
+static inline bool ef_vic_read_handler(uint32_t control, uint32_t data)
+{
+    if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
+    {
+        c64_data_write(data);
+        return true;
+    }
+
+    return false;
+}
+
+/*************************************************
 * C64 bus read callback
 *************************************************/
 static inline bool ef_read_handler(uint32_t control, uint32_t addr)
@@ -180,4 +203,4 @@ static void ef_init(void)
 C64_BUS_HANDLER_(ef_sdio_handler, ef_read_handler, ef_write_handler)
 
 // Needed for C128 read accesses at 2 MHz (e.g. for Prince of Persia)
-C64_C128_BUS_HANDLER(ef)
+C64_C128_BUS_HANDLER_EX(ef)
