@@ -585,26 +585,26 @@ static void c64_interface(bool state)
     while (valid_clock_count < 100)
     {
         // NTSC: 161-164, PAL: 168-169
-        if (!(TIM1->SR & TIM_SR_CC1IF) || TIM1->CCR1 < 161 || TIM1->CCR1 > 169)
+        if (!(TIM1->SR & TIM_SR_CC1IF) || TIM1->CCR1 < 160 || TIM1->CCR1 > 170)
         {
             valid_clock_count = 0;
-
-            // Fast blink if no valid clock
-            if (led_activity++ > 15000)
-            {
-                led_activity = 0;
-                led_toggle();
-            }
         }
         else
         {
             valid_clock_count++;
-            led_on();
+        }
+
+        // Blink rapidly if no valid clock
+        if (led_activity++ > 15000)
+        {
+            led_activity = 0;
+            led_toggle();
         }
 
         delay_us(2); // Wait more than a clock cycle
     }
 
+    led_on();
     if (c64_is_ntsc())
     {
         // NTSC timing
