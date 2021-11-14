@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -651,7 +651,7 @@ static void disk_loop(void)
     disk_init_all_channels(image, channels);
 
     uint8_t *load_buf = crt_banks[1];
-    uint8_t *save_buf = &crt_ram_buf[SAVE_BUFFER_OFFSET];
+    uint8_t *save_buf = &CRT_RAM_BUF[SAVE_BUFFER_OFFSET];
     char filename[42] = {0};
 
     while (true)

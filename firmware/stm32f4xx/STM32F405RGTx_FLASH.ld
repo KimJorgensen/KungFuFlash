@@ -53,9 +53,9 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-_estack = 0x10010000;    /* end of CCMRAM */
+_estack = 0x10010000;     /* end of CCMRAM */
 /* Generate a link error if heap and stack don't fit into CCMRAM */
-_Min_Heap_Size = 0x2000;      /* required amount of heap  */
+_Min_Heap_Size = 0x2000;  /* required amount of heap  */
 _Min_Stack_Size = 0x4000; /* required amount of stack */
 
 /* Specify the memory areas */
@@ -63,8 +63,9 @@ MEMORY
 {
 /* Use first 48k of flash for the firmware */
 FLASH (xr)    : ORIGIN = 0x00000000, LENGTH = 48K
-/* Use lower 48k of remapped SRAM to execute firmware code */
-SRAM (xrw)    : ORIGIN = 0x2000c000, LENGTH = 80K
+MODULE (xrw)  : ORIGIN = 0x0000c000, LENGTH = 16K
+/* Use lower 64k of remapped SRAM to execute firmware code */
+SRAM (xrw)    : ORIGIN = 0x20010000, LENGTH = 64K
 CCMRAM (rw)   : ORIGIN = 0x10000000, LENGTH = 64K
 }
 
@@ -147,6 +148,20 @@ SECTIONS
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
   } >CCMRAM AT> FLASH
+
+  /* MODULE section
+  * Used as an uninitialized data section
+  */
+  .module (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _smodule = .;     /* create a global symbol at sram start */
+    *(.module)
+    *(.module*)
+
+    . = ALIGN(4);
+    _emodule = .;     /* create a global symbol at sram end */
+  } >MODULE
 
   /* SRAM section
   * Used as an uninitialized data section

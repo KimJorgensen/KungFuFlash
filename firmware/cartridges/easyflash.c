@@ -131,7 +131,7 @@ static inline bool ef_read_handler(uint32_t control, uint32_t addr)
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        c64_data_write(crt_ram_buf[addr & 0xff]);
+        c64_data_write(CRT_RAM_BUF[addr & 0xff]);
         return true;
     }
 
@@ -188,7 +188,7 @@ static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t da
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        crt_ram_buf[addr & 0xff] = (uint8_t)data;
+        CRT_RAM_BUF[addr & 0xff] = (uint8_t)data;
         return;
     }
 }

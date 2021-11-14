@@ -34,11 +34,14 @@
 #define PLL_N 	336
 #endif
 
-// 16kB scratch buffer
-__attribute__((__section__(".sram"))) static char scratch_buf[16*1024];
+// 16kB module buffer
+__attribute__((__section__(".module"))) static uint8_t module_buf[16*1024];
 
 // Uninitialized data section
 #define uninit __attribute__((__section__(".uninit")))
+
+// 32kB scratch buffer
+uninit static char scratch_buf[32*1024];
 
 static bool filesystem_unmount(void);
 static void system_restart(void);

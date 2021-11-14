@@ -538,7 +538,7 @@ static void basic_no_commands(void)
 static void basic_loading(const char *filename)
 {
     // Setup string to print at BASIC start-up
-    char *dest = (char *)crt_ram_buf + LOADING_OFFSET;
+    char *dest = (char *)CRT_RAM_BUF + LOADING_OFFSET;
     dest = convert_to_screen_code(dest, "LOADING ");
     dest = convert_to_screen_code(dest, filename);
     *dest = 0;

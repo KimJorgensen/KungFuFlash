@@ -63,7 +63,7 @@ static inline bool kcs_read_handler(uint32_t control, uint32_t addr)
     {
         if (!(addr & 0x80))
         {
-            c64_data_write(crt_ram_buf[addr & 0x7f]);
+            c64_data_write(CRT_RAM_BUF[addr & 0x7f]);
         }
         else
         {
@@ -117,7 +117,7 @@ static inline void kcs_write_handler(uint32_t control, uint32_t addr, uint32_t d
     {
         if (!(addr & 0x80))
         {
-            crt_ram_buf[addr & 0x7f] = (uint8_t)data;
+            CRT_RAM_BUF[addr & 0x7f] = (uint8_t)data;
         }
 
         c64_irq_nmi(C64_IRQ_NMI_HIGH);

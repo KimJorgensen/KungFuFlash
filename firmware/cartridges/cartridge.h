@@ -27,20 +27,20 @@
 #define CRT_LAUNCHER_BANK       CRT_FLASH_BANK(3)
 
 #define CRT_DAT_BANK(bank)      (dat_buffer + (uint32_t)(16*1024 * bank))
-#define CRT_RAM1_BANK(bank)     (crt_ram_buf + (uint32_t)(8*1024 * bank))
-#define CRT_RAM2_BANK(bank)     ((uint8_t *)scratch_buf + (uint32_t)(8*1024 * bank))
 
-static uint8_t crt_ram_buf[16*1024];
+#define CRT_RAM_BUF             ((uint8_t *)scratch_buf)
+#define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (uint32_t)(8*1024 * bank))
+
 static uint8_t *crt_ptr;        // Current ROM or RAM bank pointer
 static uint8_t *crt_rom_ptr;    // Current ROM bank pointer (only used by some cartridges)
 
 // Fast look-up of 8k RAM bank address
 static uint8_t * const crt_ram_banks[4] =
 {
-    CRT_RAM1_BANK(0),
-    CRT_RAM1_BANK(1),
-    CRT_RAM2_BANK(0),
-    CRT_RAM2_BANK(1)
+    CRT_RAM_BANK(0),
+    CRT_RAM_BANK(1),
+    CRT_RAM_BANK(2),
+    CRT_RAM_BANK(3)
 };
 
 // Fast look-up of 16k ROM bank address
