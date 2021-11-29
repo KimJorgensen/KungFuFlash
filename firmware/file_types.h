@@ -147,6 +147,8 @@ typedef enum {
     FILE_D64,
     FILE_D64_STAR,
     FILE_D64_PRG,
+    FILE_T64,
+    FILE_T64_PRG,
     FILE_ROM,
 
     FILE_UPD        = 0xfd,
@@ -200,8 +202,8 @@ typedef struct
 typedef struct
 {
     uint16_t size;
-    uint16_t element;       // Used if file is a D64
-    char name[17];          // Used if file is a P00 or D64
+    uint16_t element;       // Used if file is a T64 or D64
+    char name[17];          // Used if file is a P00, T64, or D64
 } DAT_PRG_HEADER;
 
 typedef struct

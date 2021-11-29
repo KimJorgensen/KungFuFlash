@@ -86,6 +86,30 @@ static void d64_format_diskname(char *buffer, D64 *d64)
     sprint(buffer, "    --- ");
 }
 
+static void d64_format_entry_type(char *buffer, uint8_t type)
+{
+    if(!(type & 0x80))
+    {
+        *buffer++ = '*';   // to display really deleted files as "*DEL", $80 as " DEL"
+    }
+    else
+    {
+        *buffer++ = ' ';
+    }
+
+    strcpy(buffer, d64_types[type & 7]);
+    buffer += 3;
+
+    if(type & 0x40)
+    {
+        *buffer++ = '<';
+    }
+    else
+    {
+        *buffer++ = ' ';
+    }
+}
+
 static void d64_format_entry(char *buffer, D64_DIR_ENTRY *entry)
 {
     // Blocks
@@ -100,26 +124,7 @@ static void d64_format_entry(char *buffer, D64_DIR_ENTRY *entry)
     buffer += filename_len;
 
     // Entry type
-    if(!(entry->type & 0x80))
-    {
-        *buffer++ = '*';   // to display really deleted files as "*DEL", $80 as " DEL"
-    }
-    else
-    {
-        *buffer++ = ' ';
-    }
-
-    strcpy(buffer, d64_types[entry->type & 7]);
-    buffer += 3;
-
-    if(entry->type & 0x40)
-    {
-        *buffer++ = '<';
-    }
-    else
-    {
-        *buffer++ = ' ';
-    }
+    d64_format_entry_type(buffer, entry->type);
 }
 
 static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
@@ -344,7 +349,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
         if (element == 1 || element == ELEMENT_NOT_SELECTED)
         {
             dat_file.prg.element = 1;
-            handle_unsupported_ex("Not Found", "No PRG files was found on disk",
+            handle_unsupported_ex("Not Found", "No PRG files were found on disk",
                                   dat_file.file);
         }
         else

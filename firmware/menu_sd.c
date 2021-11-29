@@ -347,12 +347,21 @@ static void handle_dir_command(SD_STATE *state)
     {
         dat_file.file[0] = 0;
     }
-    else if (get_file_type(&file_info) == FILE_D64 &&
-        dat_file.prg.element != ELEMENT_NOT_SELECTED)
+    else if (dat_file.prg.element != ELEMENT_NOT_SELECTED)
     {
-        menu_state = d64_menu_init(file_info.fname);
-        menu_state->dir(menu_state);
-        return;
+        uint8_t file_type = get_file_type(&file_info);
+        if (file_type == FILE_D64)
+        {
+            menu_state = d64_menu_init(file_info.fname);
+            menu_state->dir(menu_state);
+            return;
+        }
+        else if (file_type == FILE_T64)
+        {
+            menu_state = t64_menu_init(file_info.fname);
+            menu_state->dir(menu_state);
+            return;
+        }
     }
 
     c64_send_reply(REPLY_READ_DIR);
@@ -694,6 +703,23 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
         }
         break;
 
+        case FILE_T64:
+        {
+            if (!(flags & SELECT_FLAG_ACCEPT) && autostart_d64())
+            {
+                exit_menu = t64_load_first(file_name);
+                dat_file.prg.element = ELEMENT_NOT_SELECTED;
+            }
+            else
+            {
+                state->search[0] = 0;
+                dat_file.prg.element = 0;
+                menu_state = t64_menu_init(file_name);
+                menu_state->dir(menu_state);
+            }
+        }
+        break;
+
         case FILE_UPD:
         {
             if (!(flags & SELECT_FLAG_ACCEPT))
@@ -755,7 +781,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
     uint8_t element_no = element;
 
     dat_file.boot_type = DAT_NONE;
-    dat_file.prg.element = ELEMENT_NOT_SELECTED;    // don't auto open D64
+    dat_file.prg.element = ELEMENT_NOT_SELECTED;    // don't auto open T64/D64
     dat_file.file[0] = 0;
 
     if (!state->in_root && state->page_no == 0)

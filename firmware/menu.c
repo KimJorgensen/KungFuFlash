@@ -21,11 +21,14 @@
 #include "menu.h"
 #include "menu_sd.h"
 #include "menu_d64.h"
+#include "menu_t64.h"
 #include "menu_options.h"
 #include "d64.c"
+#include "t64.c"
 #include "loader.c"
 #include "menu_sd.c"
 #include "menu_d64.c"
+#include "menu_t64.c"
 #include "menu_options.c"
 #include "menu_settings.c"
 
@@ -221,6 +224,12 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
         case FILE_D64_PRG:
             select_text = "Mount and load";
             mount_text = "Load"; // No mount
+            break;
+
+        case FILE_T64_PRG:
+            delete_option = false;
+        case FILE_T64:
+            select_text = "Open";
             break;
 
         default:

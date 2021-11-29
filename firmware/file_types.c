@@ -19,6 +19,7 @@
  */
 
 #include "file_types.h"
+#include "t64.h"
 #include "d64.h"
 
 DAT_HEADER dat_file;
@@ -113,6 +114,13 @@ static uint8_t get_file_type(FILINFO *info)
             if (info->fsize > sizeof(P00_HEADER))
             {
                 return FILE_P00;
+            }
+        }
+        else if (compare_extension(filename, "T64"))
+        {
+            if (info->fsize > sizeof(T64_HEADER))
+            {
+                return FILE_T64;
             }
         }
         else if (compare_extension(filename, "CRT"))
