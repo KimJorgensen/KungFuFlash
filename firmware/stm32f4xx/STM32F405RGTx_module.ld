@@ -50,38 +50,33 @@
 */
 
 /* Entry Point */
-ENTRY(Reset_Handler)
-
-/* Highest address of the user mode stack */
-_estack = 0x10010000;     /* end of CCMRAM */
-/* Generate a link error if heap and stack don't fit into CCMRAM */
-_Min_Heap_Size = 0x2000;  /* required amount of heap  */
-_Min_Stack_Size = 0x4000; /* required amount of stack */
+ENTRY(module_init)
 
 /* Specify the memory areas */
 MEMORY
 {
-/* Use first 48k of flash for the firmware */
-FLASH (xr)    : ORIGIN = 0x00000000, LENGTH = 48K
-MODULE (xrw)  : ORIGIN = 0x0000c000, LENGTH = 16K
-/* Use lower 64k of remapped SRAM to execute firmware code */
+/* 16k firmware module in SRAM */
+MODULE (xr)   : ORIGIN = 0x0000c000, LENGTH = 16K
+/* 64k shared buffer (dat_buffer) */
 SRAM (xrw)    : ORIGIN = 0x20010000, LENGTH = 64K
-/* Use first 2k of CCMRAM for the module */
-CCMRAM (rw)   : ORIGIN = 0x10000800, LENGTH = 62K
+/* 2k of CCMRAM used by the module */
+CCM_MOD (rw)  : ORIGIN = 0x10000000, LENGTH = 2K
+/* 32k shared buffer (scratch_buf) */
+CCMRAM (rw)   : ORIGIN = 0x10000800, LENGTH = 32K
 }
 
 /* Define output sections */
 SECTIONS
 {
-  /* The startup code goes first into FLASH */
-  .isr_vector :
+  /* The header goes first into MODULE */
+  .module_header :
   {
     . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Startup code */
+    KEEP(*(.module_header))
     . = ALIGN(4);
-  } >FLASH
+  } >MODULE
 
-  /* The program code and other data goes into FLASH */
+  /* The program code and other data goes into MODULE */
   .text :
   {
     . = ALIGN(4);
@@ -96,62 +91,49 @@ SECTIONS
 
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
-  } >FLASH
+  } >MODULE
 
-  /* Constant data goes into FLASH */
+  /* Constant data goes into MODULE */
   .rodata :
   {
     . = ALIGN(4);
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     . = ALIGN(4);
-  } >FLASH
+  } >MODULE
 
-  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >FLASH
+  .ARM.extab   : { *(.ARM.extab* .gnu.linkonce.armextab.*) } >MODULE
   .ARM : {
     __exidx_start = .;
     *(.ARM.exidx*)
     __exidx_end = .;
-  } >FLASH
+  } >MODULE
 
   .preinit_array     :
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array*))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  } >FLASH
+  } >MODULE
   .init_array :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT(.init_array.*)))
     KEEP (*(.init_array*))
     PROVIDE_HIDDEN (__init_array_end = .);
-  } >FLASH
+  } >MODULE
   .fini_array :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT(.fini_array.*)))
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  } >FLASH
+  } >MODULE
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
-  /* Uninitialized data section, not initialized to zero */
-  /* goes first into CCMRAM */
-  .uninit (NOLOAD) :
-  {
-    . = ALIGN(4);
-    _suninit = .;      /* create a global symbol at uninit start */
-    *(.uninit)         /* .uninit sections */
-    *(.uninit*)        /* .uninit* sections */
-
-    . = ALIGN(4);
-    _euninit = .;      /* define a global symbol at uninit end */
-  } >CCMRAM
-
-  /* Initialized data sections goes into CCMRAM, load LMA copy after code */
+  /* Initialized data sections goes into CCM_MOD, load LMA copy after code */
   .data :
   {
     . = ALIGN(4);
@@ -161,21 +143,16 @@ SECTIONS
 
     . = ALIGN(4);
     _edata = .;        /* define a global symbol at data end */
-  } >CCMRAM AT> FLASH
+  } >CCM_MOD AT> MODULE
 
-  /* MODULE section
-  * Used as an uninitialized data section
-  */
-  .module (NOLOAD) :
+/* Fill rest of module area */
+  .fill :
   {
-    . = ALIGN(4);
-    _smodule = .;     /* create a global symbol at sram start */
-    *(.module)
-    *(.module*)
-
-    . = ALIGN(4);
-    _emodule = .;     /* create a global symbol at sram end */
-  } >MODULE
+    FILL(0xffffffff);
+    . = ORIGIN(MODULE) + LENGTH(MODULE) - 4;
+    LONG(0xffffffff);
+    ___rom_at = .;
+  } > MODULE
 
   /* SRAM section
   * Used as an uninitialized data section
@@ -205,19 +182,19 @@ SECTIONS
     . = ALIGN(4);
     _ebss = .;         /* define a global symbol at bss end */
     __bss_end__ = _ebss;
-  } >CCMRAM
+  } >CCM_MOD
 
-  /* User_heap_stack section, used to check that there is enough CCMRAM left */
-  ._user_heap_stack :
+  /* Uninitialized data section, not initialized to zero */
+  .uninit (NOLOAD) :
   {
-    . = ALIGN(8);
-    PROVIDE ( end = . );
-    PROVIDE ( _end = . );
-    . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
-    . = ALIGN(8);
-  } >CCMRAM
+    . = ALIGN(4);
+    _suninit = .;      /* create a global symbol at uninit start */
+    *(.uninit)         /* .uninit sections */
+    *(.uninit*)        /* .uninit* sections */
 
+    . = ALIGN(4);
+    _euninit = .;      /* define a global symbol at uninit end */
+  } >CCMRAM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :

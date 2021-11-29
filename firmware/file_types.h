@@ -225,6 +225,3 @@ typedef struct
 
 #define ELEMENT_NOT_SELECTED 0xffff
 #define DAT_SIGNATURE "KungFu:\1"
-
-DAT_HEADER dat_file;
-__attribute__((__section__(".sram"))) uint8_t dat_buffer[64*1024];

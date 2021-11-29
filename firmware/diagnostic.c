@@ -74,7 +74,7 @@ static void diag_loop(void)
         if (!usb_only)
         {
             // Restore handler to display result on C64
-            C64_INSTALL_HANDLER(ef_sdio_handler);
+            C64_INSTALL_HANDLER(ef3_handler);
             c64_interface(true);
 
             c64_send_text(COLOR_LIGHTGREEN, 0, 7, scratch_buf);

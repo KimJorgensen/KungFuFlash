@@ -18,28 +18,25 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define FIRMWARE_SIZE   (48*1024)
-#define LAUNCHER_ADDR   (FLASH_BASE + FIRMWARE_SIZE)
+#define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
-/* Clock PLLs for 405 and 407 chip */
-#if defined (STM32F405xx) || defined (STM32F407xx)
-// Main PLL = N * (source_clock / M) / P
-// HSE = 8 MHz external oscillator
-// fCLK = 336 * (8MHz / 8) / 2 = 168MHz
-#define PLL_M	8
-#define PLL_Q 	7
-#define PLL_P 	2
-#define PLL_N 	336
-#endif
+#define MENU_RAM_SIGNATURE  "KungFu:Menu"
+#define MEMU_SIGNATURE_BUF  ((uint32_t *)scratch_buf)
 
-static bool filesystem_unmount(void);
-static void system_restart(void);
-static void restart_to_menu(void);
+#define FW_NAME         ("Kung Fu Flash v" VERSION)
+#define FW_NAME_SIZE    20
 
-static void delay_us(uint32_t us);
-static void delay_ms(uint32_t ms);
+#define MODULE_HEADER                                           \
+struct                                                          \
+{                                                               \
+    char fw_name[FW_NAME_SIZE];                                 \
+    void (*init)(void);                                         \
+    bool (*crt_is_supported)(uint32_t cartridge_type);          \
+    void (*crt_install_handler)(DAT_CRT_HEADER *crt_header);    \
+} __attribute__((packed))
 
-static void timer_start_us(uint32_t us);
-static void timer_start_ms(uint32_t ms);
-static void timer_reset(void);
-static bool timer_elapsed(void);
+// 32kB scratch buffer
+__attribute__((__section__(".uninit"))) static char scratch_buf[32*1024];
+
+// 64kB data buffer
+__attribute__((__section__(".sram"))) uint8_t dat_buffer[64*1024];

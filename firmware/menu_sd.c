@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -489,21 +489,24 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
-static bool handle_unsupported_crt(void)
+static bool handle_load_crt_module(void)
 {
-    bool unsupported = !c64_fw_supports_crt();
-    if (unsupported)
+    bool loaded = crt_load_module();
+    if (!loaded)
     {
-#ifdef NTSC
-        handle_unsupported_ex("Unsupported",
-            "Please update to PAL firmware to run", dat_file.file);
-#else
-        handle_unsupported_ex("Unsupported",
-            "Please update to NTSC firmware to   run", dat_file.file);
-#endif
+        handle_unsupported_ex("Missing firmware",
+            "Please put the firmware file in the root directory of the SD card",
+            &UPD_FILENAME[1]);
     }
 
-    return unsupported;
+    return loaded;
+}
+
+static void handle_fw_not_in_root(const char *file_name)
+{
+    handle_unsupported_ex("Unsupported",
+        "Please put the firmware file in the root directory of the SD card",
+        file_name);
 }
 
 static bool handle_load_file(SD_STATE *state, const char *file_name,
@@ -558,7 +561,7 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                     (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
                      memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
                 {
-                    if (handle_unsupported_crt())
+                    if (!handle_load_crt_module())
                     {
                         break;
                     }
@@ -616,15 +619,15 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                 break;
             }
 
+            if (!handle_load_crt_module())
+            {
+                break;
+            }
+
             if (!crt_is_supported(header.cartridge_type))
             {
                 sprint(scratch_buf, "Unsupported CRT type (%u)", header.cartridge_type);
                 handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
-                break;
-            }
-
-            if (handle_unsupported_crt())
-            {
                 break;
             }
 
@@ -698,14 +701,21 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                 FIL file;
                 handle_file_open(&file, file_name);
 
-                char firmware[FW_NAME_SIZE];
-                if (upd_load(&file, firmware))
+                if (f_size(&file) > sizeof(dat_buffer) && !state->in_root)
                 {
-                    handle_upgrade_menu(firmware, element);
+                    handle_fw_not_in_root(file_name);
                 }
                 else
                 {
-                    handle_unsupported(file_name);
+                    char firmware[FW_NAME_SIZE];
+                    if (upd_load(&file, firmware))
+                    {
+                        handle_upgrade_menu(firmware, element);
+                    }
+                    else
+                    {
+                        handle_unsupported(file_name);
+                    }
                 }
 
                 file_close(&file);

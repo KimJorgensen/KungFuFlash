@@ -19,7 +19,7 @@
  */
 
 #define DAT_FILENAME "/KungFuFlash.dat"
-#define FW_NAME_SIZE 20
+#define UPD_FILENAME ("/KungFuFlash_v" VERSION ".upd")
 
 #define CRT_SIGNATURE "C64 CARTRIDGE   "
 #define CRT_CHIP_SIGNATURE "CHIP"
@@ -380,13 +380,14 @@ static bool upd_load(FIL *file, char *firmware_name)
 
     if (len == sizeof(dat_buffer))
     {
-        const uint8_t *firmware_ver = &dat_buffer[48*1024];
+        const uint8_t *firmware_ver = &dat_buffer[FIRMWARE_SIZE];
         convert_to_ascii(firmware_name, firmware_ver, FW_NAME_SIZE);
 
         if (memcmp(firmware_name, "Kung Fu Flash", 13) == 0)
         {
             // Don't allow downgrade to a PAL only version on a NTSC C64
-            if (c64_is_ntsc() && firmware_name[14] == 'v')
+            if (f_size(file) == sizeof(dat_buffer) &&
+                c64_is_ntsc() && firmware_name[14] == 'v')
             {
                 return false;
             }
@@ -436,6 +437,21 @@ static bool load_dat(void)
 
     file_close(&file);
     return result;
+}
+
+static void load_module(void)
+{
+    FIL file;
+    if (file_open(&file, UPD_FILENAME, FA_READ))
+    {
+        if (!file_seek(&file, sizeof(dat_buffer)) ||
+            file_read(&file, module.buf, sizeof(module.buf)) != sizeof(module.buf))
+        {
+            memset(module.buf, 0xff, sizeof(module.buf));
+        }
+
+        file_close(&file);
+    }
 }
 
 static bool auto_boot(void)
@@ -615,9 +631,9 @@ static bool load_d64(void)
 
 static void c64_launcher_mode(void)
 {
-    crt_ptr = CRT_LAUNCHER_BANK;
-    ef_init();
-    C64_INSTALL_HANDLER(ef_sdio_handler);
+    ef3_ptr = CRT_LAUNCHER_BANK;
+    ef3_init();
+    C64_INSTALL_HANDLER(ef3_handler);
 }
 
 static bool c64_set_mode(void)
@@ -639,7 +655,7 @@ static bool c64_set_mode(void)
 
         case DAT_CRT:
         {
-            if (!c64_fw_supports_crt())
+            if (!crt_load_module())
             {
                 break;
             }
@@ -668,8 +684,6 @@ static bool c64_set_mode(void)
                 c64_send_wait_for_reset();
                 c64_disable();
             }
-
-            crt_ptr = crt_banks[0];
 
             uint32_t state = STATUS_LED_ON;
             if (dat_file.crt.exrom)
@@ -702,7 +716,7 @@ static bool c64_set_mode(void)
         case DAT_USB:
         {
             c64_disable();
-            ef_init();
+            ef3_init();
             c64_enable();
 
             basic_loading("FROM USB");
@@ -719,13 +733,13 @@ static bool c64_set_mode(void)
             }
 
             c64_disable();
-            ef_init();
+            ef3_init();
 
             // Copy Launcher to memory to allow bank switching in EasyFlash emulation
             // BASIC commands to run are placed at the start of flash ($8000)
             uint32_t offset = BASIC_CMD_BUF_SIZE;
             memcpy(crt_banks[0] + offset, CRT_LAUNCHER_BANK + offset, 16*1024 - offset);
-            crt_ptr = crt_banks[0];
+            ef3_ptr = crt_banks[0];
 
             c64_enable();
             if (!c64_send_mount_disk())
@@ -772,7 +786,7 @@ static bool c64_set_mode(void)
         case DAT_DIAG:
         {
             c64_disable();
-            ef_init();
+            ef3_init();
             result = true;
         }
     }

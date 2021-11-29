@@ -21,6 +21,8 @@
 #include "file_types.h"
 #include "d64.h"
 
+DAT_HEADER dat_file;
+
 static inline bool prg_size_valid(uint32_t size)
 {
     // PRG should at least have a 2 byte load address and 1 byte of data
@@ -139,7 +141,7 @@ static uint8_t get_file_type(FILINFO *info)
         }
         else if (compare_extension(filename, "UPD"))
         {
-            if (info->fsize == sizeof(dat_buffer))
+            if (info->fsize >= sizeof(dat_buffer))
             {
                 return FILE_UPD;
             }

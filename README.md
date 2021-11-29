@@ -63,7 +63,7 @@ This means, however, that the program on the PC side must be modified to support
 For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3utils) and [EasyFlash 3 BBS](3rd_party/ef3bbs) has been included in this repository.
 
 ## Firmware Update
-Just place the KungFuFlash_v1.xx.upd file on the SD card and select the file in the launcher to initiate the firmware update.
+Just place the KungFuFlash_v1.xx.upd file in the root directory of the SD card and select the file in the launcher to initiate the firmware update.
 The newest firmware can be found [here](https://github.com/KimJorgensen/KungFuFlash/releases/).
 
 For initial firmware installation, [see here](firmware/README.md).

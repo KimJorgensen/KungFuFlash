@@ -77,16 +77,12 @@ static uint8_t searchLen;
 static uint8_t *bigBuffer = NULL;
 static Directory *dir = NULL;
 
-#ifdef NTSC
-#define KUNG_FU_FLASH_VER "Kung Fu Flash " ## VERSION "n"
-#else
-#define KUNG_FU_FLASH_VER "Kung Fu Flash " ## VERSION "p"
-#endif
+#define KUNG_FU_FLASH_VER "Kung Fu Flash v" ## VERSION
 
 // Place program name in the start of the output file
 // so it can be read by the firmware
 #pragma rodata-name (push, "LOWCODE")
-const char programNameVer[] = KUNG_FU_FLASH_VER;
+const char programNameVer[FW_NAME_SIZE] = KUNG_FU_FLASH_VER;
 
 // Area used by firmware for placing BASIC commands to run at start-up
 const char padding[BASIC_CMD_BUF_SIZE] = {};

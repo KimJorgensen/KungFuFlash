@@ -24,11 +24,12 @@
 #include <string.h>
 #include "commands.h"
 #include "print.h"
+#include "module.h"
 #include "hal.c"
 #include "print.c"
 #include "filesystem.c"
 #include "file_types.c"
-#include "cartridge.c"
+#include "module.c"
 #include "commands.c"
 #include "disk_drive.h"
 #include "menu.c"

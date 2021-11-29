@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -86,8 +86,8 @@ static void eapi_enable_interface(void)
 
 static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
 {
-    uint8_t *dest = crt_ptr + (addr & 0x3fff);
-    if (crt_ptr >= crt_banks[0] && crt_ptr <= crt_banks[3])
+    uint8_t *dest = ef3_ptr + (addr & 0x3fff);
+    if (ef3_ptr >= crt_banks[0] && ef3_ptr <= crt_banks[3])
     {
         *dest &= value;
         uint16_t pos = (uint16_t)(dest - crt_banks[0]);
@@ -121,7 +121,7 @@ static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
     uint8_t result = REPLY_OK;
     if (*dest != value)
     {
-        wrn("Flash write failed at $%04x (%x)\n", addr, crt_ptr);
+        wrn("Flash write failed at $%04x (%x)\n", addr, ef3_ptr);
         result = REPLY_WRITE_ERROR;
     }
 

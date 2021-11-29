@@ -31,9 +31,6 @@
 #define CRT_RAM_BUF             ((uint8_t *)scratch_buf)
 #define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (uint32_t)(8*1024 * bank))
 
-static uint8_t *crt_ptr;        // Current ROM or RAM bank pointer
-static uint8_t *crt_rom_ptr;    // Current ROM bank pointer (only used by some cartridges)
-
 // Fast look-up of 8k RAM bank address
 static uint8_t * const crt_ram_banks[4] =
 {
@@ -114,11 +111,7 @@ static uint8_t * const crt_banks[64] =
 
 #define SPECIAL_RELEASED    0
 #define SPECIAL_PRESSED     1
-#define SPECIAL_LONG_PRESS  0x100000
 
 #define FREEZE_RESET    0
 #define FREEZE_START    1
 #define FREEZE_3_WRITES 4   // 3 Consecutive writes after FREEZE_START
-
-static uint32_t special_button;
-static uint32_t freezer_state;

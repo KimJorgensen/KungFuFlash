@@ -18,8 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define MENU_RAM_SIGNATURE  "KungFu:Menu"
-#define MEMU_SIGNATURE_BUF  ((uint32_t *)scratch_buf)
+#include "c64_interface.h"
 
 static inline void set_menu_signature(void)
 {
@@ -39,13 +38,7 @@ static inline void invalidate_menu_signature(void)
 
 /*************************************************
 * C64 address bus on PB0-PB15
-* Returned as 32 bit value for performance
 *************************************************/
-static inline uint32_t c64_addr_read()
-{
-    return GPIOB->IDR;
-}
-
 static void c64_address_config(void)
 {
     // Make GPIOB input
@@ -63,29 +56,7 @@ static void c64_address_config(void)
 
 /*************************************************
 * C64 data bus on PC0-PC7
-* Returned as 32 bit value for performance
 *************************************************/
-static inline uint32_t c64_data_read()
-{
-    return GPIOC->IDR;
-}
-
-static inline void c64_data_write(uint8_t data)
-{
-    // Make PC0-PC7 outout
-    *((volatile uint16_t *)&GPIOC->MODER) = 0x5555;
-
-    *((volatile uint8_t *)&GPIOC->ODR) = data;
-    __DMB();
-}
-
-static inline void c64_data_input(void)
-{
-    // Make PC0-PC7 input
-    *((volatile uint16_t *)&GPIOC->MODER) = 0x0000;
-    __DMB();
-}
-
 static void c64_data_config(void)
 {
     // Make PC0-PC7 input
@@ -94,23 +65,7 @@ static void c64_data_config(void)
 
 /*************************************************
 * C64 control bus on PA0-PA3 and PA6-PA7
-* Menu button & special button on PA4 & PA5
-* Returned as 32 bit value for performance
 *************************************************/
-#define C64_WRITE   0x0001  // R/W on PA0
-#define C64_IO1     0x0002  // IO1 on PA1
-#define C64_IO2     0x0004  // IO1 on PA2
-#define C64_BA      0x0008  // BA on PA3
-#define MENU_BTN    0x0010  // Menu button on PA4
-#define SPECIAL_BTN 0x0020  // Special button on PA5
-#define C64_ROML    0x0040  // ROML on PA6
-#define C64_ROMH    0x0080  // ROMH on PA7
-
-static inline uint32_t c64_control_read()
-{
-    return GPIOA->IDR;
-}
-
 static void c64_control_config(void)
 {
     // Make PA0-PA3 and PA6-PA7 input
@@ -134,21 +89,6 @@ static void c64_sync_with_vic(void)
 /*************************************************
 * C64 IRQ and NMI on PA9 & PA10
 *************************************************/
-#define C64_IRQ     0x0200  // IRQ on PA9
-#define C64_NMI     0x0400  // NMI on PA10
-
-#define C64_IRQ_HIGH        GPIO_BSRR_BS9
-#define C64_IRQ_LOW         GPIO_BSRR_BR9
-#define C64_NMI_HIGH        GPIO_BSRR_BS10
-#define C64_NMI_LOW         GPIO_BSRR_BR10
-#define C64_IRQ_NMI_HIGH    (C64_IRQ_HIGH|C64_NMI_HIGH)
-#define C64_IRQ_NMI_LOW     (C64_IRQ_LOW|C64_NMI_LOW)
-
-static inline void c64_irq_nmi(uint32_t state)
-{
-    GPIOA->BSRR = state;
-}
-
 static void c64_irq_config(void)
 {
     c64_irq_nmi(C64_IRQ_NMI_HIGH);
@@ -165,34 +105,6 @@ static void c64_irq_config(void)
 * C64 GAME and EXROM on PC14 & PC15
 * Status LED on PC13
 *************************************************/
-#define C64_GAME_HIGH   GPIO_BSRR_BS14
-#define C64_GAME_LOW    GPIO_BSRR_BR14
-#define C64_EXROM_HIGH  GPIO_BSRR_BS15
-#define C64_EXROM_LOW   GPIO_BSRR_BR15
-
-#define STATUS_LED_ON   GPIO_BSRR_BR13
-#define STATUS_LED_OFF  GPIO_BSRR_BS13
-
-static inline void c64_crt_control(uint32_t state)
-{
-    GPIOC->BSRR = state;
-}
-
-static inline void led_off(void)
-{
-    c64_crt_control(STATUS_LED_OFF);
-}
-
-static inline void led_on(void)
-{
-    c64_crt_control(STATUS_LED_ON);
-}
-
-static inline void led_toggle(void)
-{
-    GPIOC->ODR ^= GPIO_ODR_OD13;
-}
-
 static void c64_crt_config(void)
 {
     // Cartridge inactive
@@ -268,241 +180,6 @@ static void c64_clock_config()
     TIM1->CR1 |= TIM_CR1_CEN;
 }
 
-// C64_BUS_HANDLER timing
-#define NTSC_PHI2_HIGH      93
-#define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 41)
-#define NTSC_PHI2_LOW       142
-
-#define PAL_PHI2_HIGH       98
-#define PAL_PHI2_INT        (PAL_PHI2_HIGH - 43)
-#define PAL_PHI2_LOW        149
-
-// C64_VIC_BUS_HANDLER timing
-#ifdef NTSC
-
-#define PHI2_CPU_START      96
-#define PHI2_WRITE_DELAY    126
-#define PHI2_CPU_END        NTSC_PHI2_LOW
-
-#define PHI2_VIC_START      17
-#define PHI2_VIC_DELAY      32
-#define PHI2_VIC_END        58
-
-#define C64_VIC_DELAY_SHORT()   \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();
-
-#define C64_CPU_VIC_DELAY()     \
-    C64_VIC_DELAY_SHORT();      \
-    __NOP();
-
-#else // PAL
-
-#define PHI2_CPU_START      102
-#define PHI2_WRITE_DELAY    130
-#define PHI2_CPU_END        PAL_PHI2_LOW
-
-#define PHI2_VIC_START      18
-#define PHI2_VIC_DELAY      33
-#define PHI2_VIC_END        61
-
-#define C64_VIC_DELAY_SHORT()   \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();                    \
-    __NOP();
-
-#define C64_CPU_VIC_DELAY()     \
-    C64_VIC_DELAY_SHORT();      \
-    __NOP();
-
-#endif
-
-#define C64_BUS_HANDLER(name)                                                   \
-    C64_BUS_HANDLER_(name##_handler, name##_read_handler, name##_write_handler)
-
-#define C64_BUS_HANDLER_READ(name, read_handler)                                \
-    C64_BUS_HANDLER_(name##_handler, read_handler, name##_write_handler)
-
-#define C64_BUS_HANDLER_(handler, read_handler, write_handler)                  \
-static void handler(void)                                                       \
-{                                                                               \
-    /* We need to clear the interrupt flag early otherwise the next */          \
-    /* interrupt may be delayed */                                              \
-    TIM1->SR = ~TIM_SR_CC3IF;                                                   \
-    __DSB();                                                                    \
-    /* Use debug cycle counter which is faster to access than timer */          \
-    DWT->CYCCNT = TIM1->CNT;                                                    \
-    COMPILER_BARRIER();                                                         \
-    uint32_t phi2_high = DWT->COMP0;                                            \
-    while (DWT->CYCCNT < phi2_high);                                            \
-    uint32_t addr = c64_addr_read();                                            \
-    uint32_t control = c64_control_read();                                      \
-    if (control & C64_WRITE)                                                    \
-    {                                                                           \
-        COMPILER_BARRIER();                                                     \
-        if (read_handler(control, addr))                                        \
-        {                                                                       \
-            /* Wait for phi2 to go low */                                       \
-            uint32_t phi2_low = DWT->COMP1;                                     \
-            while (DWT->CYCCNT < phi2_low);                                     \
-            /* We releases the bus as fast as possible when phi2 is low */      \
-            c64_data_input();                                                   \
-        }                                                                       \
-    }                                                                           \
-    else                                                                        \
-    {                                                                           \
-        COMPILER_BARRIER();                                                     \
-        uint32_t data = c64_data_read();                                        \
-        write_handler(control, addr, data);                                     \
-    }                                                                           \
-}
-
-#define C64_VIC_BUS_HANDLER_EX(name)                                            \
-    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
-                            name##_vic_read_handler, name##_read_handler,       \
-                            name##_early_write_handler, name##_write_handler,   \
-                            C64_VIC_DELAY())
-
-#define C64_VIC_BUS_HANDLER(name)                                               \
-    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
-                            name##_read_handler, name##_read_handler,           \
-                            C64_WRITE_DELAY, name##_write_handler,              \
-                            C64_VIC_DELAY())
-
-#define C64_C128_BUS_HANDLER_EX(name)                                           \
-    C64_VIC_BUS_HANDLER_EX_(name##_handler,                                     \
-                            C64_EARLY_CPU_VIC_HANDLER(name),                    \
-                            name##_vic_read_handler, name##_read_handler,       \
-                            C64_WRITE_DELAY, name##_write_handler,              \
-                            C64_EARLY_VIC_HANDLER(name))
-
-#define C64_C128_BUS_HANDLER(name)                                              \
-    C64_VIC_BUS_HANDLER_EX_(name##_handler, C64_CPU_VIC_DELAY(),                \
-                            name##_read_handler, name##_read_handler,           \
-                            C64_WRITE_DELAY, name##_write_handler,              \
-                            C64_NO_DELAY())
-
-#define C64_EARLY_CPU_VIC_HANDLER(name)                                         \
-    /* Note: addr gets overwritten here */                                      \
-    addr = name##_early_vic_handler(addr);                                      \
-    COMPILER_BARRIER();
-
-#define C64_EARLY_VIC_HANDLER(name)                                             \
-    C64_EARLY_CPU_VIC_HANDLER(name);                                            \
-    C64_VIC_DELAY_SHORT();
-
-#define C64_NO_DELAY()
-#define C64_WRITE_DELAY()                                                       \
-    /* Wait for data to become ready on the data bus */                         \
-    while (DWT->CYCCNT < PHI2_WRITE_DELAY);
-
-#define C64_VIC_DELAY()                                                         \
-    /* Wait for the control bus to become stable */                             \
-    while (DWT->CYCCNT < PHI2_VIC_DELAY);
-
-// This supports VIC-II reads from the cartridge (i.e. character and sprite data)
-// but uses 100% CPU - other interrupts are not served due to the interrupt priority
-#define C64_VIC_BUS_HANDLER_EX_(handler, early_cpu_vic_handler,                 \
-                                vic_read_handler, read_handler,                 \
-                                early_write_handler, write_handler,             \
-                                early_vic_handler)                              \
-void handler(void)                                                              \
-{                                                                               \
-    /* As we don't return from this handler, we need to do this here */         \
-    c64_reset(false);                                                           \
-    /* Use debug cycle counter which is faster to access than timer */          \
-    DWT->CYCCNT = TIM1->CNT;                                                    \
-    COMPILER_BARRIER();                                                         \
-    while (true)                                                                \
-    {                                                                           \
-        /* Wait for CPU cycle */                                                \
-        while (DWT->CYCCNT < PHI2_CPU_START);                                   \
-        uint32_t addr = c64_addr_read();                                        \
-        COMPILER_BARRIER();                                                     \
-        uint32_t control = c64_control_read();                                  \
-        /* Check if CPU has the bus (no bad line) */                            \
-        if ((control & (C64_BA|C64_WRITE)) == (C64_BA|C64_WRITE))               \
-        {                                                                       \
-            if (read_handler(control, addr))                                    \
-            {                                                                   \
-                /* Release bus when phi2 is going low */                        \
-                while (DWT->CYCCNT < PHI2_CPU_END);                             \
-                c64_data_input();                                               \
-            }                                                                   \
-        }                                                                       \
-        else if (!(control & C64_WRITE))                                        \
-        {                                                                       \
-            early_write_handler();                                              \
-            uint32_t data = c64_data_read();                                    \
-            write_handler(control, addr, data);                                 \
-        }                                                                       \
-        /* VIC-II has the bus */                                                \
-        else                                                                    \
-        {                                                                       \
-            /* Wait for the control bus to become stable */                     \
-            early_cpu_vic_handler;                                              \
-            control = c64_control_read();                                       \
-            if (vic_read_handler(control, addr))                                \
-            {                                                                   \
-                /* Release bus when phi2 is going low */                        \
-                while (DWT->CYCCNT < PHI2_CPU_END);                             \
-                c64_data_input();                                               \
-            }                                                                   \
-        }                                                                       \
-        if (control & MENU_BTN)                                                 \
-        {                                                                       \
-            /* Allow the menu button interrupt handler to run */                \
-            break;                                                              \
-        }                                                                       \
-        /* Wait for VIC-II cycle */                                             \
-        while (TIM1->CNT >= 80);                                                \
-        DWT->CYCCNT = TIM1->CNT;                                                \
-        COMPILER_BARRIER();                                                     \
-        while (DWT->CYCCNT < PHI2_VIC_START);                                   \
-        addr = c64_addr_read();                                                 \
-        COMPILER_BARRIER();                                                     \
-        /* Ideally, we would always wait until PHI2_VIC_DELAY here which is */  \
-        /* required when the VIC-II has the bus, but we need more cycles */     \
-        /* in C128 2 MHz mode where data is read from flash */                  \
-        early_vic_handler;                                                      \
-        control = c64_control_read();                                           \
-        if (vic_read_handler(control, addr))                                    \
-        {                                                                       \
-            /* Release bus when phi2 is going high */                           \
-            while (DWT->CYCCNT < PHI2_VIC_END);                                 \
-            c64_data_input();                                                   \
-        }                                                                       \
-    }                                                                           \
-    c64_interface(false);                                                       \
-    /* Ensure interrupt flag is cleared before leaving the handler */           \
-    (void)TIM1->SR;                                                             \
-}
-
-#define C64_INSTALL_HANDLER(handler)                    \
-    /* Set TIM1_CC_IRQHandler vector */                 \
-    ((uint32_t *)0x00000000)[43] = (uint32_t)handler
-
-static inline bool c64_is_ntsc(void)
-{
-    return TIM1->CCR1 < 167;
-}
-
-static inline bool c64_fw_supports_crt(void)
-{
-#ifdef NTSC
-    return c64_is_ntsc();
-#else
-    return !c64_is_ntsc();
-#endif
-}
-
 /*************************************************
 * C64 diagnostic
 *************************************************/
@@ -551,11 +228,6 @@ static void c64_diag_handler(void)
 /*************************************************
 * C64 interface status
 *************************************************/
-static inline bool c64_interface_active(void)
-{
-    return (TIM1->DIER & TIM_DIER_CC3IE) != 0;
-}
-
 static void c64_interface_enable_no_check(void)
 {
     // Capture/Compare 3 interrupt enable
@@ -567,9 +239,7 @@ static void c64_interface(bool state)
 {
     if (!state)
     {
-        // Capture/Compare 3 interrupt disable
-        TIM1->DIER &= ~TIM_DIER_CC3IE;
-        TIM1->SR = ~TIM_SR_CC3IF;
+        c64_interface_disable();
         return;
     }
 
@@ -639,7 +309,7 @@ static inline void c64_reset(bool state)
     }
     else
     {
-        GPIOA->BSRR = GPIO_BSRR_BR15;
+        c64_reset_release();
     }
 }
 
@@ -671,16 +341,6 @@ static void c64_reset_config(void)
 /*************************************************
 * Menu button and special button on PA4 & PA5
 *************************************************/
-static inline bool menu_button_pressed(void)
-{
-    return (GPIOA->IDR & GPIO_IDR_ID4) != 0;
-}
-
-static inline bool special_button_pressed(void)
-{
-    return (GPIOA->IDR & GPIO_IDR_ID5) != 0;
-}
-
 static void special_button_wait_release(void)
 {
     while (special_button_pressed());

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -31,6 +31,7 @@
 #define SELECTED_ELEMENT 0xa0
 #define TEXT_ELEMENT     0xe0
 
+#define FW_NAME_SIZE 20
 #define BASIC_CMD_BUF_SIZE  80
 #define LOADING_OFFSET      0x80
 #define SAVE_BUFFER_OFFSET  0x70
