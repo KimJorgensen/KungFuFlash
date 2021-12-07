@@ -153,14 +153,14 @@ static void t64_dir_up(T64_STATE *state, bool root)
     dat_file.prg.element = ELEMENT_NOT_SELECTED;    // Do not auto open T64 again
     t64_close(&state->image);
 
-    menu_state = &sd_state.menu;
+    menu = &sd_menu;
     if (root)
     {
-        menu_state->dir_up(menu_state, root);
+        menu->dir_up(menu->state, root);
     }
     else
     {
-        menu_state->dir(menu_state);
+        menu->dir(menu->state);
     }
 }
 
@@ -311,18 +311,17 @@ static bool t64_load_first(const char *file_name)
     return true;
 }
 
-static MENU_STATE * t64_menu_init(const char *file_name)
+static const MENU t64_menu = {
+    .state = &t64_state,
+    .dir = (void (*)(void *))t64_dir,
+    .dir_up = (void (*)(void *, bool))t64_dir_up,
+    .prev_page = (void (*)(void *))t64_prev_page,
+    .next_page = (void (*)(void *))t64_next_page,
+    .select = (bool (*)(void *, uint8_t, uint8_t))t64_select
+};
+
+static const MENU * t64_menu_init(const char *file_name)
 {
-    if (!t64_state.menu.dir)
-    {
-        t64_state.menu.dir = (void (*)(MENU_STATE *))t64_dir;
-        t64_state.menu.dir_up = (void (*)(MENU_STATE *, bool))t64_dir_up;
-        t64_state.menu.prev_page = (void (*)(MENU_STATE *))t64_prev_page;
-        t64_state.menu.next_page = (void (*)(MENU_STATE *))t64_next_page;
-        t64_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))t64_select;
-    }
-
     t64_open_image(file_name);
-
-    return &t64_state.menu;
+    return &t64_menu;
 }

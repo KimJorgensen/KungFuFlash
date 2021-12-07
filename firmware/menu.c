@@ -39,7 +39,7 @@ static void menu_loop()
         restart_to_menu();
     }
 
-    menu_state = sd_menu_init();
+    menu = sd_menu_init();
     char *search = sd_state.search;
 
     dbg("Waiting for commands...\n");
@@ -65,29 +65,28 @@ static void menu_loop()
             case CMD_DIR:
                 c64_receive_string(search);
                 convert_to_ascii(search, (uint8_t *)search, SEARCH_LENGTH+1);
-                menu_state->dir(menu_state);
+                menu->dir(menu->state);
                 break;
 
             case CMD_DIR_ROOT:
-                menu_state->dir_up(menu_state, true);
+                menu->dir_up(menu->state, true);
                 break;
 
             case CMD_DIR_UP:
-                menu_state->dir_up(menu_state, false);
+                menu->dir_up(menu->state, false);
                 break;
 
             case CMD_DIR_PREV_PAGE:
-                menu_state->prev_page(menu_state);
+                menu->prev_page(menu->state);
                 break;
 
             case CMD_DIR_NEXT_PAGE:
-                menu_state->next_page(menu_state);
+                menu->next_page(menu->state);
                 break;
 
             case CMD_SELECT:
                 data = c64_receive_byte();
-                exit_loop = menu_state->select(menu_state, data & 0xc0,
-                                               data & 0x3f);
+                exit_loop = menu->select(menu->state, data & 0xc0, data & 0x3f);
                 break;
 
             case CMD_SETTINGS:
@@ -157,7 +156,7 @@ static void handle_unsupported_ex(const char *title, const char *message, const 
     options_add_text_block(options, file_name);
     options_add_dir(options, "OK");
 
-    handle_options(options);
+    handle_options();
 }
 
 static void handle_unsupported(const char *file_name)
@@ -173,7 +172,7 @@ static void handle_unsupported_warning(const char *message, const char *file_nam
     options_add_dir(options, "Cancel");
     options_add_select(options, "Continue", SELECT_FLAG_ACCEPT, element_no);
 
-    handle_options(options);
+    handle_options();
 }
 
 static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t))
@@ -185,7 +184,7 @@ static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_
     options_add_callback(options, handle_save, "New file", 0);
     options_add_dir(options, "Cancel");
 
-    handle_options(options);
+    handle_options();
 }
 
 static void handle_file_options(const char *file_name, uint8_t file_type, uint8_t element_no)
@@ -253,17 +252,17 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
     }
     options_add_dir(options, "Cancel");
 
-    handle_options(options);
+    handle_options();
 }
 
 static void handle_upgrade_menu(const char *firmware, uint8_t element_no)
 {
     OPTIONS_STATE *options = build_options("Firmware Upgrade",
-                                "This will upgrade the firmware to");
+                                           "This will upgrade the firmware to");
     options_add_text_block(options, firmware);
     options_add_select(options, "Upgrade", SELECT_FLAG_ACCEPT, element_no);
     options_add_dir(options, "Cancel");
-    handle_options(options);
+    handle_options();
 }
 
 static const char * to_petscii_pad(char *dest, const char *src, uint8_t size)

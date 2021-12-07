@@ -23,7 +23,7 @@ static uint8_t settings_flags;
 static void settings_refresh(OPTIONS_ELEMENT *element, const char *text)
 {
     options_element_text(element, text);
-    menu_state->dir(menu_state); // Refresh settings
+    menu->dir(menu->state); // Refresh settings
 }
 
 static const char * settings_basic_text(void)
@@ -110,5 +110,5 @@ static void handle_settings(void)
     options_add_text_element(options, settings_device_change, settings_device_text());
     options_add_text_element(options, settings_save, "Save");
     options_add_dir(options, "Cancel");
-    handle_options(options);
+    handle_options();
 }

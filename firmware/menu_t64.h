@@ -19,12 +19,10 @@
  */
 
 static bool t64_load_first(const char *file_name);
-static MENU_STATE * t64_menu_init(const char *file_name);
+static const MENU * t64_menu_init(const char *file_name);
 
 typedef struct
 {
-    MENU_STATE menu;
-
     T64_IMAGE image;
 
     uint8_t page;

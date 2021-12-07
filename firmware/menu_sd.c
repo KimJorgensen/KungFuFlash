@@ -352,14 +352,14 @@ static void handle_dir_command(SD_STATE *state)
         uint8_t file_type = get_file_type(&file_info);
         if (file_type == FILE_D64)
         {
-            menu_state = d64_menu_init(file_info.fname);
-            menu_state->dir(menu_state);
+            menu = d64_menu_init(file_info.fname);
+            menu->dir(menu->state);
             return;
         }
         else if (file_type == FILE_T64)
         {
-            menu_state = t64_menu_init(file_info.fname);
-            menu_state->dir(menu_state);
+            menu = t64_menu_init(file_info.fname);
+            menu->dir(menu->state);
             return;
         }
     }
@@ -697,8 +697,8 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             {
                 state->search[0] = 0;
                 dat_file.prg.element = 0;
-                menu_state = d64_menu_init(file_name);
-                menu_state->dir(menu_state);
+                menu = d64_menu_init(file_name);
+                menu->dir(menu->state);
             }
         }
         break;
@@ -714,8 +714,8 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             {
                 state->search[0] = 0;
                 dat_file.prg.element = 0;
-                menu_state = t64_menu_init(file_name);
-                menu_state->dir(menu_state);
+                menu = t64_menu_init(file_name);
+                menu->dir(menu->state);
             }
         }
         break;
@@ -863,20 +863,20 @@ static void handle_dir_up_command(SD_STATE *state, bool root)
     }
 }
 
-static MENU_STATE *sd_menu_init(void)
-{
-    if (!sd_state.menu.dir)
-    {
-        sd_state.menu.dir = (void (*)(MENU_STATE *))handle_dir_command;
-        sd_state.menu.dir_up = (void (*)(MENU_STATE *, bool))handle_dir_up_command;
-        sd_state.menu.prev_page = (void (*)(MENU_STATE *))handle_dir_prev_page_command;
-        sd_state.menu.next_page = (void (*)(MENU_STATE *))handle_dir_next_page_command;
-        sd_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))handle_select_command;
-    }
+static const MENU sd_menu = {
+    .state = &sd_state,
+    .dir = (void (*)(void *))handle_dir_command,
+    .dir_up = (void (*)(void *, bool))handle_dir_up_command,
+    .prev_page = (void (*)(void *))handle_dir_prev_page_command,
+    .next_page = (void (*)(void *))handle_dir_next_page_command,
+    .select = (bool (*)(void *, uint8_t, uint8_t))handle_select_command
+};
 
+static const MENU *sd_menu_init(void)
+{
     chdir_last();
     sd_state.page_no = 0;
     sd_state.dir_end = true;
 
-    return &sd_state.menu;
+    return &sd_menu;
 }

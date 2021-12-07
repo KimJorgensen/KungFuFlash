@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,18 +17,18 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
-typedef struct MENU_STATE_s MENU_STATE;
 
-struct MENU_STATE_s
+typedef struct
 {
-    void (*dir)(MENU_STATE *state);
-    void (*dir_up)(MENU_STATE *state, bool root);
-    void (*prev_page)(MENU_STATE *state);
-    void (*next_page)(MENU_STATE *state);
-    bool (*select)(MENU_STATE *state, uint8_t flags, uint8_t element);
-};
+    void *state;
+    void (*dir)(void *state);
+    void (*dir_up)(void *state, bool root);
+    void (*prev_page)(void *state);
+    void (*next_page)(void *state);
+    bool (*select)(void *state, uint8_t flags, uint8_t element);
+} MENU;
 
-static MENU_STATE *menu_state;
+static const MENU *menu;
 
 static void handle_failed_to_read_sd(void);
 static void handle_unsupported(const char *file_name);

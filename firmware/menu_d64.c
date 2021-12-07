@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -164,14 +164,15 @@ static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
     return element;
 }
 
-static void d64_handle_delete_file(const char *file_name, D64_DIR_ENTRY *entry)
+static void d64_handle_delete_file(D64_STATE *state, const char *file_name,
+                                   D64_DIR_ENTRY *entry)
 {
     c64_send_exit_menu();
     c64_send_prg_message("Deleting file.");
     c64_interface(false);
     save_dat();
 
-    if (!d64_delete_file(&d64_state.d64, entry))
+    if (!d64_delete_file(&state->d64, entry))
     {
         sd_send_warning_restart("Failed to delete file", file_name);
     }
@@ -239,16 +240,16 @@ static void d64_dir(D64_STATE *state)
 static void d64_dir_up(D64_STATE *state, bool root)
 {
     dat_file.prg.element = ELEMENT_NOT_SELECTED;    // Do not auto open D64 again
-    d64_close(&d64_state.image);
+    d64_close(&state->image);
 
-    menu_state = &sd_state.menu;
+    menu = &sd_menu;
     if (root)
     {
-        menu_state->dir_up(menu_state, root);
+        menu->dir_up(menu->state, root);
     }
     else
     {
-        menu_state->dir(menu_state);
+        menu->dir(menu->state);
     }
 }
 
@@ -320,7 +321,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
         {
             basic_load("*");
             dat_file.boot_type = DAT_DISK;
-            d64_close(&d64_state.image);
+            d64_close(&state->image);
             return true;
         }
 
@@ -371,7 +372,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
     }
     else if (flags & SELECT_FLAG_DELETE)
     {
-        d64_handle_delete_file(dat_file.prg.name, entry);
+        d64_handle_delete_file(state, dat_file.prg.name, entry);
         return false;
     }
     else if (!(flags & SELECT_FLAG_MOUNT))
@@ -384,7 +385,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 
         basic_load(dat_file.prg.name);
         dat_file.boot_type = DAT_DISK;
-        d64_close(&d64_state.image);
+        d64_close(&state->image);
         return true;
     }
 
@@ -398,26 +399,26 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 
     c64_send_exit_menu();
     dat_file.boot_type = DAT_PRG;
-    d64_close(&d64_state.image);
+    d64_close(&state->image);
     return true;
 }
 
-static MENU_STATE * d64_menu_init(const char *file_name)
-{
-    if (!d64_state.menu.dir)
-    {
-        d64_state.menu.dir = (void (*)(MENU_STATE *))d64_dir;
-        d64_state.menu.dir_up = (void (*)(MENU_STATE *, bool))d64_dir_up;
-        d64_state.menu.prev_page = (void (*)(MENU_STATE *))d64_prev_page;
-        d64_state.menu.next_page = (void (*)(MENU_STATE *))d64_next_page;
-        d64_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))d64_select;
-    }
+static const MENU d64_menu = {
+    .state = &d64_state,
+    .dir = (void (*)(void *))d64_dir,
+    .dir_up = (void (*)(void *, bool))d64_dir_up,
+    .prev_page = (void (*)(void *))d64_prev_page,
+    .next_page = (void (*)(void *))d64_next_page,
+    .select = (bool (*)(void *, uint8_t, uint8_t))d64_select
+};
 
+static const MENU * d64_menu_init(const char *file_name)
+{
     if (!d64_open(&d64_state.image, file_name))
     {
         handle_failed_to_read_sd();
     }
     d64_state.d64.image = &d64_state.image;
 
-    return &d64_state.menu;
+    return &d64_menu;
 }

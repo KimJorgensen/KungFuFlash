@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,8 +20,7 @@
 
 typedef struct
 {
-    MENU_STATE menu;
-    MENU_STATE *prev_state;
+    const MENU *prev_menu;
 
     const char *title;
     uint8_t selected_element;
@@ -58,6 +57,6 @@ static inline void options_add_text(OPTIONS_STATE *state, const char *text);
 static void options_add_text_block(OPTIONS_STATE *state, const char *text);
 static void options_add_select(OPTIONS_STATE *state, const char *text, uint8_t flags, uint8_t element_no);
 static inline void options_add_dir(OPTIONS_STATE *state, const char *text);
-static void handle_options(OPTIONS_STATE *state);
+static void handle_options(void);
 
 static const char * options_element_text(OPTIONS_ELEMENT *element, const char *text);

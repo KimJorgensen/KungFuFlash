@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -49,14 +49,14 @@ static void options_dir(OPTIONS_STATE *state)
 
 static void options_dir_up(OPTIONS_STATE *state, bool root)
 {
-    menu_state = state->prev_state;
+    menu = state->prev_menu;
     if (root)
     {
-        menu_state->dir_up(menu_state, root);
+        menu->dir_up(menu->state, root);
     }
     else
     {
-        menu_state->dir(menu_state);
+        menu->dir(menu->state);
     }
 }
 
@@ -84,21 +84,21 @@ static bool options_select(OPTIONS_STATE *state, uint8_t flags, uint8_t element_
     return false;
 }
 
+static const MENU options_menu = {
+    .state = &options_state,
+    .dir = (void (*)(void *))options_dir,
+    .dir_up = (void (*)(void *, bool))options_dir_up,
+    .prev_page = (void (*)(void *))options_prev_next_page,
+    .next_page = (void (*)(void *))options_prev_next_page,
+    .select = (bool (*)(void *, uint8_t, uint8_t))options_select
+};
+
 static OPTIONS_STATE * options_init(const char *title)
 {
-    if (!options_state.menu.dir)
-    {
-        options_state.menu.dir = (void (*)(MENU_STATE *))options_dir;
-        options_state.menu.dir_up = (void (*)(MENU_STATE *, bool))options_dir_up;
-        options_state.menu.prev_page = (void (*)(MENU_STATE *))options_prev_next_page;
-        options_state.menu.next_page = (void (*)(MENU_STATE *))options_prev_next_page;
-        options_state.menu.select = (bool (*)(MENU_STATE *, uint8_t, uint8_t))options_select;
-    }
-
     // Can't nest options
-    if (menu_state != &options_state.menu)
+    if (menu != &options_menu)
     {
-        options_state.prev_state = menu_state;
+        options_state.prev_menu = menu;
     }
     options_state.title = title;
     options_state.selected_element = MAX_ELEMENTS_PAGE;
@@ -191,8 +191,8 @@ static void options_add_callback(OPTIONS_STATE *state, void (*callback)(uint8_t)
 
 static bool options_prev_select(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
 {
-    menu_state = state->prev_state;
-    return menu_state->select(menu_state, element->flags|flags, element->element_no);
+    menu = state->prev_menu;
+    return menu->select(menu->state, element->flags|flags, element->element_no);
 }
 
 static void options_add_select(OPTIONS_STATE *state, const char *text, uint8_t flags, uint8_t element_no)
@@ -204,8 +204,8 @@ static void options_add_select(OPTIONS_STATE *state, const char *text, uint8_t f
 
 static bool options_prev_dir(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
 {
-    menu_state = state->prev_state;
-    menu_state->dir(menu_state);
+    menu = state->prev_menu;
+    menu->dir(menu->state);
     return false;
 }
 
@@ -214,8 +214,8 @@ static inline void options_add_dir(OPTIONS_STATE *state, const char *text)
     options_add_text_element(state, options_prev_dir, text);
 }
 
-static void handle_options(OPTIONS_STATE *state)
+static void handle_options(void)
 {
-    menu_state = &state->menu;
-    menu_state->dir(menu_state);
+    menu = &options_menu;
+    menu->dir(menu->state);
 }
