@@ -24,7 +24,7 @@ static void sprint_u16_left(char *buffer, uint16_t val)
     bool found = false;
 
     uint8_t ii = 0;
-    for(uint8_t i=0; i<5; i++)
+    for (uint8_t i=0; i<5; i++)
     {
         uint8_t d = (val / div) % 10;
         if (d || found || i==4)
@@ -54,7 +54,7 @@ static void d64_sanitize_filename(char *dest, const char *src)
 
 static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
 {
-    for(uint8_t i=0; i<size; i++)
+    for (uint8_t i=0; i<size; i++)
     {
         char c = *src;
         if (c)
@@ -69,21 +69,21 @@ static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
     }
 }
 
-static void d64_format_diskname(char *buffer, D64 *d64)
+static void d64_format_diskname(char *buffer, const char *name, uint8_t name_len)
 {
-    char *diskname = d64_get_diskname(d64);
-
     // Star
     sprint(scratch_buf, " *     ");
     buffer += 7;
 
     // Diskname
-    const uint8_t diskname_len = 23;
-    d64_sanitize_name_pad(buffer, diskname, diskname_len);
-    buffer += diskname_len;
+    d64_sanitize_name_pad(buffer, name, name_len);
+    buffer += name_len;
 
     // Entry type
-    sprint(buffer, "    --- ");
+    const uint8_t entry_len = 27 - name_len;
+    d64_sanitize_name_pad(buffer, "", entry_len);
+    buffer += entry_len;
+    sprint(buffer, "--- ");
 }
 
 static void d64_format_entry_type(char *buffer, uint8_t type)
@@ -110,21 +110,23 @@ static void d64_format_entry_type(char *buffer, uint8_t type)
     }
 }
 
-static void d64_format_entry(char *buffer, D64_DIR_ENTRY *entry)
+static void d64_format_entry(char *buffer, uint16_t blocks,
+                             const char *filename, uint8_t type)
 {
     // Blocks
     *buffer++ = ' ';
-    sprint_u16_left(buffer, entry->blocks);
+    sprint_u16_left(buffer, blocks);
     buffer += 5;
     *buffer++ = ' ';
 
     // Filename
-    const uint8_t filename_len = (ELEMENT_LENGTH-7)-5;
-    d64_sanitize_name_pad(buffer, entry->filename, filename_len);
-    buffer += filename_len;
+    d64_sanitize_name_pad(buffer, filename, 16);
+    buffer += 16;
+    d64_sanitize_name_pad(buffer, "", 10);
+    buffer += 10;
 
     // Entry type
-    d64_format_entry_type(buffer, entry->type);
+    d64_format_entry_type(buffer, type);
 }
 
 static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
@@ -138,7 +140,8 @@ static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
         }
         else if (element == 1 && state->page == 0)
         {
-            d64_format_diskname(scratch_buf, &state->d64);
+            char *diskname = d64_get_diskname(&state->d64);
+            d64_format_diskname(scratch_buf, diskname, 23);
         }
         else
         {
@@ -150,7 +153,8 @@ static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
                 break;
             }
 
-            d64_format_entry(scratch_buf, entry);
+            d64_format_entry(scratch_buf, entry->blocks, entry->filename,
+                             entry->type);
         }
 
         if (element == selected_element)

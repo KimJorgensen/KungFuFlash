@@ -18,42 +18,12 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static void t64_format_image_name(char *buffer, T64_HEADER *header)
-{
-    char *name = header->user_description;
-
-    // Star
-    sprint(scratch_buf, " *     ");
-    buffer += 7;
-
-    // name
-    const uint8_t name_len = 24;
-    d64_sanitize_name_pad(buffer, name, name_len);
-    buffer += name_len;
-
-    // Entry type
-    sprint(buffer, "   --- ");
-}
-
 static void t64_format_entry(char *buffer, T64_ENTRY *entry)
 {
-    // Blocks
     uint16_t size = (entry->end_address - entry->start_address) + 2;
     uint16_t blocks = (size / 254) + 1;
 
-    *buffer++ = ' ';
-    sprint_u16_left(buffer, blocks);
-    buffer += 5;
-    *buffer++ = ' ';
-
-    // Filename
-    d64_sanitize_name_pad(buffer, entry->filename, 16);
-    buffer += 16;
-    d64_sanitize_name_pad(buffer, "", 10);
-    buffer += 10;
-
-    // Entry type
-    d64_format_entry_type(buffer, entry->file_type);
+    d64_format_entry(buffer, blocks, entry->filename, entry->file_type);
 }
 
 static uint8_t t64_send_page(T64_STATE *state, uint8_t selected_element)
@@ -67,7 +37,8 @@ static uint8_t t64_send_page(T64_STATE *state, uint8_t selected_element)
         }
         else if (element == 1 && state->page == 0)
         {
-            t64_format_image_name(scratch_buf, &state->image.header);
+            char *image_name = state->image.header.user_description;
+            d64_format_diskname(scratch_buf, image_name, 24);
         }
         else
         {

@@ -22,8 +22,8 @@ static const MENU * d64_menu_init(const char *file_name);
 
 typedef struct
 {
-    D64_IMAGE image;
     D64 d64;
+    D64_IMAGE image;
 
     uint8_t page;
     bool dir_end;
