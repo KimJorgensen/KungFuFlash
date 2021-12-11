@@ -498,17 +498,24 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
-static bool handle_load_crt_module(void)
+static bool handle_crt_supported(uint32_t cartridge_type)
 {
-    bool loaded = crt_load_module();
-    if (!loaded)
+    if (crt_is_supported(cartridge_type))
     {
-        handle_unsupported_ex("Missing firmware",
-            "Please put the firmware file in the root directory of the SD card",
-            &UPD_FILENAME[1]);
+        return true;
     }
 
-    return loaded;
+    if (crt_module_initialized)
+    {
+        sprint(scratch_buf, "Unsupported CRT type (%u)", cartridge_type);
+        handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
+        return false;
+    }
+
+    handle_unsupported_ex("Missing firmware",
+        "Please put the firmware file in the root directory of the SD card",
+        &UPD_FILENAME[1]);
+    return false;
 }
 
 static void handle_fw_not_in_root(const char *file_name)
@@ -570,7 +577,7 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                     (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
                      memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
                 {
-                    if (!handle_load_crt_module())
+                    if (!handle_crt_supported(CRT_C128_NORMAL_CARTRIDGE))
                     {
                         break;
                     }
@@ -578,8 +585,9 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                     // Show warning on a C64
                     if (!(flags & SELECT_FLAG_C128))
                     {
-                        handle_unsupported_warning("Cartridge will only run on a C128",
-                                                   file_name, element);
+                        handle_unsupported_warning(
+                            "Cartridge will only run on a C128", file_name,
+                             element);
                     }
                     else
                     {
@@ -628,15 +636,8 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                 break;
             }
 
-            if (!handle_load_crt_module())
+            if (!handle_crt_supported(header.cartridge_type))
             {
-                break;
-            }
-
-            if (!crt_is_supported(header.cartridge_type))
-            {
-                sprint(scratch_buf, "Unsupported CRT type (%u)", header.cartridge_type);
-                handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
                 break;
             }
 

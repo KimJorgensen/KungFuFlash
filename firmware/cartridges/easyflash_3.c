@@ -18,21 +18,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint32_t const ef3_mode[8] =
-{
-    STATUS_LED_OFF|CRT_PORT_ULTIMAX,
-    STATUS_LED_OFF|CRT_PORT_NONE,
-    STATUS_LED_OFF|CRT_PORT_16K,
-    STATUS_LED_OFF|CRT_PORT_8K,
-
-    STATUS_LED_ON|CRT_PORT_ULTIMAX,
-    STATUS_LED_ON|CRT_PORT_NONE,
-    STATUS_LED_ON|CRT_PORT_16K,
-    STATUS_LED_ON|CRT_PORT_8K
-};
-
-static uint8_t *ef3_ptr;    // Current ROM bank pointer
-
 // EasyFlash 3 USB Control
 #define EF3_RX_RDY  (0x80)
 #define EF3_TX_RDY  (0x40)
@@ -80,7 +65,7 @@ static inline bool ef3_read_handler(uint32_t control, uint32_t addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(ef3_ptr[addr & 0x3fff]);
+        c64_data_write(crt_ptr[addr & 0x3fff]);
         return true;
     }
 
@@ -129,7 +114,7 @@ static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t d
             // $de00 EF active flash memory bank register
             case 0x00:
             {
-                ef3_ptr = crt_banks[data & 0x3f];
+                crt_ptr = crt_banks[data & 0x3f];
             }
             return;
 
@@ -146,8 +131,8 @@ static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t d
             */
             case 0x02:
             {
-                uint32_t mode = ef3_mode[((data >> 5) & 0x04) | (data & 0x02) |
-                                         (((data >> 2) & 0x01) & ~data)];
+                uint32_t mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
+                                        (((data >> 2) & 0x01) & ~data)];
                 c64_crt_control(mode);
             }
             return;
@@ -170,11 +155,6 @@ static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t d
         CRT_RAM_BUF[addr & 0xff] = (uint8_t)data;
         return;
     }
-}
-
-static void ef3_init(void)
-{
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_ULTIMAX);
 }
 
 // Allow SDIO and USB to be used while handling C64 bus access.

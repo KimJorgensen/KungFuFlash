@@ -18,8 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "cartridge.h"
-#include "easyflash_3.c"
+#include "cartridge.c"
 
 __attribute__((__section__(".module")))
 struct
@@ -31,37 +30,33 @@ struct
     };
 } module;
 
-static void load_module(void);
-static bool crt_module_loaded;
+static bool crt_module_initialized;
 
-static bool crt_load_module(void)
+static bool crt_init_module(void)
 {
-    if (!crt_module_loaded)
+    if (!crt_module_initialized)
     {
-        load_module();
         if (memcmp(FW_NAME, module.fw_name, FW_NAME_SIZE) == 0)
         {
             module.init();
-            crt_module_loaded = true;
+            crt_module_initialized = true;
         }
     }
 
-    return crt_module_loaded;
+    return crt_module_initialized;
 }
 
-static inline bool crt_is_supported(uint32_t cartridge_type)
+static bool crt_is_supported(uint32_t cartridge_type)
 {
-    return module.crt_is_supported(cartridge_type);
+    return crt_is_supported_(cartridge_type) ||
+           (crt_init_module() && module.crt_is_supported(cartridge_type));
 }
 
 static void crt_install_handler(DAT_CRT_HEADER *crt_header)
 {
-    if (crt_header->type == CRT_EASYFLASH &&
-        !(crt_header->flags & CRT_FLAG_VIC))
+    if (crt_is_supported_(crt_header->type))
     {
-        ef3_ptr = crt_banks[0];
-        ef3_init();
-        C64_INSTALL_HANDLER(ef3_handler);
+        crt_install_handler_(crt_header);
     }
     else
     {

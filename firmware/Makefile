@@ -26,6 +26,7 @@ OPT = -O2 #-Og
 #######################################
 # Build path
 BUILD_DIR = build
+BUILD_DIR_MODULE = $(BUILD_DIR)/module
 
 ######################################
 # source
@@ -94,6 +95,9 @@ C_DEFS =  \
 -DSTM32F405xx \
 -DVERSION=\"${version}\"
 
+C_DEFS_MODULE =  \
+-DMODULE
+
 # AS includes
 AS_INCLUDES =
 
@@ -117,6 +121,7 @@ endif
 
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
+CFLAGS_MODULE = $(CFLAGS) $(C_DEFS_MODULE)
 
 #######################################
 # LDFLAGS
@@ -130,7 +135,7 @@ LIBS = -lc -lm -lnosys
 LIBDIR =
 LDFLAGS_COMMON = $(MCU) -specs=nano.specs $(LIBDIR) $(LIBS) -Wl,--gc-sections
 LDFLAGS = $(LDFLAGS_COMMON) -T$(LDSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref
-LDFLAGS_MODULE = $(LDFLAGS_COMMON) -T$(LDSCRIPT_MODULE) -Wl,-Map=$(BUILD_DIR)/$(MODULE).map,--cref
+LDFLAGS_MODULE = $(LDFLAGS_COMMON) -T$(LDSCRIPT_MODULE) -Wl,-Map=$(BUILD_DIR_MODULE)/$(MODULE).map,--cref
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).upd
@@ -139,16 +144,22 @@ all: $(BUILD_DIR)/$(TARGET).upd
 # build the module
 #######################################
 # list of objects
-OBJECTS_MODULE = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES_MODULE:.c=.o)))
+OBJECTS_MODULE = $(addprefix $(BUILD_DIR_MODULE)/,$(notdir $(C_SOURCES_MODULE:.c=.o)))
 vpath %.c $(sort $(dir $(C_SOURCES_MODULE)))
 # list of ASM program objects
-OBJECTS_MODULE += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES_MODULE:.s=.o)))
+OBJECTS_MODULE += $(addprefix $(BUILD_DIR_MODULE)/,$(notdir $(ASM_SOURCES_MODULE:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES_MODULE)))
 
-$(BUILD_DIR)/$(MODULE).bin: $(BUILD_DIR)/$(MODULE).elf | $(BUILD_DIR)
+$(BUILD_DIR_MODULE)/%.o: %.c Makefile | $(BUILD_DIR_MODULE)
+	$(CC) -c $(CFLAGS_MODULE) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
+
+$(BUILD_DIR_MODULE)/%.o: %.s Makefile | $(BUILD_DIR_MODULE)
+	$(AS) -c $(CFLAGS_MODULE) -Wa,-a,-ad,-alms=$(BUILD_DIR_MODULE)/$(notdir $(<:.s=.lst)) $< -o $@
+
+$(BUILD_DIR_MODULE)/$(MODULE).bin: $(BUILD_DIR_MODULE)/$(MODULE).elf | $(BUILD_DIR_MODULE)
 	$(BIN) $< $@
 
-$(BUILD_DIR)/$(MODULE).elf: $(OBJECTS_MODULE) Makefile
+$(BUILD_DIR_MODULE)/$(MODULE).elf: $(OBJECTS_MODULE) Makefile
 	$(CC) $(OBJECTS_MODULE) $(LDFLAGS_MODULE) -o $@
 	$(SZ) $@
 
@@ -175,17 +186,20 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf | $(BUILD_DIR)
 	$(BIN) --gap-fill 0xff --pad-to 0xc000 $< $@
 
-$(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR)/$(MODULE).bin | $(BUILD_DIR)
+$(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR_MODULE)/$(MODULE).bin | $(BUILD_DIR)
 	cat $(BUILD_DIR)/$(TARGET).bin > $@
-	cat $(BUILD_DIR)/$(MODULE).bin >> $@
+	cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
 
-$(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) $(BUILD_DIR)/$(MODULE).bin | $(BUILD_DIR)
+$(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) $(BUILD_DIR_MODULE)/$(MODULE).bin | $(BUILD_DIR)
 	cat $(BUILD_DIR)/$(TARGET).bin > $@
 	cat $(LAUNCHER) >> $@
-	cat $(BUILD_DIR)/$(MODULE).bin >> $@
+	cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
 
 $(BUILD_DIR):
-	mkdir $@
+	mkdir -p $@
+
+$(BUILD_DIR_MODULE):
+	mkdir -p $@
 
 $(LAUNCHER): $(wildcard $(LAUNCHER_DIR)*)
 	$(MAKE) -C $(LAUNCHER_DIR)

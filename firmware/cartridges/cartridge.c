@@ -23,14 +23,17 @@
 // Current ROM or RAM bank pointer
 static uint8_t *crt_ptr;
 
+#ifdef MODULE
 // Current ROM bank pointer (only used by some cartridges)
 static uint8_t *crt_rom_ptr;
 
 static uint32_t special_button;
 static uint32_t freezer_state;
+#endif
 
 /* ordered by cartridge id */
 #include "crt_normal.c"
+#ifdef MODULE
 #include "action_replay_4x.c"
 #include "kcs_power_cartridge.c"
 #include "final_cartridge_3.c"
@@ -44,23 +47,29 @@ static uint32_t freezer_state;
 #include "magic_desk.c"
 #include "super_snapshot_5.c"
 #include "comal80.c"
+#else
 #include "easyflash.c"
+#include "easyflash_3.c"
+#endif
+#ifdef MODULE
 #include "prophet64.c"
 #include "freeze_machine.c"
 #include "rgcd.c"
 #include "c128_normal.c"
+#endif
 
 #define NTSC_OR_PAL_HANDLER(name)   \
     ntsc ? name##_ntsc_handler : name##_pal_handler
 
-static void (*crt_get_handler(uint32_t cartridge_type)) (void)
+static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
 {
     bool ntsc = c64_is_ntsc();
     switch (cartridge_type)
     {
+#ifndef MODULE
         case CRT_NORMAL_CARTRIDGE:
             return NTSC_OR_PAL_HANDLER(crt);
-
+#else
         case CRT_ACTION_REPLAY:
             return NTSC_OR_PAL_HANDLER(ar4x);
 
@@ -100,11 +109,16 @@ static void (*crt_get_handler(uint32_t cartridge_type)) (void)
 
         case CRT_COMAL_80:
             return comal80_handler;
-
+#endif
+#ifndef MODULE
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
-            return NTSC_OR_PAL_HANDLER(ef);
-
+            if (cartridge_type != CRT_EASYFLASH || vic_support)
+            {
+                return NTSC_OR_PAL_HANDLER(ef);
+            }
+            return ef3_handler;
+#else
         case CRT_PROPHET64:
         case CRT_DREAN:
             return prophet64_handler;
@@ -118,6 +132,7 @@ static void (*crt_get_handler(uint32_t cartridge_type)) (void)
 
         case CRT_C128_NORMAL_CARTRIDGE:
             return NTSC_OR_PAL_HANDLER(c128);
+#endif
     }
 
     return NULL;
@@ -127,6 +142,7 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
 {
     switch (crt_header->type)
     {
+#ifdef MODULE
         case CRT_ACTION_REPLAY:
             ar4x_init();
             break;
@@ -163,11 +179,12 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
         case CRT_COMAL_80:
             comal80_init();
             break;
-
+#else
         case CRT_EASYFLASH:
             ef_init();
             break;
-
+#endif
+#ifdef MODULE
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:
             fm_init(crt_header);
@@ -176,20 +193,22 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
         case CRT_RGCD:
             rgcd_init(crt_header);
             break;
+#endif
     }
 }
 
-static void crt_install_handler(DAT_CRT_HEADER *crt_header)
+static void crt_install_handler_(DAT_CRT_HEADER *crt_header)
 {
     crt_ptr = crt_banks[0];
     crt_init(crt_header);
 
     uint32_t cartridge_type = crt_header->type;
-    void (*handler)(void) = crt_get_handler(cartridge_type);
+    bool vic_support = (crt_header->flags & CRT_FLAG_VIC) != 0;
+    void (*handler)(void) = crt_get_handler(cartridge_type, vic_support);
     C64_INSTALL_HANDLER(handler);
 }
 
-static bool crt_is_supported(uint32_t cartridge_type)
+static bool crt_is_supported_(uint32_t cartridge_type)
 {
-    return crt_get_handler(cartridge_type) != NULL;
+    return crt_get_handler(cartridge_type, false) != NULL;
 }

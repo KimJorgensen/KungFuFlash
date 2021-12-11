@@ -459,6 +459,7 @@ static bool auto_boot(void)
     bool result = false;
 
     load_dat();
+    load_module();
     if (menu_signature() || menu_button_pressed())
     {
         invalidate_menu_signature();
@@ -631,8 +632,8 @@ static bool load_d64(void)
 
 static void c64_launcher_mode(void)
 {
-    ef3_ptr = CRT_LAUNCHER_BANK;
-    ef3_init();
+    crt_ptr = CRT_LAUNCHER_BANK;
+    ef_init();
     C64_INSTALL_HANDLER(ef3_handler);
 }
 
@@ -655,11 +656,6 @@ static bool c64_set_mode(void)
 
         case DAT_CRT:
         {
-            if (!crt_load_module())
-            {
-                break;
-            }
-
             if (!crt_is_supported(dat_file.crt.type))
             {
                 break;
@@ -716,7 +712,7 @@ static bool c64_set_mode(void)
         case DAT_USB:
         {
             c64_disable();
-            ef3_init();
+            ef_init();
             c64_enable();
 
             basic_loading("FROM USB");
@@ -733,13 +729,13 @@ static bool c64_set_mode(void)
             }
 
             c64_disable();
-            ef3_init();
+            ef_init();
 
             // Copy Launcher to memory to allow bank switching in EasyFlash emulation
             // BASIC commands to run are placed at the start of flash ($8000)
             uint32_t offset = BASIC_CMD_BUF_SIZE;
             memcpy(crt_banks[0] + offset, CRT_LAUNCHER_BANK + offset, 16*1024 - offset);
-            ef3_ptr = crt_banks[0];
+            crt_ptr = crt_banks[0];
 
             c64_enable();
             if (!c64_send_mount_disk())
@@ -786,7 +782,7 @@ static bool c64_set_mode(void)
         case DAT_DIAG:
         {
             c64_disable();
-            ef3_init();
+            ef_init();
             result = true;
         }
     }
