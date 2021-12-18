@@ -21,17 +21,17 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool simons_basic_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool simons_basic_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
 
     if (!(control & C64_IO1))
     {
-        c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+        C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
     }
 
     return false;
@@ -40,11 +40,11 @@ static inline bool simons_basic_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void simons_basic_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void simons_basic_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
-        c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
+        C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
     }
 }
 

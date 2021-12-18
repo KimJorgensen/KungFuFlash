@@ -700,7 +700,7 @@ static bool c64_set_mode(void)
                 state |= C64_GAME_LOW;
             }
 
-            c64_crt_control(state);
+            C64_CRT_CONTROL(state);
             // Try prevent triggering bug in H.E.R.O. No effect at power-on though
             c64_sync_with_vic();
             crt_install_handler(&dat_file.crt);
@@ -750,10 +750,10 @@ static bool c64_set_mode(void)
         {
             c64_disable();
             // Unstoppable reset! - https://www.c64-wiki.com/wiki/Reset_Button
-            c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+            C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
             c64_enable();
             delay_ms(300);
-            c64_crt_control(CRT_PORT_NONE);
+            C64_CRT_CONTROL(CRT_PORT_NONE);
             result = true;
         }
         break;
@@ -762,10 +762,10 @@ static bool c64_set_mode(void)
         {
             c64_disable();
             // Also unstoppable!
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_8K);
+            C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_8K);
             c64_reset(false);
             delay_ms(300);
-            c64_crt_control(CRT_PORT_NONE);
+            C64_CRT_CONTROL(CRT_PORT_NONE);
             result = true;
         }
         break;
@@ -773,7 +773,7 @@ static bool c64_set_mode(void)
         case DAT_KILL_C128:
         {
             c64_disable();
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+            C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
             c64_reset(false);
             result = true;
         }

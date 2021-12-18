@@ -21,11 +21,11 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool c64gs_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool c64gs_read_handler(u32 control, u32 addr)
 {
     if (!(control & C64_ROML))
     {
-        c64_data_write(crt_ptr[addr & 0x1fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
         return true;
     }
 
@@ -41,7 +41,7 @@ static inline bool c64gs_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void c64gs_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void c64gs_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {

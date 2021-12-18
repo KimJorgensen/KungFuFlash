@@ -21,11 +21,11 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool magic_desk_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool magic_desk_read_handler(u32 control, u32 addr)
 {
     if (!(control & C64_ROML))
     {
-        c64_data_write(crt_ptr[addr & 0x1fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
         return true;
     }
 
@@ -35,14 +35,14 @@ static inline bool magic_desk_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void magic_desk_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void magic_desk_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1) && !(addr & 0xff))
     {
         if (!(data & 0x80))
         {
             // Enable cartridge
-            c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+            C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
 
             crt_ptr = crt_banks[(data >> 1) & 0x3f];
             if (data & 0x01)
@@ -54,14 +54,14 @@ static inline void magic_desk_write_handler(u32 control, u32 addr, u32 data)
         else
         {
             // Disable cartridge
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+            C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         }
     }
 }
 
 static void magic_desk_init(void)
 {
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
 }
 
 C64_BUS_HANDLER(magic_desk)

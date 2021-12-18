@@ -25,7 +25,7 @@ static u32 io1_state;
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool fm_vic_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool fm_vic_read_handler(u32 control, u32 addr)
 {
     // Not needed
     return false;
@@ -34,24 +34,24 @@ static inline bool fm_vic_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool fm_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool fm_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x1fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
         return true;
     }
 
     if (!(control & C64_IO1))
     {
-        c64_crt_control(io1_state);
-        c64_irq_nmi(C64_NMI_HIGH);
+        C64_CRT_CONTROL(io1_state);
+        C64_IRQ_NMI(C64_NMI_HIGH);
         return false;
     }
 
     if (!(control & C64_IO2))
     {
-        c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+        C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         crt_ptr = crt_rom_ptr;
         return false;
     }
@@ -62,7 +62,7 @@ static inline bool fm_read_handler(u32 control, u32 addr)
     }
     else if (special_button)
     {
-        c64_irq_nmi(C64_NMI_LOW);
+        C64_IRQ_NMI(C64_NMI_LOW);
         special_button = SPECIAL_RELEASED;
         freezer_state = FREEZE_START;
     }
@@ -73,12 +73,12 @@ static inline bool fm_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback (early)
 *************************************************/
-static inline void fm_early_write_handler(void)
+FORCE_INLINE void fm_early_write_handler(void)
 {
     // Use 3 consecutive writes to detect IRQ/NMI
     if (freezer_state && ++freezer_state == FREEZE_3_WRITES)
     {
-        c64_crt_control(STATUS_LED_ON|CRT_PORT_ULTIMAX);
+        C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_ULTIMAX);
         freezer_state = FREEZE_RESET;
         io1_state = STATUS_LED_ON|CRT_PORT_8K;
     }
@@ -87,14 +87,14 @@ static inline void fm_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void fm_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void fm_write_handler(u32 control, u32 addr, u32 data)
 {
     // Not needed
 }
 
 static void fm_init(DAT_CRT_HEADER *crt_header)
 {
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
     io1_state = STATUS_LED_OFF|CRT_PORT_NONE;
 
     // Toggle ROM A14 on reset if 32 kb cartridge

@@ -31,11 +31,11 @@ static u8 kcs_register;
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool kcs_vic_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool kcs_vic_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
 
@@ -45,15 +45,15 @@ static inline bool kcs_vic_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool kcs_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool kcs_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_IO1|C64_ROML|C64_ROMH)) != (C64_IO1|C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         if (!(control & C64_IO1))
         {
             kcs_register = (addr & 0x02) | 0x01;
-            c64_crt_control(kcs_mode[kcs_register]);
+            C64_CRT_CONTROL(kcs_mode[kcs_register]);
         }
 
         return true;
@@ -63,11 +63,11 @@ static inline bool kcs_read_handler(u32 control, u32 addr)
     {
         if (!(addr & 0x80))
         {
-            c64_data_write(CRT_RAM_BUF[addr & 0x7f]);
+            C64_DATA_WRITE(CRT_RAM_BUF[addr & 0x7f]);
         }
         else
         {
-            c64_data_write(kcs_register << 6);
+            C64_DATA_WRITE(kcs_register << 6);
         }
 
         return true;
@@ -79,7 +79,7 @@ static inline bool kcs_read_handler(u32 control, u32 addr)
     }
     else if (special_button)
     {
-        c64_irq_nmi(C64_IRQ_NMI_LOW);
+        C64_IRQ_NMI(C64_IRQ_NMI_LOW);
         special_button = SPECIAL_RELEASED;
         freezer_state = FREEZE_START;
     }
@@ -90,13 +90,13 @@ static inline bool kcs_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback (early)
 *************************************************/
-static inline void kcs_early_write_handler(void)
+FORCE_INLINE void kcs_early_write_handler(void)
 {
     // Use 3 consecutive writes to detect IRQ/NMI
     if (freezer_state && ++freezer_state == FREEZE_3_WRITES)
     {
         kcs_register = 0x02;
-        c64_crt_control(kcs_mode[kcs_register]);
+        C64_CRT_CONTROL(kcs_mode[kcs_register]);
         freezer_state = FREEZE_RESET;
     }
 }
@@ -104,12 +104,12 @@ static inline void kcs_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void kcs_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void kcs_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
         kcs_register = addr & 0x02;
-        c64_crt_control(kcs_mode[kcs_register]);
+        C64_CRT_CONTROL(kcs_mode[kcs_register]);
         return;
     }
 
@@ -120,7 +120,7 @@ static inline void kcs_write_handler(u32 control, u32 addr, u32 data)
             CRT_RAM_BUF[addr & 0x7f] = (u8)data;
         }
 
-        c64_irq_nmi(C64_IRQ_NMI_HIGH);
+        C64_IRQ_NMI(C64_IRQ_NMI_HIGH);
         return;
     }
 }
@@ -128,7 +128,7 @@ static inline void kcs_write_handler(u32 control, u32 addr, u32 data)
 static void kcs_init(void)
 {
     kcs_register = 0;
-    c64_crt_control(kcs_mode[kcs_register]);
+    C64_CRT_CONTROL(kcs_mode[kcs_register]);
     crt_ptr = crt_banks[0];
 }
 

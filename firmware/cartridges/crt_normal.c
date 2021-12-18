@@ -21,11 +21,11 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool crt_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool crt_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
 
@@ -35,7 +35,7 @@ static inline bool crt_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void crt_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void crt_write_handler(u32 control, u32 addr, u32 data)
 {
     // No write support
 }

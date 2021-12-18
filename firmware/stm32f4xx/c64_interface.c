@@ -60,7 +60,7 @@ static void c64_address_config(void)
 static void c64_data_config(void)
 {
     // Make PC0-PC7 input
-    c64_data_input();
+    C64_DATA_INPUT();
 }
 
 /*************************************************
@@ -79,7 +79,7 @@ static void c64_sync_with_vic(void)
     timer_start_us(1000);
     while (!timer_elapsed())
     {
-        if (!(c64_control_read() & C64_BA))
+        if (!(C64_CONTROL_READ() & C64_BA))
         {
             timer_reset();
         }
@@ -91,7 +91,7 @@ static void c64_sync_with_vic(void)
 *************************************************/
 static void c64_irq_config(void)
 {
-    c64_irq_nmi(C64_IRQ_NMI_HIGH);
+    C64_IRQ_NMI(C64_IRQ_NMI_HIGH);
 
     // Set PA9 & PA10 as open-drain
     GPIOA->OTYPER |= GPIO_OTYPER_OT9|GPIO_OTYPER_OT10;
@@ -108,7 +108,7 @@ static void c64_irq_config(void)
 static void c64_crt_config(void)
 {
     // Cartridge inactive
-    c64_crt_control(STATUS_LED_OFF|C64_GAME_HIGH|C64_EXROM_HIGH);
+    C64_CRT_CONTROL(STATUS_LED_OFF|C64_GAME_HIGH|C64_EXROM_HIGH);
 
     // Set PC14 & PC15 as open-drain
     GPIOC->OTYPER |= GPIO_OTYPER_OT14|GPIO_OTYPER_OT15;
@@ -239,7 +239,7 @@ static void c64_interface(bool state)
 {
     if (!state)
     {
-        c64_interface_disable();
+        C64_INTERFACE_DISABLE();
         return;
     }
 
@@ -309,7 +309,7 @@ static inline void c64_reset(bool state)
     }
     else
     {
-        c64_reset_release();
+        C64_RESET_RELEASE();
     }
 }
 

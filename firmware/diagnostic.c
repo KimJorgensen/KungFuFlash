@@ -45,7 +45,7 @@ static void diag_loop(void)
     }
     else
     {
-        c64_crt_control(CRT_PORT_NONE);
+        C64_CRT_CONTROL(CRT_PORT_NONE);
         c64_reset(false);
     }
 

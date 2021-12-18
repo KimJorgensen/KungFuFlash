@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void comal80_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void comal80_write_handler(u32 control, u32 addr, u32 data)
 {
     /* The register is reset to $00 on reset. Bits:
         7   Unused
@@ -38,18 +38,18 @@ static inline void comal80_write_handler(u32 control, u32 addr, u32 data)
 
         if (data & 0x40)
         {
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+            C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         }
         else
         {
-            c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
+            C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
         }
     }
 }
 
 static void comal80_init(void)
 {
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_16K);
+    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
 }
 
 C64_BUS_HANDLER_READ(comal80, crt_read_handler)

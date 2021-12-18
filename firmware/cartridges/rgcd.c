@@ -23,11 +23,11 @@ static u8 rgcd_bank_xor;
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool rgcd_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool rgcd_read_handler(u32 control, u32 addr)
 {
     if (!(control & C64_ROML))
     {
-        c64_data_write(crt_ptr[addr & 0x1fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
         return true;
     }
 
@@ -37,7 +37,7 @@ static inline bool rgcd_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void rgcd_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void rgcd_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
@@ -49,7 +49,7 @@ static inline void rgcd_write_handler(u32 control, u32 addr, u32 data)
         else
         {
             // Disable cartridge
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
+            C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         }
     }
 }
@@ -63,7 +63,7 @@ static void rgcd_init(DAT_CRT_HEADER *crt_header)
         rgcd_bank_xor = 0x7;
     }
 
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
+    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
 }
 
 C64_BUS_HANDLER(rgcd)

@@ -20,6 +20,8 @@
 
 #define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
+#define FORCE_INLINE __attribute__((always_inline)) static inline
+
 typedef uint32_t u32;
 typedef int32_t s32;
 typedef uint16_t u16;

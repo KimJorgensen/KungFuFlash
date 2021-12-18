@@ -34,7 +34,7 @@ static u32 const ef_mode[8] =
 /*************************************************
 * C64 bus read callback (early VIC-II cycle)
 *************************************************/
-static inline u32 ef_early_vic_handler(u32 addr)
+FORCE_INLINE u32 ef_early_vic_handler(u32 addr)
 {
     // Speculative read
     return crt_ptr[addr & 0x3fff];
@@ -43,11 +43,11 @@ static inline u32 ef_early_vic_handler(u32 addr)
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool ef_vic_read_handler(u32 control, u32 data)
+FORCE_INLINE bool ef_vic_read_handler(u32 control, u32 data)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(data);
+        C64_DATA_WRITE(data);
         return true;
     }
 
@@ -57,18 +57,18 @@ static inline bool ef_vic_read_handler(u32 control, u32 data)
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool ef_read_handler(u32 control, u32 addr)
+FORCE_INLINE bool ef_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
-        c64_data_write(crt_ptr[addr & 0x3fff]);
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
 
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        c64_data_write(CRT_RAM_BUF[addr & 0xff]);
+        C64_DATA_WRITE(CRT_RAM_BUF[addr & 0xff]);
         return true;
     }
 
@@ -78,7 +78,7 @@ static inline bool ef_read_handler(u32 control, u32 addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ef_write_handler(u32 control, u32 addr, u32 data)
+FORCE_INLINE void ef_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
@@ -106,7 +106,7 @@ static inline void ef_write_handler(u32 control, u32 addr, u32 data)
             {
                 u32 mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
                                    (((data >> 2) & 0x01) & ~data)];
-                c64_crt_control(mode);
+                C64_CRT_CONTROL(mode);
             }
             return;
         }
@@ -124,7 +124,7 @@ static inline void ef_write_handler(u32 control, u32 addr, u32 data)
 
 static void ef_init(void)
 {
-    c64_crt_control(STATUS_LED_ON|CRT_PORT_ULTIMAX);
+    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_ULTIMAX);
 }
 
 // Needed for VIC-II and C128 read accesses at 2 MHz (e.g. for Prince of Persia)
