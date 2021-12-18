@@ -31,7 +31,7 @@
 
 static bool prg_load_file(FIL *file)
 {
-    uint16_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
+    u16 len = file_read(file, dat_buffer, sizeof(dat_buffer));
     dbg("Loaded PRG size: %u\n", len);
 
     if (prg_size_valid(len))
@@ -47,7 +47,7 @@ static bool prg_load_file(FIL *file)
 static bool p00_load_file(FIL *file)
 {
     P00_HEADER header;
-    uint16_t len = file_read(file, &header, sizeof(P00_HEADER));
+    u16 len = file_read(file, &header, sizeof(P00_HEADER));
 
     if (len != sizeof(P00_HEADER) ||
         memcmp("C64File", header.signature, sizeof(header.signature)) != 0)
@@ -66,17 +66,17 @@ static bool p00_load_file(FIL *file)
     return false;
 }
 
-static uint16_t rom_load_file(FIL *file)
+static u16 rom_load_file(FIL *file)
 {
     memset(dat_buffer, 0xff, sizeof(dat_buffer));
 
-    uint16_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
+    u16 len = file_read(file, dat_buffer, sizeof(dat_buffer));
     return len;
 }
 
 static bool crt_load_header(FIL *file, CRT_HEADER *header)
 {
-    uint32_t len = file_read(file, header, sizeof(CRT_HEADER));
+    u32 len = file_read(file, header, sizeof(CRT_HEADER));
 
     if (len != sizeof(CRT_HEADER) ||
         memcmp(CRT_SIGNATURE, header->signature, sizeof(header->signature)) != 0)
@@ -112,7 +112,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     return true;
 }
 
-static bool crt_write_header(FIL *file, uint16_t type, uint8_t exrom, uint8_t game, const char *name)
+static bool crt_write_header(FIL *file, u16 type, u8 exrom, u8 game, const char *name)
 {
     CRT_HEADER header;
     memcpy(header.signature, CRT_SIGNATURE, sizeof(header.signature));
@@ -124,7 +124,7 @@ static bool crt_write_header(FIL *file, uint16_t type, uint8_t exrom, uint8_t ga
     header.hardware_revision = 0;
     memset(header.reserved, 0, sizeof(header.reserved));
 
-    for (uint8_t i=0; i<sizeof(header.cartridge_name); i++)
+    for (u8 i=0; i<sizeof(header.cartridge_name); i++)
     {
         char c = *name;
         if (c)
@@ -135,13 +135,13 @@ static bool crt_write_header(FIL *file, uint16_t type, uint8_t exrom, uint8_t ga
         header.cartridge_name[i] = c;
     }
 
-    uint32_t len = file_write(file, &header, sizeof(CRT_HEADER));
+    u32 len = file_write(file, &header, sizeof(CRT_HEADER));
     return len == sizeof(CRT_HEADER);
 }
 
 static bool crt_load_chip_header(FIL *file, CRT_CHIP_HEADER *header)
 {
-    uint32_t len = file_read(file, header, sizeof(CRT_CHIP_HEADER));
+    u32 len = file_read(file, header, sizeof(CRT_CHIP_HEADER));
 
     if (len != sizeof(CRT_CHIP_HEADER) ||
         memcmp(CRT_CHIP_SIGNATURE, header->signature, sizeof(header->signature)) != 0)
@@ -164,7 +164,7 @@ static bool crt_load_chip_header(FIL *file, CRT_CHIP_HEADER *header)
     return true;
 }
 
-static bool crt_write_chip_header(FIL *file, uint8_t type, uint8_t bank, uint16_t address, uint16_t size)
+static bool crt_write_chip_header(FIL *file, u8 type, u8 bank, u16 address, u16 size)
 {
     CRT_CHIP_HEADER header;
     memcpy(header.signature, CRT_CHIP_SIGNATURE, sizeof(header.signature));
@@ -174,13 +174,13 @@ static bool crt_write_chip_header(FIL *file, uint8_t type, uint8_t bank, uint16_
     header.start_address = __REV16(address);
     header.image_size = __REV16(size);
 
-    uint32_t len = file_write(file, &header, sizeof(CRT_CHIP_HEADER));
+    u32 len = file_write(file, &header, sizeof(CRT_CHIP_HEADER));
     return len == sizeof(CRT_CHIP_HEADER);
 }
 
-static int32_t crt_get_offset(CRT_CHIP_HEADER *header, uint16_t cartridge_type)
+static s32 crt_get_offset(CRT_CHIP_HEADER *header, u16 cartridge_type)
 {
-    int32_t offset = -1;
+    s32 offset = -1;
 
     // ROML bank (and ROMH for >8k images)
     if (header->start_address == 0x8000 && header->image_size <= 16*1024)
@@ -220,10 +220,10 @@ static int32_t crt_get_offset(CRT_CHIP_HEADER *header, uint16_t cartridge_type)
     return offset;
 }
 
-static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
+static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
 {
-    uint8_t *flash_buffer = (uint8_t *)FLASH_BASE;
-    uint8_t banks_in_use = 0;
+    u8 *flash_buffer = (u8 *)FLASH_BASE;
+    u8 banks_in_use = 0;
     bool sector_erased[8] = {0};
 
     memset(dat_buffer, 0xff, sizeof(dat_buffer));
@@ -238,7 +238,7 @@ static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
             break;
         }
 
-        int32_t offset = crt_get_offset(&header, cartridge_type);
+        s32 offset = crt_get_offset(&header, cartridge_type);
         if (offset == -1)
         {
             wrn("Unsupported CRT chip bank %u at $%x. Size %u\n",
@@ -248,8 +248,8 @@ static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
         }
 
         // Place image in KungFuFlash.dat file or flash?
-        uint8_t *read_buf = header.bank < 4 ? dat_buffer + offset :
-                            (uint8_t *)scratch_buf;
+        u8 *read_buf = header.bank < 4 ? dat_buffer + offset :
+                       (u8 *)scratch_buf;
 
         if (file_read(crt_file, read_buf, header.image_size) != header.image_size)
         {
@@ -262,10 +262,10 @@ static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
         // Place image in flash
         if (header.bank >= 4 && header.bank < 64)
         {
-            uint8_t *flash_ptr = flash_buffer + offset;
-            int8_t sector_to_erase = -1;
+            u8 *flash_ptr = flash_buffer + offset;
+            s8 sector_to_erase = -1;
 
-            uint8_t sector = header.bank / 8;
+            u8 sector = header.bank / 8;
             if (!sector_erased[sector])
             {
                 sector_erased[sector] = true;
@@ -291,11 +291,11 @@ static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
     }
 
     // Erase any gaps to minimize generated CRT file
-    for (uint8_t sector=0; sector<banks_in_use/8; sector++)
+    for (u8 sector=0; sector<banks_in_use/8; sector++)
     {
         if (!sector_erased[sector])
         {
-            uint8_t sector_to_erase = sector + 4;
+            u8 sector_to_erase = sector + 4;
             led_toggle();
             flash_sector_program(sector_to_erase, 0, 0, 0);
         }
@@ -305,7 +305,7 @@ static uint8_t crt_program_file(FIL *crt_file, uint16_t cartridge_type)
     return banks_in_use;
 }
 
-static bool crt_write_chip(FIL *file, uint8_t bank, uint16_t address, uint16_t size, void *buf)
+static bool crt_write_chip(FIL *file, u8 bank, u16 address, u16 size, void *buf)
 {
     if (!crt_write_chip_header(file, CRT_CHIP_FLASH, bank, address, size))
     {
@@ -315,10 +315,10 @@ static bool crt_write_chip(FIL *file, uint8_t bank, uint16_t address, uint16_t s
     return file_write(file, buf, size) == size;
 }
 
-static bool crt_bank_empty(uint8_t *buf, uint16_t size)
+static bool crt_bank_empty(u8 *buf, u16 size)
 {
-    uint32_t *buf32 = (uint32_t *)buf;
-    for (uint16_t i=0; i<size/4; i++)
+    u32 *buf32 = (u32 *)buf;
+    for (u16 i=0; i<size/4; i++)
     {
         if (buf32[i] != 0xffffffff)
         {
@@ -329,19 +329,19 @@ static bool crt_bank_empty(uint8_t *buf, uint16_t size)
     return true;
 }
 
-static bool crt_write_file(FIL *crt_file, uint8_t banks)
+static bool crt_write_file(FIL *crt_file, u8 banks)
 {
-    const uint16_t chip_size = 8*1024;
-    for (uint8_t bank=0; bank<banks; bank++)
+    const u16 chip_size = 8*1024;
+    for (u8 bank=0; bank<banks; bank++)
     {
-        uint8_t *buf;
+        u8 *buf;
         if (bank < 4)
         {
             buf = dat_buffer + (16*1024 * bank);
         }
         else
         {
-            buf = (uint8_t *)FLASH_BASE + (16*1024 * bank);
+            buf = (u8 *)FLASH_BASE + (16*1024 * bank);
         }
 
         if (!crt_bank_empty(buf, chip_size) &&
@@ -360,12 +360,12 @@ static bool crt_write_file(FIL *crt_file, uint8_t banks)
     return true;
 }
 
-static uint32_t crt_calc_flash_crc(uint8_t crt_banks)
+static u32 crt_calc_flash_crc(u8 crt_banks)
 {
     crc_reset();
     if (crt_banks > 4)
     {
-        uint8_t *flash_buffer = (uint8_t *)FLASH_BASE + 16*1024 * 4;
+        u8 *flash_buffer = (u8 *)FLASH_BASE + 16*1024 * 4;
         size_t flash_used = (crt_banks-4) * 16*1024;
         crc_calc(flash_buffer, flash_used);
     }
@@ -375,12 +375,12 @@ static uint32_t crt_calc_flash_crc(uint8_t crt_banks)
 
 static bool upd_load(FIL *file, char *firmware_name)
 {
-    uint32_t len = file_read(file, dat_buffer, sizeof(dat_buffer));
+    u32 len = file_read(file, dat_buffer, sizeof(dat_buffer));
     dbg("Loaded UPD size: %u\n", len);
 
     if (len == sizeof(dat_buffer))
     {
-        const uint8_t *firmware_ver = &dat_buffer[FIRMWARE_SIZE];
+        const u8 *firmware_ver = &dat_buffer[FIRMWARE_SIZE];
         convert_to_ascii(firmware_name, firmware_ver, FW_NAME_SIZE);
 
         if (memcmp(firmware_name, "Kung Fu Flash", 13) == 0)
@@ -400,11 +400,11 @@ static bool upd_load(FIL *file, char *firmware_name)
 
 static void upd_program(void)
 {
-    for (int8_t sector=0; sector<4; sector++)
+    for (s8 sector=0; sector<4; sector++)
     {
         led_toggle();
-        uint32_t offset = 16*1024 * sector;
-        flash_sector_program(sector, (uint8_t *)FLASH_BASE + offset,
+        u32 offset = 16*1024 * sector;
+        flash_sector_program(sector, (u8 *)FLASH_BASE + offset,
                              dat_buffer + offset, 16*1024);
     }
 }
@@ -464,7 +464,7 @@ static bool auto_boot(void)
     {
         invalidate_menu_signature();
 
-        uint32_t i = 0;
+        u32 i = 0;
         while (menu_button_pressed())
         {
             // Menu button long press will start diagnostic
@@ -518,28 +518,28 @@ static inline bool autostart_d64(void)
     return (dat_file.flags & DAT_FLAG_AUTOSTART_D64) != 0;
 }
 
-static uint8_t get_device_number(uint8_t flags)
+static u8 get_device_number(u8 flags)
 {
-    uint8_t offset = flags & DAT_FLAG_DEVICE_D64_MSK;
+    u8 offset = flags & DAT_FLAG_DEVICE_D64_MSK;
     return (offset >> DAT_FLAG_DEVICE_D64_POS) + 8;
 }
 
-static void set_device_number(uint8_t *flags, uint8_t device)
+static void set_device_number(u8 *flags, u8 device)
 {
-    uint8_t offset = ((device - 8) << DAT_FLAG_DEVICE_D64_POS) &
-                     DAT_FLAG_DEVICE_D64_MSK;
+    u8 offset = ((device - 8) << DAT_FLAG_DEVICE_D64_POS) &
+                DAT_FLAG_DEVICE_D64_MSK;
 
     MODIFY_REG(*flags, DAT_FLAG_DEVICE_D64_MSK, offset);
 }
 
-static inline uint8_t device_number_d64(void)
+static inline u8 device_number_d64(void)
 {
     return get_device_number(dat_file.flags);
 }
 
 static void basic_load(const char *filename)
 {
-    uint8_t device = device_number_d64();
+    u8 device = device_number_d64();
 
     // BASIC commands to run at start-up
     sprint((char *)dat_buffer, "%cLOAD\"%s\",%d,1%cRUN%c", device,
@@ -583,9 +583,9 @@ static bool chdir_last(void)
     return res;
 }
 
-static void sanitize_sd_filename(char *dest, const char *src, uint8_t size)
+static void sanitize_sd_filename(char *dest, const char *src, u8 size)
 {
-    for(uint8_t i=0; i<size && *src; i++)
+    for(u8 i=0; i<size && *src; i++)
     {
         char c = sanitize_char(*src++);
         *dest++ = ff_wtoupper(c);
@@ -666,7 +666,7 @@ static bool c64_set_mode(void)
                 break;
             }
 
-            uint32_t flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
+            u32 flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
             if (flash_hash != dat_file.crt.flash_hash &&
                 !(dat_file.crt.flags & CRT_FLAG_UPDATED))
             {
@@ -681,7 +681,7 @@ static bool c64_set_mode(void)
                 c64_disable();
             }
 
-            uint32_t state = STATUS_LED_ON;
+            u32 state = STATUS_LED_ON;
             if (dat_file.crt.exrom)
             {
                 state |= C64_EXROM_HIGH;
@@ -733,7 +733,7 @@ static bool c64_set_mode(void)
 
             // Copy Launcher to memory to allow bank switching in EasyFlash emulation
             // BASIC commands to run are placed at the start of flash ($8000)
-            uint32_t offset = BASIC_CMD_BUF_SIZE;
+            u32 offset = BASIC_CMD_BUF_SIZE;
             memcpy(crt_banks[0] + offset, CRT_LAUNCHER_BANK + offset, 16*1024 - offset);
             crt_ptr = crt_banks[0];
 

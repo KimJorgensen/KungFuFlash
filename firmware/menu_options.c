@@ -29,7 +29,7 @@ static void options_dir(OPTIONS_STATE *state)
     to_petscii_pad(scratch_buf + 1, state->title, DIR_NAME_LENGTH-1);
     c64_send_data(scratch_buf, DIR_NAME_LENGTH);
 
-    for (uint8_t i=0; i<state->no_of_elements; i++)
+    for (u8 i=0; i<state->no_of_elements; i++)
     {
         OPTIONS_ELEMENT *element = elements + i;
         if (state->selected_element == i)
@@ -65,7 +65,7 @@ static void options_prev_next_page(OPTIONS_STATE *state)
     reply_page_end();
 }
 
-static bool options_select(OPTIONS_STATE *state, uint8_t flags, uint8_t element_no)
+static bool options_select(OPTIONS_STATE *state, u8 flags, u8 element_no)
 {
     flags &= ~(SELECT_FLAG_OPTIONS); // No options in options menu
 
@@ -90,7 +90,7 @@ static const MENU options_menu = {
     .dir_up = (void (*)(void *, bool))options_dir_up,
     .prev_page = (void (*)(void *))options_prev_next_page,
     .next_page = (void (*)(void *))options_prev_next_page,
-    .select = (bool (*)(void *, uint8_t, uint8_t))options_select
+    .select = (bool (*)(void *, u8, u8))options_select
 };
 
 static OPTIONS_STATE * options_init(const char *title)
@@ -175,34 +175,34 @@ static void options_add_text_block(OPTIONS_STATE *state, const char *text)
     options_add_empty(state);
 }
 
-static bool options_callback(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool options_callback(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
-    void (*callback)(uint8_t) = element->user_state;
+    void (*callback)(u8) = element->user_state;
     callback(element->flags|flags);
     return false;
 }
 
-static void options_add_callback(OPTIONS_STATE *state, void (*callback)(uint8_t), const char *text, uint8_t flags)
+static void options_add_callback(OPTIONS_STATE *state, void (*callback)(u8), const char *text, u8 flags)
 {
     OPTIONS_ELEMENT *element = options_add_text_element(state, options_callback, text);
     element->flags = flags;
     element->user_state = callback;
 }
 
-static bool options_prev_select(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool options_prev_select(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     menu = state->prev_menu;
     return menu->select(menu->state, element->flags|flags, element->element_no);
 }
 
-static void options_add_select(OPTIONS_STATE *state, const char *text, uint8_t flags, uint8_t element_no)
+static void options_add_select(OPTIONS_STATE *state, const char *text, u8 flags, u8 element_no)
 {
     OPTIONS_ELEMENT *element = options_add_text_element(state, options_prev_select, text);
     element->flags = flags;
     element->element_no = element_no;
 }
 
-static bool options_prev_dir(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool options_prev_dir(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     menu = state->prev_menu;
     menu->dir(menu->state);

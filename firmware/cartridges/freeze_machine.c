@@ -20,12 +20,12 @@
 
 // Use menu signature buf to store the reset toggle
 #define RESET_TOOGLE *MEMU_SIGNATURE_BUF
-static uint32_t io1_state;
+static u32 io1_state;
 
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool fm_vic_read_handler(uint32_t control, uint32_t addr)
+static inline bool fm_vic_read_handler(u32 control, u32 addr)
 {
     // Not needed
     return false;
@@ -34,7 +34,7 @@ static inline bool fm_vic_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool fm_read_handler(uint32_t control, uint32_t addr)
+static inline bool fm_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -87,7 +87,7 @@ static inline void fm_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void fm_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void fm_write_handler(u32 control, u32 addr, u32 data)
 {
     // Not needed
 }

@@ -25,7 +25,7 @@ struct
 {
     union
     {
-        uint8_t buf[16*1024];   // 16kB module buffer
+        u8 buf[16*1024];    // 16kB module buffer
         MODULE_HEADER;
     };
 } module;
@@ -46,7 +46,7 @@ static bool crt_init_module(void)
     return crt_module_initialized;
 }
 
-static bool crt_is_supported(uint32_t cartridge_type)
+static bool crt_is_supported(u32 cartridge_type)
 {
     return crt_is_supported_(cartridge_type) ||
            (crt_init_module() && module.crt_is_supported(cartridge_type));

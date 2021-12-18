@@ -24,7 +24,7 @@
 
 DAT_HEADER dat_file;
 
-static inline bool prg_size_valid(uint32_t size)
+static inline bool prg_size_valid(u32 size)
 {
     // PRG should at least have a 2 byte load address and 1 byte of data
     return size > 2 && size < 64*1024;
@@ -32,7 +32,7 @@ static inline bool prg_size_valid(uint32_t size)
 
 static bool compare_extension(char *ext1, const char *ext2)
 {
-    for (uint8_t i = 0; i < 3; i++)
+    for (u8 i = 0; i < 3; i++)
     {
         if (ext1[i] >= 'a' && ext1[i] <= 'z')
         {
@@ -50,14 +50,14 @@ static bool compare_extension(char *ext1, const char *ext2)
     return true;
 }
 
-static uint8_t get_filename_length(const char *filename, uint8_t *extension)
+static u8 get_filename_length(const char *filename, u8 *extension)
 {
     *extension = FF_LFN_BUF;
 
-    uint8_t length = 0;
+    u8 length = 0;
     for (; length < FF_LFN_BUF; length++)
     {
-        uint8_t chr = filename[length];
+        u8 chr = filename[length];
         if (chr)
         {
             if (chr == '.')
@@ -79,7 +79,7 @@ static uint8_t get_filename_length(const char *filename, uint8_t *extension)
     return length;
 }
 
-static uint8_t get_file_type(FILINFO *info)
+static u8 get_file_type(FILINFO *info)
 {
     if (info->fattrib & AM_DIR)
     {
@@ -87,10 +87,10 @@ static uint8_t get_file_type(FILINFO *info)
     }
 
     char *filename = info->fname;
-    uint8_t extension;
-    uint8_t length = get_filename_length(filename, &extension);
+    u8 extension;
+    u8 length = get_filename_length(filename, &extension);
 
-    uint8_t extension_length = length - extension;
+    u8 extension_length = length - extension;
     if (extension_length == 0)
     {
         // Treat extensionless files as PRG

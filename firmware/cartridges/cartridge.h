@@ -23,16 +23,16 @@
 #define CRT_PORT_16K        (C64_EXROM_LOW|C64_GAME_LOW)    // 16k cartridge
 #define CRT_PORT_ULTIMAX    (C64_EXROM_HIGH|C64_GAME_LOW)   // Ultimax cartridge
 
-#define CRT_FLASH_BANK(bank)    ((uint8_t *)FLASH_BASE + (uint32_t)(16*1024 * bank))
+#define CRT_FLASH_BANK(bank)    ((u8 *)FLASH_BASE + (u32)(16*1024 * bank))
 #define CRT_LAUNCHER_BANK       CRT_FLASH_BANK(3)
 
-#define CRT_DAT_BANK(bank)      (dat_buffer + (uint32_t)(16*1024 * bank))
+#define CRT_DAT_BANK(bank)      (dat_buffer + (u32)(16*1024 * bank))
 
-#define CRT_RAM_BUF             ((uint8_t *)scratch_buf)
-#define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (uint32_t)(8*1024 * bank))
+#define CRT_RAM_BUF             ((u8 *)scratch_buf)
+#define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (u32)(8*1024 * bank))
 
 // Fast look-up of 8k RAM bank address
-static uint8_t * const crt_ram_banks[4] =
+static u8 * const crt_ram_banks[4] =
 {
     CRT_RAM_BANK(0),
     CRT_RAM_BANK(1),
@@ -41,7 +41,7 @@ static uint8_t * const crt_ram_banks[4] =
 };
 
 // Fast look-up of 16k ROM bank address
-static uint8_t * const crt_banks[64] =
+static u8 * const crt_banks[64] =
 {
     CRT_DAT_BANK(0),
     CRT_DAT_BANK(1),

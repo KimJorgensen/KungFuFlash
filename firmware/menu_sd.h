@@ -25,7 +25,7 @@ typedef struct
 
     DIR start_page;
     DIR end_page;
-    uint16_t page_no;
+    u16 page_no;
 
     char search[SEARCH_LENGTH+2];
 } SD_STATE;

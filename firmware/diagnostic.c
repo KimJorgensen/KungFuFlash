@@ -49,7 +49,7 @@ static void diag_loop(void)
         c64_reset(false);
     }
 
-    uint16_t cnt = 0;
+    u16 cnt = 0;
     while (true)
     {
         c64_interface(false);

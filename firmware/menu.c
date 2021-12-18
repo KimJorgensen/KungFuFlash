@@ -47,8 +47,8 @@ static void menu_loop()
     bool exit_loop = false;
     while (!exit_loop)
     {
-        uint8_t data;
-        uint8_t command = c64_got_byte() ?
+        u8 data;
+        u8 command = c64_got_byte() ?
                           c64_receive_command() : CMD_NONE;
         switch (command)
         {
@@ -64,7 +64,7 @@ static void menu_loop()
 
             case CMD_DIR:
                 c64_receive_string(search);
-                convert_to_ascii(search, (uint8_t *)search, SEARCH_LENGTH+1);
+                convert_to_ascii(search, (u8 *)search, SEARCH_LENGTH+1);
                 menu->dir(menu->state);
                 break;
 
@@ -164,7 +164,7 @@ static void handle_unsupported(const char *file_name)
     handle_unsupported_ex("Unsupported", "File is not supported or invalid", file_name);
 }
 
-static void handle_unsupported_warning(const char *message, const char *file_name, uint8_t element_no)
+static void handle_unsupported_warning(const char *message, const char *file_name, u8 element_no)
 {
     OPTIONS_STATE *options = build_options("Unsupported", message);
 
@@ -175,7 +175,7 @@ static void handle_unsupported_warning(const char *message, const char *file_nam
     handle_options();
 }
 
-static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t))
+static void handle_unsaved_crt(const char *file_name, void (*handle_save)(u8))
 {
     OPTIONS_STATE *options = build_options("Unsaved changes",
                                            "How do you want to save the changes to CRT?");
@@ -187,7 +187,7 @@ static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_
     handle_options();
 }
 
-static void handle_file_options(const char *file_name, uint8_t file_type, uint8_t element_no)
+static void handle_file_options(const char *file_name, u8 file_type, u8 element_no)
 {
     const char *title = "File Options";
     const char *select_text;
@@ -255,7 +255,7 @@ static void handle_file_options(const char *file_name, uint8_t file_type, uint8_
     handle_options();
 }
 
-static void handle_upgrade_menu(const char *firmware, uint8_t element_no)
+static void handle_upgrade_menu(const char *firmware, u8 element_no)
 {
     OPTIONS_STATE *options = build_options("Firmware Upgrade",
                                            "This will upgrade the firmware to");
@@ -265,9 +265,9 @@ static void handle_upgrade_menu(const char *firmware, uint8_t element_no)
     handle_options();
 }
 
-static const char * to_petscii_pad(char *dest, const char *src, uint8_t size)
+static const char * to_petscii_pad(char *dest, const char *src, u8 size)
 {
-    for(uint8_t i=0; i<size; i++)
+    for(u8 i=0; i<size; i++)
     {
         char c = *src;
         if (c)
@@ -289,7 +289,7 @@ static bool format_path(char *buf, bool include_file)
     bool in_root = false;
     *buf++ = ' ';
 
-    uint16_t len;
+    u16 len;
     for (len = 0; len < sizeof(dat_file.path) && dat_file.path[len]; len++)
     {
         buf[len] = dat_file.path[len];
@@ -310,7 +310,7 @@ static bool format_path(char *buf, bool include_file)
     }
     buf[len] = 0;
 
-    uint16_t index = 0;
+    u16 index = 0;
     if (len == 0)
     {
         buf[0] = '.';

@@ -18,40 +18,11 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-/*************************************************
-* C64 bus read callback
-*************************************************/
-static inline bool prophet64_read_handler(u32 control, u32 addr)
-{
-    if (!(control & C64_ROML))
-    {
-        c64_data_write(crt_ptr[addr & 0x1fff]);
-        return true;
-    }
+#define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
-    return false;
-}
-
-/*************************************************
-* C64 bus write callback
-*************************************************/
-static inline void prophet64_write_handler(u32 control, u32 addr, u32 data)
-{
-    if (!(control & C64_IO2))
-    {
-        crt_ptr = crt_banks[data & 0x1f];
-
-        if (data & 0x20)
-        {
-            // Disable cartridge
-            c64_crt_control(STATUS_LED_OFF|CRT_PORT_NONE);
-        }
-        else
-        {
-            // Enable cartridge
-            c64_crt_control(STATUS_LED_ON|CRT_PORT_8K);
-        }
-    }
-}
-
-C64_BUS_HANDLER(prophet64)
+typedef uint32_t u32;
+typedef int32_t s32;
+typedef uint16_t u16;
+typedef int16_t s16;
+typedef uint8_t u8;
+typedef int8_t s8;

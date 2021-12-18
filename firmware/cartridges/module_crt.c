@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "common.h"
 #include "system_stm32f4xx.c"
 #include "file_types.h"
 #include "module.h"

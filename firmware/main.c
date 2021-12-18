@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "common.h"
 #include "commands.h"
 #include "print.h"
 #include "module.h"

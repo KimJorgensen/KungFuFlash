@@ -18,15 +18,15 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static void sprint_u16_left(char *buffer, uint16_t val)
+static void sprint_u16_left(char *buffer, u16 val)
 {
-    uint16_t div = 10000;
+    u16 div = 10000;
     bool found = false;
 
-    uint8_t ii = 0;
-    for (uint8_t i=0; i<5; i++)
+    u8 ii = 0;
+    for (u8 i=0; i<5; i++)
     {
-        uint8_t d = (val / div) % 10;
+        u8 d = (val / div) % 10;
         if (d || found || i==4)
         {
             found = true;
@@ -52,9 +52,9 @@ static void d64_sanitize_filename(char *dest, const char *src)
     *dest = 0;
 }
 
-static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
+static void d64_sanitize_name_pad(char *dest, const char *src, u8 size)
 {
-    for (uint8_t i=0; i<size; i++)
+    for (u8 i=0; i<size; i++)
     {
         char c = *src;
         if (c)
@@ -69,7 +69,7 @@ static void d64_sanitize_name_pad(char *dest, const char *src, uint8_t size)
     }
 }
 
-static void d64_format_diskname(char *buffer, const char *name, uint8_t name_len)
+static void d64_format_diskname(char *buffer, const char *name, u8 name_len)
 {
     // Star
     sprint(scratch_buf, " *     ");
@@ -80,13 +80,13 @@ static void d64_format_diskname(char *buffer, const char *name, uint8_t name_len
     buffer += name_len;
 
     // Entry type
-    const uint8_t entry_len = 27 - name_len;
+    const u8 entry_len = 27 - name_len;
     d64_sanitize_name_pad(buffer, "", entry_len);
     buffer += entry_len;
     sprint(buffer, "--- ");
 }
 
-static void d64_format_entry_type(char *buffer, uint8_t type)
+static void d64_format_entry_type(char *buffer, u8 type)
 {
     if(!(type & 0x80))
     {
@@ -110,8 +110,8 @@ static void d64_format_entry_type(char *buffer, uint8_t type)
     }
 }
 
-static void d64_format_entry(char *buffer, uint16_t blocks,
-                             const char *filename, uint8_t type)
+static void d64_format_entry(char *buffer, u16 blocks,
+                             const char *filename, u8 type)
 {
     // Blocks
     *buffer++ = ' ';
@@ -129,9 +129,9 @@ static void d64_format_entry(char *buffer, uint16_t blocks,
     d64_format_entry_type(buffer, type);
 }
 
-static uint8_t d64_send_page(D64_STATE *state, uint8_t selected_element)
+static u8 d64_send_page(D64_STATE *state, u8 selected_element)
 {
-    uint8_t element;
+    u8 element;
     for (element=0; element<MAX_ELEMENTS_PAGE; element++)
     {
         if (element == 0 && state->page == 0)
@@ -185,13 +185,13 @@ static void d64_handle_delete_file(D64_STATE *state, const char *file_name,
     c64_send_reset_to_menu();
 }
 
-static bool d64_skip_to_page(D64_STATE *state, uint8_t page)
+static bool d64_skip_to_page(D64_STATE *state, u8 page)
 {
     bool page_found = true;
     state->page = page;
 
-    uint16_t skip = state->page * MAX_ELEMENTS_PAGE;
-    for (uint16_t i=2; i<skip; i++)
+    u16 skip = state->page * MAX_ELEMENTS_PAGE;
+    for (u16 i=2; i<skip; i++)
     {
         if (!d64_read_dir(&state->d64))
         {
@@ -219,7 +219,7 @@ static void d64_dir(D64_STATE *state)
     state->dir_end = false;
 
     // Search for last selected element
-    uint8_t selected_element;
+    u8 selected_element;
     if (dat_file.prg.element == ELEMENT_NOT_SELECTED)
     {
         state->page = 0;
@@ -229,7 +229,7 @@ static void d64_dir(D64_STATE *state)
     else
     {
         selected_element = dat_file.prg.element % MAX_ELEMENTS_PAGE;
-        uint8_t page = dat_file.prg.element / MAX_ELEMENTS_PAGE;
+        u8 page = dat_file.prg.element / MAX_ELEMENTS_PAGE;
 
         if (!d64_skip_to_page(state, page))
         {
@@ -293,9 +293,9 @@ static void d64_prev_page(D64_STATE *state)
     }
 }
 
-static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
+static bool d64_select(D64_STATE *state, u8 flags, u8 element_no)
 {
-    uint16_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
+    u16 element = element_no + state->page * MAX_ELEMENTS_PAGE;
 
     dat_file.prg.element = element;
     dat_file.boot_type = DAT_NONE;
@@ -334,7 +334,7 @@ static bool d64_select(D64_STATE *state, uint8_t flags, uint8_t element_no)
 
     d64_rewind_dir(&state->d64);
     D64_DIR_ENTRY *entry = NULL;
-    for (uint16_t i=2; i<=element; i++)
+    for (u16 i=2; i<=element; i++)
     {
         if (!(entry = d64_read_dir(&state->d64)))
         {
@@ -413,7 +413,7 @@ static const MENU d64_menu = {
     .dir_up = (void (*)(void *, bool))d64_dir_up,
     .prev_page = (void (*)(void *))d64_prev_page,
     .next_page = (void (*)(void *))d64_next_page,
-    .select = (bool (*)(void *, uint8_t, uint8_t))d64_select
+    .select = (bool (*)(void *, u8, u8))d64_select
 };
 
 static const MENU * d64_menu_init(const char *file_name)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -38,7 +38,7 @@ static bool filesystem_unmount(void)
     return res == FR_OK;
 }
 
-static bool file_open(FIL *file, const char *file_name, uint8_t mode)
+static bool file_open(FIL *file, const char *file_name, u8 mode)
 {
     FRESULT res = f_open(file, file_name, mode);
     if (res != FR_OK)
@@ -50,7 +50,7 @@ static bool file_open(FIL *file, const char *file_name, uint8_t mode)
     return res == FR_OK;
 }
 
-static uint32_t file_read(FIL *file, void *buffer, size_t bytes)
+static u32 file_read(FIL *file, void *buffer, size_t bytes)
 {
     UINT bytes_read;
     FRESULT res = f_read(file, buffer, bytes, &bytes_read);
@@ -76,7 +76,7 @@ static bool file_seek(FIL *file, FSIZE_t offset)
     return res == FR_OK;
 }
 
-static uint32_t file_write(FIL *file, void *buffer, size_t bytes)
+static u32 file_write(FIL *file, void *buffer, size_t bytes)
 {
     UINT bytes_written;
     FRESULT res = f_write(file, buffer, bytes, &bytes_written);

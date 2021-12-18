@@ -33,7 +33,7 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool warpspeed_read_handler(uint32_t control, uint32_t addr)
+static inline bool warpspeed_read_handler(u32 control, u32 addr)
 {
     /* IO access */
     if ((control & (C64_IO1|C64_IO2)) != (C64_IO1|C64_IO2))
@@ -56,7 +56,7 @@ static inline bool warpspeed_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void warpspeed_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void warpspeed_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {

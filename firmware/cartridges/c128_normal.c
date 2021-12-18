@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool c128_read_handler(uint32_t control, uint32_t addr)
+static inline bool c128_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -35,7 +35,7 @@ static inline bool c128_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void c128_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void c128_write_handler(u32 control, u32 addr, u32 data)
 {
     // No write support
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -78,14 +78,14 @@ static inline void timer_reset(void)
     SysTick->VAL = 0;
 }
 
-static inline void timer_start_us(uint32_t us)
+static inline void timer_start_us(u32 us)
 {
     SysTick->LOAD = (168 / 8) * us;
     timer_reset();
 }
 
 // Max supported value is 798 ms
-static inline void timer_start_ms(uint32_t ms)
+static inline void timer_start_ms(u32 ms)
 {
     timer_start_us(1000 * ms);
 }
@@ -95,15 +95,15 @@ static inline bool timer_elapsed()
     return (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk);
 }
 
-static inline void delay_us(uint32_t us)
+static inline void delay_us(u32 us)
 {
     timer_start_us(us);
     while(!timer_elapsed());
 }
 
-static void delay_ms(uint32_t ms)
+static void delay_ms(u32 ms)
 {
-    for (uint32_t i=0; i<ms; i++)
+    for (u32 i=0; i<ms; i++)
     {
         delay_us(1000);
     }
@@ -141,7 +141,7 @@ static inline void crc_reset(void)
 
 static void crc_calc(void *buf, size_t len)
 {
-    uint32_t *buf32 = (uint32_t *)buf;
+    u32 *buf32 = (u32 *)buf;
     while (len)
     {
         CRC->DR = *buf32++;
@@ -149,7 +149,7 @@ static void crc_calc(void *buf, size_t len)
     }
 }
 
-static inline uint32_t crc_get(void)
+static inline u32 crc_get(void)
 {
     return CRC->DR;
 }

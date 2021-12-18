@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint32_t const ef_mode[8] =
+static u32 const ef_mode[8] =
 {
     STATUS_LED_OFF|CRT_PORT_ULTIMAX,
     STATUS_LED_OFF|CRT_PORT_NONE,
@@ -34,7 +34,7 @@ static uint32_t const ef_mode[8] =
 /*************************************************
 * C64 bus read callback (early VIC-II cycle)
 *************************************************/
-static inline uint32_t ef_early_vic_handler(uint32_t addr)
+static inline u32 ef_early_vic_handler(u32 addr)
 {
     // Speculative read
     return crt_ptr[addr & 0x3fff];
@@ -43,7 +43,7 @@ static inline uint32_t ef_early_vic_handler(uint32_t addr)
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool ef_vic_read_handler(uint32_t control, uint32_t data)
+static inline bool ef_vic_read_handler(u32 control, u32 data)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -57,7 +57,7 @@ static inline bool ef_vic_read_handler(uint32_t control, uint32_t data)
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool ef_read_handler(uint32_t control, uint32_t addr)
+static inline bool ef_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -78,7 +78,7 @@ static inline bool ef_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void ef_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
@@ -104,8 +104,8 @@ static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t da
             */
             case 0x02:
             {
-                uint32_t mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
-                                        (((data >> 2) & 0x01) & ~data)];
+                u32 mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
+                                   (((data >> 2) & 0x01) & ~data)];
                 c64_crt_control(mode);
             }
             return;
@@ -117,7 +117,7 @@ static inline void ef_write_handler(uint32_t control, uint32_t addr, uint32_t da
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        CRT_RAM_BUF[addr & 0xff] = (uint8_t)data;
+        CRT_RAM_BUF[addr & 0xff] = (u8)data;
         return;
     }
 }

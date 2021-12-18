@@ -187,8 +187,8 @@ static void c64_clock_config()
 #define DIAG_RUN    (0x01)
 #define DIAG_STOP   (0x02)
 
-static volatile uint32_t diag_state;
-static volatile uint32_t diag_phi2_freq;
+static volatile u32 diag_state;
+static volatile u32 diag_phi2_freq;
 
 static void c64_diag_handler(void)
 {
@@ -248,8 +248,8 @@ static void c64_interface(bool state)
         return;
     }
 
-    uint32_t valid_clock_count = 0;
-    uint32_t led_activity = 0;
+    u32 valid_clock_count = 0;
+    u32 led_activity = 0;
 
     // Wait for a valid C64 clock signal
     while (valid_clock_count < 100)

@@ -18,12 +18,12 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint8_t rgcd_bank_xor;
+static u8 rgcd_bank_xor;
 
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool rgcd_read_handler(uint32_t control, uint32_t addr)
+static inline bool rgcd_read_handler(u32 control, u32 addr)
 {
     if (!(control & C64_ROML))
     {
@@ -37,13 +37,13 @@ static inline bool rgcd_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void rgcd_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void rgcd_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
         if (!(data & 0x8))
         {
-            uint8_t bank = (data ^ rgcd_bank_xor) & 0x7;
+            u8 bank = (data ^ rgcd_bank_xor) & 0x7;
             crt_ptr = crt_banks[bank];
         }
         else

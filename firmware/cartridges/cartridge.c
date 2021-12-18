@@ -21,14 +21,14 @@
 #include "cartridge.h"
 
 // Current ROM or RAM bank pointer
-static uint8_t *crt_ptr;
+static u8 *crt_ptr;
 
 // Current ROM bank pointer (only used by some cartridges)
-static uint8_t *crt_rom_ptr;
+static u8 *crt_rom_ptr;
 
 #ifdef MODULE
-static uint32_t special_button;
-static uint32_t freezer_state;
+static u32 special_button;
+static u32 freezer_state;
 #endif
 
 /* ordered by cartridge id */
@@ -68,7 +68,7 @@ static uint32_t freezer_state;
 #define NTSC_OR_PAL_HANDLER(name)   \
     ntsc ? name##_ntsc_handler : name##_pal_handler
 
-static void (*crt_get_handler(uint32_t cartridge_type, bool vic_support)) (void)
+static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
 {
     bool ntsc = c64_is_ntsc();
     switch (cartridge_type)
@@ -214,13 +214,13 @@ static void crt_install_handler_(DAT_CRT_HEADER *crt_header)
     crt_ptr = crt_banks[0];
     crt_init(crt_header);
 
-    uint32_t cartridge_type = crt_header->type;
+    u32 cartridge_type = crt_header->type;
     bool vic_support = (crt_header->flags & CRT_FLAG_VIC) != 0;
     void (*handler)(void) = crt_get_handler(cartridge_type, vic_support);
     C64_INSTALL_HANDLER(handler);
 }
 
-static bool crt_is_supported_(uint32_t cartridge_type)
+static bool crt_is_supported_(u32 cartridge_type)
 {
     return crt_get_handler(cartridge_type, false) != NULL;
 }

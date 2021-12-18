@@ -24,30 +24,30 @@ static inline bool c64_got_byte(void)
     return ef3_gotc();
 }
 
-static inline uint8_t c64_receive_byte(void)
+static inline u8 c64_receive_byte(void)
 {
     return ef3_getc();
 }
 
-static inline void c64_send_byte(uint8_t data)
+static inline void c64_send_byte(u8 data)
 {
     ef3_putc(data);
 }
 
 static void c64_receive_data(void *buffer, size_t size)
 {
-    uint8_t *buf_ptr = (uint8_t *)buffer;
+    u8 *buf_ptr = (u8 *)buffer;
 
     for (; size; size--)
     {
-        uint8_t c = c64_receive_byte();
+        u8 c = c64_receive_byte();
         *buf_ptr++ = c;
     }
 }
 
 static void c64_send_data(const void *buffer, size_t size)
 {
-    const uint8_t *buf_ptr = (const uint8_t *)buffer;
+    const u8 *buf_ptr = (const u8 *)buffer;
 
     for (; size; size--)
     {
@@ -88,9 +88,9 @@ static bool c64_wait_for_close(void)
     return true;
 }
 
-static bool c64_send_prg(const void *data, uint16_t size)
+static bool c64_send_prg(const void *data, u16 size)
 {
-    uint16_t tx_size;
+    u16 tx_size;
 
     dbg("Sending PRG file. Size: %u bytes\n", size);
     if(!c64_send_command("PRG", "LOAD"))
@@ -207,9 +207,9 @@ static char petscii_to_ascii(char c)
     return c;
 }
 
-static uint16_t convert_to_ascii(char *dest, const uint8_t *src, uint8_t size)
+static u16 convert_to_ascii(char *dest, const u8 *src, u8 size)
 {
-    uint16_t i;
+    u16 i;
     for (i=0; i<size-1; i++)
     {
         char c = *src++;
@@ -243,9 +243,9 @@ static char ascii_to_petscii(char c)
     return c;
 }
 
-static uint16_t convert_to_petscii(char *dest, const char *src)
+static u16 convert_to_petscii(char *dest, const char *src)
 {
-    uint16_t i;
+    u16 i;
     for (i=0; i<800; i++)
     {
         char c = *src++;
@@ -263,7 +263,7 @@ static uint16_t convert_to_petscii(char *dest, const char *src)
 
 static bool c64_send_petscii(const void *text)
 {
-    uint16_t text_len = convert_to_petscii(scratch_buf, text);
+    u16 text_len = convert_to_petscii(scratch_buf, text);
     c64_send_data(&text_len, 2);
     c64_send_data(scratch_buf, text_len);
 
@@ -275,7 +275,7 @@ static bool c64_send_petscii(const void *text)
     return true;
 }
 
-static bool c64_send_text(uint8_t color, uint8_t x, uint8_t y, const char *text)
+static bool c64_send_text(u8 color, u8 x, u8 y, const char *text)
 {
     dbg("Sending text \"%s\"\n", text);
     if (!c64_send_command("TXT", "READ"))
@@ -325,12 +325,12 @@ static bool c64_send_prg_message(const char *text)
 
 static void c64_receive_string(char *buffer)
 {
-    uint8_t size = c64_receive_byte();
+    u8 size = c64_receive_byte();
     c64_receive_data(buffer, size);
     buffer[size] = 0;
 }
 
-static uint8_t c64_receive_command(void)
+static u8 c64_receive_command(void)
 {
     char cmd_buf[5];
 
@@ -345,7 +345,7 @@ static uint8_t c64_receive_command(void)
     return cmd_buf[4];
 }
 
-static inline void c64_send_reply(uint8_t reply)
+static inline void c64_send_reply(u8 reply)
 {
     c64_send_byte(reply);
 }

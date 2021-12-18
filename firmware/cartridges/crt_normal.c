@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool crt_read_handler(uint32_t control, uint32_t addr)
+static inline bool crt_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -35,7 +35,7 @@ static inline bool crt_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void crt_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void crt_write_handler(u32 control, u32 addr, u32 data)
 {
     // No write support
 }

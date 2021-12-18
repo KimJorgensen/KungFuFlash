@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint32_t const kcs_mode[4] =
+static u32 const kcs_mode[4] =
 {
     STATUS_LED_ON|CRT_PORT_16K,
     STATUS_LED_ON|CRT_PORT_8K,
@@ -26,12 +26,12 @@ static uint32_t const kcs_mode[4] =
     STATUS_LED_OFF|CRT_PORT_NONE
 };
 
-static uint8_t kcs_register;
+static u8 kcs_register;
 
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool kcs_vic_read_handler(uint32_t control, uint32_t addr)
+static inline bool kcs_vic_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -45,7 +45,7 @@ static inline bool kcs_vic_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool kcs_read_handler(uint32_t control, uint32_t addr)
+static inline bool kcs_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_IO1|C64_ROML|C64_ROMH)) != (C64_IO1|C64_ROML|C64_ROMH))
     {
@@ -104,7 +104,7 @@ static inline void kcs_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void kcs_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void kcs_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
@@ -117,7 +117,7 @@ static inline void kcs_write_handler(uint32_t control, uint32_t addr, uint32_t d
     {
         if (!(addr & 0x80))
         {
-            CRT_RAM_BUF[addr & 0x7f] = (uint8_t)data;
+            CRT_RAM_BUF[addr & 0x7f] = (u8)data;
         }
 
         c64_irq_nmi(C64_IRQ_NMI_HIGH);

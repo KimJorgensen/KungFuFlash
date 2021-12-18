@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -40,7 +40,7 @@
 #define D64_SECTOR_DATA_LEN 254
 #define D64_SECTOR_LEN      256
 
-static const uint16_t d64_track_offset[42] =
+static const u16 d64_track_offset[42] =
 {
     0x0000, 0x0015, 0x002a, 0x003f, 0x0054, 0x0069, 0x007e, 0x0093,
     0x00a8, 0x00bd, 0x00d2, 0x00e7, 0x00fc, 0x0111, 0x0126, 0x013b,
@@ -60,7 +60,7 @@ typedef enum
   D64_TYPE_D81
 } D64_TYPE;
 
-static uint8_t d64_get_type(FSIZE_t imgsize)
+static u8 d64_get_type(FSIZE_t imgsize)
 {
     switch (imgsize)
     {
@@ -102,65 +102,65 @@ typedef enum
 #pragma pack(1)
 typedef struct
 {
-    uint8_t track;
-    uint8_t sector;
+    u8 track;
+    u8 sector;
 } D64_TS;
 
 typedef struct
 {
     D64_TS current;                 // not persisted in D64
     D64_TS next;
-    uint8_t data[D64_SECTOR_DATA_LEN];
+    u8 data[D64_SECTOR_DATA_LEN];
 } D64_SECTOR;
 
 typedef struct
 {
-    uint8_t free_sectors;
-    uint8_t data[3];
+    u8 free_sectors;
+    u8 data[3];
 } D64_BAM_ENTRY;
 
 typedef struct
 {
     D64_TS current;
     D64_TS next;
-    uint8_t dos_version;
-    uint8_t double_sided;           // Only used by D71
+    u8 dos_version;
+    u8 double_sided;                // Only used by D71
     D64_BAM_ENTRY entries[35];
     char diskname[27];
-    uint8_t unused;
+    u8 unused;
     D64_BAM_ENTRY dolphin_dos[5];
     D64_BAM_ENTRY speed_dos[5];
-    uint8_t unused2[9];
-    uint8_t free_sectors_36_70[35]; // Only used by D71
+    u8 unused2[9];
+    u8 free_sectors_36_70[35];      // Only used by D71
 } D64_HEADER_SECTOR;
 
 typedef struct
 {
-    uint8_t data[3];
+    u8 data[3];
 } D71_BAM_ENTRY;
 
 typedef struct
 {
     D64_TS current;
     D71_BAM_ENTRY entries[35];
-    uint8_t unused[151];
+    u8 unused[151];
 } D71_BAM_SECTOR;
 
 typedef struct
 {
-    uint8_t free_sectors;
-    uint8_t data[5];
+    u8 free_sectors;
+    u8 data[5];
 } D81_BAM_ENTRY;
 
 typedef struct
 {
     D64_TS current;
     D64_TS next;
-    uint16_t version;
-    uint16_t disk_id;
-    uint8_t io_byte;
-    uint8_t auto_boot;
-    uint8_t reserved[8];
+    u16 version;
+    u16 disk_id;
+    u8 io_byte;
+    u8 auto_boot;
+    u8 reserved[8];
     D81_BAM_ENTRY entries[40];
 } D81_BAM_SECTOR;
 
@@ -168,20 +168,20 @@ typedef struct
 {
     D64_TS current;
     D64_TS next;
-    uint8_t dos_version;
-    uint8_t unused;
+    u8 dos_version;
+    u8 unused;
     char diskname[27];
-    uint8_t unused2[225];
+    u8 unused2[225];
 } D81_HEADER_SECTOR;
 
 typedef struct
 {
     D64_TS next;
-    uint8_t type;
+    u8 type;
     D64_TS start;
     char filename[16];
-    uint8_t ignored[9];
-    uint16_t blocks;
+    u8 ignored[9];
+    u16 blocks;
 } D64_DIR_ENTRY;
 
 typedef struct
@@ -194,7 +194,7 @@ typedef struct
 typedef struct
 {
     FIL file;
-    uint8_t type;       // D64_TYPE
+    u8 type;            // D64_TYPE
 
     union               // Cached header/BAM sectors
     {
@@ -219,7 +219,7 @@ typedef struct
 {
     D64_TS start;
     D64_TS dir;
-    uint8_t dir_ptr;
+    u8 dir_ptr;
 } D64_FILE_CREATE;
 
 typedef struct
@@ -232,11 +232,11 @@ typedef struct
         D64_DIR_SECTOR dir;
     };
 
-    uint8_t data_len;
-    uint8_t data_ptr;
+    u8 data_len;
+    u8 data_ptr;
 
-    uint8_t sector_count;
-    uint8_t channel;
+    u8 sector_count;
+    u8 channel;
 
     D64_FILE_CREATE file;
 } D64;

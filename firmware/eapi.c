@@ -60,7 +60,7 @@ static void eapi_save_buffer(FIL *file)
     }
 }
 
-static void eapi_save_buffer_byte(FIL *file, uint16_t pos, uint8_t byte, bool sync)
+static void eapi_save_buffer_byte(FIL *file, u16 pos, u8 byte, bool sync)
 {
     if (!file_seek(file, sizeof(dat_file) + pos) ||
         file_write(file, &byte, 1) != 1 ||
@@ -84,13 +84,13 @@ static void eapi_enable_interface(void)
     c64_send_data("DONE", 4);
 }
 
-static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
+static void eapi_handle_write_flash(FIL *file, u16 addr, u8 value)
 {
-    uint8_t *dest = crt_ptr + (addr & 0x3fff);
+    u8 *dest = crt_ptr + (addr & 0x3fff);
     if (crt_ptr >= crt_banks[0] && crt_ptr <= crt_banks[3])
     {
         *dest &= value;
-        uint16_t pos = (uint16_t)(dest - crt_banks[0]);
+        u16 pos = (u16)(dest - crt_banks[0]);
 
         eapi_disable_interface();
         if (!(dat_file.crt.flags & CRT_FLAG_UPDATED))
@@ -118,7 +118,7 @@ static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
         flash_program_byte(dest, value);
     }
 
-    uint8_t result = REPLY_OK;
+    u8 result = REPLY_OK;
     if (*dest != value)
     {
         wrn("Flash write failed at $%04x (%x)\n", addr, crt_ptr);
@@ -128,7 +128,7 @@ static void eapi_handle_write_flash(FIL *file, uint16_t addr, uint8_t value)
     c64_send_reply(result);
 }
 
-static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
+static void eapi_handle_erase_sector(FIL *file, u8 bank, u16 addr)
 {
     if (bank >= 64 || (bank % 8))
     {
@@ -137,10 +137,10 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
         return;
     }
 
-    uint8_t sector = bank / 8;
-    int8_t sector_to_erase = sector + 4;
-    uint16_t offset = (addr & 0xff00) == 0x8000 ? 0 : 8*1024;
-    uint16_t other_offset = offset ? 0 : 8*1024;
+    u8 sector = bank / 8;
+    s8 sector_to_erase = sector + 4;
+    u16 offset = (addr & 0xff00) == 0x8000 ? 0 : 8*1024;
+    u16 other_offset = offset ? 0 : 8*1024;
 
     eapi_disable_interface();
     if (!(dat_file.crt.flags & CRT_FLAG_UPDATED) ||
@@ -158,7 +158,7 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
     if (!sector)
     {
         // Backup other 32k of 64k flash sector in dat_buffer
-        for (uint8_t i=0; i<4; i++)
+        for (u8 i=0; i<4; i++)
         {
             memcpy(crt_banks[i] + offset,
                    crt_banks[i + 4] + other_offset, 8*1024);
@@ -166,7 +166,7 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
 
         // Erase 64k flash sector, restore other 32k and
         // erase 32k dat_buffer sector
-        for (uint8_t i=0; i<4; i++)
+        for (u8 i=0; i<4; i++)
         {
             flash_sector_program(sector_to_erase,
                                  crt_banks[i + 4] + other_offset,
@@ -181,14 +181,14 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
     else
     {
         // Backup other 64k of 128k flash sector in dat_buffer
-        for (uint8_t i=0; i<8; i++)
+        for (u8 i=0; i<8; i++)
         {
             memcpy(dat_buffer + (i * 8*1024),
                    crt_banks[bank + i] + other_offset, 8*1024);
         }
 
         // Erase 128k sector and restore other 64k
-        for (uint8_t i=0; i<8; i++)
+        for (u8 i=0; i<8; i++)
         {
             flash_sector_program(sector_to_erase,
                                  crt_banks[bank + i] + other_offset,
@@ -207,13 +207,13 @@ static void eapi_handle_erase_sector(FIL *file, uint8_t bank, uint16_t addr)
 static void eapi_loop(void)
 {
     FIL file;
-    uint16_t addr;
-    uint8_t value;
+    u16 addr;
+    u8 value;
 
     eapi_open_dat(&file);
     while (true)
     {
-        uint8_t command = c64_receive_command();
+        u8 command = c64_receive_command();
         switch (command)
         {
             case CMD_NONE:

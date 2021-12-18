@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -38,7 +38,7 @@
 #include "diskio.h"
 
 #define BIT30 (1 << 30)
-#define BIT31 ((uint32_t)(1 << 31))
+#define BIT31 ((u32)(1 << 31))
 
 #define RESP_NONE  0
 #define RESP_SHORT 1
@@ -62,9 +62,9 @@
                              SDIO_ICR_TXUNDERRC | SDIO_ICR_DTIMEOUTC |  \
                              SDIO_ICR_DCRCFAILC)
 
-static uint16_t card_rca;
-static uint8_t card_type;
-static uint8_t card_info[36]; /* CSD, CID, OCR */
+static u16 card_rca;
+static u8 card_type;
+static u8 card_info[36];    // CSD, CID, OCR
 
 static DSTATUS dstatus = STA_NOINIT;
 
@@ -147,18 +147,18 @@ static void sdio_deinit(void)
     MODIFY_REG(GPIOD->PUPDR, GPIO_PUPDR_PUPD2, 0);
 }
 
-static void byte_swap(uint8_t *dest, uint32_t src)
+static void byte_swap(u8 *dest, u32 src)
 {
     int i;
     for (i = 0; i < 4; i ++)
         dest[i] = src >> (24 - 8 * i);
 }
 
-static bool sdio_cmd_send(uint16_t idx, uint32_t arg, int resp_type, uint32_t *buf)
+static bool sdio_cmd_send(u16 idx, u32 arg, int resp_type, u32 *buf)
 {
     if (IS_ACMD(idx)) // ACMD class
     {
-        if (!sdio_cmd_send(55, ((uint32_t)card_rca) << 16, RESP_SHORT, buf) ||
+        if (!sdio_cmd_send(55, ((u32)card_rca) << 16, RESP_SHORT, buf) ||
             !(buf[0] & 0x00000020))
         {
             return false;
@@ -167,7 +167,7 @@ static bool sdio_cmd_send(uint16_t idx, uint32_t arg, int resp_type, uint32_t *b
 
     idx &= SDIO_CMD_CMDINDEX;
 
-    uint32_t cmd = SDIO_CMD_CPSMEN | idx;
+    u32 cmd = SDIO_CMD_CPSMEN | idx;
     if (resp_type == RESP_SHORT)
     {
         cmd |= SDIO_CMD_WAITRESP_0;
@@ -190,7 +190,7 @@ static bool sdio_cmd_send(uint16_t idx, uint32_t arg, int resp_type, uint32_t *b
     }
     else
     {
-        uint32_t sta;
+        u32 sta;
         // Wait for response
         do
         {
@@ -232,14 +232,14 @@ static bool sdio_cmd_send(uint16_t idx, uint32_t arg, int resp_type, uint32_t *b
     return true;
 }
 
-static bool sdio_check_tran(uint32_t tout_ms)
+static bool sdio_check_tran(u32 tout_ms)
 {
-    uint32_t resp;
+    u32 resp;
 
     timer_start_ms(tout_ms);
     while (!timer_elapsed())
     {
-        if (sdio_cmd_send(13, ((uint32_t)card_rca) << 16, RESP_SHORT, &resp)
+        if (sdio_cmd_send(13, ((u32)card_rca) << 16, RESP_SHORT, &resp)
             && ((resp & 0x01e00) == 0x00800))
         {
             return true;
@@ -251,9 +251,9 @@ static bool sdio_check_tran(uint32_t tout_ms)
 
 DSTATUS disk_initialize(BYTE pdrv)
 {
-    uint32_t resp[4];
-    uint16_t cmd;
-    uint8_t timeouts;
+    u32 resp[4];
+    u16 cmd;
+    u8 timeouts;
     int i;
 
     card_rca = 0;
@@ -326,7 +326,7 @@ DSTATUS disk_initialize(BYTE pdrv)
     }
 
     byte_swap(&card_info[32], resp[0]);
-    dbg("card OCR: %08x\n", ((uint32_t*)card_info)[8]);
+    dbg("card OCR: %08x\n", ((u32*)card_info)[8]);
 
     // card state 'ready'
     if (!sdio_cmd_send(2, 0, RESP_LONG, resp)) // enter ident state
@@ -347,7 +347,7 @@ DSTATUS disk_initialize(BYTE pdrv)
             goto fail;
         }
 
-        card_rca = (uint16_t)(resp[0] >> 16);
+        card_rca = (u16)(resp[0] >> 16);
     }
     else
     {
@@ -360,7 +360,7 @@ DSTATUS disk_initialize(BYTE pdrv)
     }
 
     // card state 'standby'
-    if (!sdio_cmd_send(9, ((uint32_t)card_rca) << 16, RESP_LONG, resp))
+    if (!sdio_cmd_send(9, ((u32)card_rca) << 16, RESP_LONG, resp))
     {
         goto fail;
     }
@@ -370,7 +370,7 @@ DSTATUS disk_initialize(BYTE pdrv)
         byte_swap(&card_info[i * 4], resp[i]);
     }
 
-    if (!sdio_cmd_send(7, ((uint32_t)card_rca) << 16, RESP_SHORT, resp))
+    if (!sdio_cmd_send(7, ((u32)card_rca) << 16, RESP_SHORT, resp))
     {
         goto fail;
     }
@@ -384,7 +384,7 @@ DSTATUS disk_initialize(BYTE pdrv)
         }
     }
 
-    uint32_t clkcr = SDIO->CLKCR;
+    u32 clkcr = SDIO->CLKCR;
     if (card_type & CT_SDC)
     {
         // Set wide bus
@@ -444,13 +444,13 @@ DRESULT disk_read(BYTE pdrv, BYTE* buf, DWORD sector, UINT count)
     SDIO->DLEN = 512 * count;
 
     int cmd = (count > 1) ? 18 : 17;
-    uint32_t resp;
+    u32 resp;
     if (!sdio_cmd_send(cmd, sector, RESP_SHORT, &resp) || (resp & 0xc0580000))
     {
         return RES_ERROR;
     }
 
-    uint32_t *buf32 = (uint32_t *)buf;
+    u32 *buf32 = (u32 *)buf;
     int rd = 0;
 
     SDIO->ICR = SDIO_ICR_DATA_FLAGS;
@@ -458,7 +458,7 @@ DRESULT disk_read(BYTE pdrv, BYTE* buf, DWORD sector, UINT count)
 
     while (true)
     {
-        uint32_t sta = SDIO->STA;
+        u32 sta = SDIO->STA;
         if (sta & (SDIO_STA_DCRCFAIL|SDIO_STA_DTIMEOUT|SDIO_STA_RXOVERR|SDIO_STA_STBITERR))
         {
             err("%s SDIO_STA: %08x\n", __func__, sta);
@@ -523,7 +523,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
         return RES_ERROR;
     }
 
-    uint32_t resp;
+    u32 resp;
     int cmd;
 
     if (count == 1) // Single block write
@@ -551,14 +551,14 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
         return RES_ERROR;
     }
 
-    const uint32_t *buf32 = (const uint32_t *)buf;
+    const u32 *buf32 = (const u32 *)buf;
     int wr = 0;
 
     SDIO->ICR = SDIO_ICR_DATA_FLAGS;
 
     // Note: Will not work while the C64 interrupt handler is enabled
     __disable_irq();
-    uint32_t first_word = *buf32++;
+    u32 first_word = *buf32++;
     __DSB();
     SDIO->DCTRL |= SDIO_DCTRL_DTEN;
 
@@ -572,7 +572,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
 
     while (true)
     {
-        uint32_t sta = SDIO->STA;
+        u32 sta = SDIO->STA;
         if (sta & (SDIO_STA_DCRCFAIL|SDIO_STA_DTIMEOUT|SDIO_STA_TXUNDERR|SDIO_STA_STBITERR))
         {
             err("%s SDIO_STA: %08x\n", __func__, sta);

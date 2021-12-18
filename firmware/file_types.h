@@ -110,32 +110,32 @@ typedef enum {
 #pragma pack(1)
 typedef struct
 {
-    uint8_t signature[16];
-    uint32_t header_length;
-    uint16_t version;
-    uint16_t cartridge_type;
-    uint8_t exrom;
-    uint8_t game;
-    uint8_t hardware_revision;
-    uint8_t reserved[5];
-    uint8_t cartridge_name[32];
+    u8 signature[16];
+    u32 header_length;
+    u16 version;
+    u16 cartridge_type;
+    u8 exrom;
+    u8 game;
+    u8 hardware_revision;
+    u8 reserved[5];
+    u8 cartridge_name[32];
 } CRT_HEADER;
 
 typedef struct
 {
-    uint8_t signature[4];
-    uint32_t packet_length;
-    uint16_t chip_type;
-    uint16_t bank;
-    uint16_t start_address;
-    uint16_t image_size;
+    u8 signature[4];
+    u32 packet_length;
+    u16 chip_type;
+    u16 bank;
+    u16 start_address;
+    u16 image_size;
 } CRT_CHIP_HEADER;
 
 typedef struct
 {
     char signature[8];
     char filename[17];
-    uint8_t rel_record_size;
+    u8 rel_record_size;
 } P00_HEADER;
 #pragma pack(pop)
 
@@ -190,29 +190,29 @@ typedef enum {
 #pragma pack(1)
 typedef struct
 {
-    uint16_t type;          // CRT_TYPE
-    uint8_t hw_rev;         // Cartridge hardware revision
-    uint8_t exrom;          // EXROM line status
-    uint8_t game;           // GAME line status
-    uint8_t banks;          // Number of 16k CRT banks in use (0-64)
-    uint8_t flags;          // DAT_CRT_FLAGS
-    uint32_t flash_hash;    // Used id crt_banks > 4
+    u16 type;           // CRT_TYPE
+    u8 hw_rev;          // Cartridge hardware revision
+    u8 exrom;           // EXROM line status
+    u8 game;            // GAME line status
+    u8 banks;           // Number of 16k CRT banks in use (0-64)
+    u8 flags;           // DAT_CRT_FLAGS
+    u32 flash_hash;     // Used id crt_banks > 4
 } DAT_CRT_HEADER;
 
 typedef struct
 {
-    uint16_t size;
-    uint16_t element;       // Used if file is a T64 or D64
-    char name[17];          // Used if file is a P00, T64, or D64
+    u16 size;
+    u16 element;        // Used if file is a T64 or D64
+    char name[17];      // Used if file is a P00, T64, or D64
 } DAT_PRG_HEADER;
 
 typedef struct
 {
-    uint8_t signature[8];   // DAT_SIGNATURE
+    u8 signature[8];    // DAT_SIGNATURE
 
-    uint8_t flags;          // DAT_FLAGS
-    uint8_t boot_type;      // DAT_BOOT_TYPE
-    uint8_t reserved;       // Should be 0
+    u8 flags;           // DAT_FLAGS
+    u8 boot_type;       // DAT_BOOT_TYPE
+    u8 reserved;        // Should be 0
 
     union
     {

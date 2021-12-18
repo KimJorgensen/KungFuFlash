@@ -19,18 +19,18 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static inline void put_u8(uint8_t **ptr, uint8_t value)
+static inline void put_u8(u8 **ptr, u8 value)
 {
     *(*ptr)++ = value;
 }
 
-static inline void put_u16(uint8_t **ptr, uint16_t value)
+static inline void put_u16(u8 **ptr, u16 value)
 {
-    *(*ptr)++ = (uint8_t)value;
-    *(*ptr)++ = (uint8_t)(value >> 8);
+    *(*ptr)++ = (u8)value;
+    *(*ptr)++ = (u8)(value >> 8);
 }
 
-static void put_u8_times(uint8_t **ptr, uint8_t value, size_t size)
+static void put_u8_times(u8 **ptr, u8 value, size_t size)
 {
     while (size--)
     {
@@ -38,7 +38,7 @@ static void put_u8_times(uint8_t **ptr, uint8_t value, size_t size)
     }
 }
 
-static void put_string(uint8_t **ptr, const char* str)
+static void put_string(u8 **ptr, const char* str)
 {
     while (*str)
     {
@@ -46,13 +46,13 @@ static void put_string(uint8_t **ptr, const char* str)
     }
 }
 
-static void put_diskname(uint8_t **ptr, char* str)
+static void put_diskname(u8 **ptr, char* str)
 {
     put_u8(ptr, '"');
     str[16] = '"';
     str[17] = ' ';
 
-    for (uint8_t i=0; i<23; i++)
+    for (u8 i=0; i<23; i++)
     {
         char c = *str++;
         if (c == 0xa0)
@@ -64,12 +64,12 @@ static void put_diskname(uint8_t **ptr, char* str)
     }
 }
 
-static void put_filename(uint8_t **ptr, const char* str)
+static void put_filename(u8 **ptr, const char* str)
 {
     put_u8(ptr, '"');
     char end_char = '"';
 
-    for (uint8_t i=0; i<16; i++)
+    for (u8 i=0; i<16; i++)
     {
         char c = *str++;
         if (end_char != '"')
@@ -89,11 +89,11 @@ static void put_filename(uint8_t **ptr, const char* str)
     put_u8(ptr, end_char);
 }
 
-static void put_dir_entry(uint8_t **ptr, D64_DIR_ENTRY *entry)
+static void put_dir_entry(u8 **ptr, D64_DIR_ENTRY *entry)
 {
     put_u16(ptr, entry->blocks);
 
-    uint8_t pad = 0;
+    u8 pad = 0;
     if (entry->blocks < 10)
     {
         pad = 3;
@@ -121,7 +121,7 @@ static void put_dir_entry(uint8_t **ptr, D64_DIR_ENTRY *entry)
 static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
 {
     bool found = true;
-    for (uint8_t i=0; i<16; i++)
+    for (u8 i=0; i<16; i++)
     {
         char f = filename[i];
         char e = entry->filename[i];
@@ -155,11 +155,11 @@ static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
     return found;
 }
 
-static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr,
+static u16 disk_create_dir_prg(D64 *d64, u8 **ptr,
                                     const char *filename)
 {
-    const uint16_t start_addr = 0x0401; // Start of BASIC (for the PET)
-    const uint16_t link_addr = 0x0101;
+    const u16 start_addr = 0x0401;      // Start of BASIC (for the PET)
+    const u16 link_addr = 0x0101;
 
     put_u16(ptr, link_addr);
     put_u16(ptr, 0);                    // drive number
@@ -181,7 +181,7 @@ static uint16_t disk_create_dir_prg(D64 *d64, uint8_t **ptr,
     }
 
     put_u16(ptr, link_addr);
-    uint16_t blocks_free = d64_get_blocks_free(d64);
+    u16 blocks_free = d64_get_blocks_free(d64);
     put_u16(ptr, blocks_free);
     put_string(ptr, "BLOCKS FREE.");
     put_u8_times(ptr, ' ', 13);
@@ -294,7 +294,7 @@ static bool disk_is_file_supported(char *filename, PARSED_FILENAME *parsed)
 }
 
 static D64_DIR_ENTRY * disk_find_file(D64 *d64, const char *filename,
-                                      uint8_t file_type)
+                                      u8 file_type)
 {
     d64_rewind_dir(d64);
 
@@ -315,8 +315,7 @@ static D64_DIR_ENTRY * disk_find_file(D64 *d64, const char *filename,
     return NULL;
 }
 
-static bool disk_open_file_read(D64 *d64, const char *filename,
-                                uint8_t file_type)
+static bool disk_open_file_read(D64 *d64, const char *filename, u8 file_type)
 {
     D64_DIR_ENTRY *entry = disk_find_file(d64, filename, file_type);
     if (entry)
@@ -328,7 +327,7 @@ static bool disk_open_file_read(D64 *d64, const char *filename,
     return false;
 }
 
-static void disk_handle_load_prg(D64 *d64, char *filename, uint8_t *buf)
+static void disk_handle_load_prg(D64 *d64, char *filename, u8 *buf)
 {
     PARSED_FILENAME parsed;
     if (!disk_is_file_supported(filename, &parsed))
@@ -343,8 +342,8 @@ static void disk_handle_load_prg(D64 *d64, char *filename, uint8_t *buf)
         return;
     }
 
-    uint16_t start_addr;
-    if (d64_read_data(d64, (uint8_t *)&start_addr, sizeof(start_addr)) !=
+    u16 start_addr;
+    if (d64_read_data(d64, (u8 *)&start_addr, sizeof(start_addr)) !=
         sizeof(start_addr))
     {
         c64_send_reply(REPLY_DISK_ERROR);
@@ -354,8 +353,8 @@ static void disk_handle_load_prg(D64 *d64, char *filename, uint8_t *buf)
     bool send_start_addr = true;
     while (true)
     {
-        uint8_t reply;
-        uint16_t bank_size;
+        u8 reply;
+        u16 bank_size;
         if ((bank_size = d64_read_data(d64, buf, 16*1024)) == 16*1024)
         {
             reply = REPLY_OK;           // Send bank
@@ -386,7 +385,7 @@ static void disk_handle_load_prg(D64 *d64, char *filename, uint8_t *buf)
     }
 }
 
-static void disk_handle_load_dir(D64 *d64, char *filename, uint8_t *buf)
+static void disk_handle_load_dir(D64 *d64, char *filename, u8 *buf)
 {
     // Check drive number
     if (filename[0] >= '0' && filename[0] <= '9')
@@ -423,9 +422,9 @@ static void disk_handle_load_dir(D64 *d64, char *filename, uint8_t *buf)
 
     // TODO: Also support '=' to filter on filetype
 
-    uint8_t *ptr = buf;
-    uint16_t start_addr = disk_create_dir_prg(d64, &ptr, filename);
-    uint16_t prg_size = ptr - buf;
+    u8 *ptr = buf;
+    u16 start_addr = disk_create_dir_prg(d64, &ptr, filename);
+    u16 prg_size = ptr - buf;
 
     if (prg_size)
     {
@@ -448,7 +447,7 @@ static void disk_init_channel(D64_IMAGE *image, D64 *d64)
 
 static void disk_init_all_channels(D64_IMAGE *image, D64 *channels)
 {
-    for (uint8_t i=0; i<16; i++)
+    for (u8 i=0; i<16; i++)
     {
         D64 *d64 = channels + i;
         d64->channel = i;
@@ -456,7 +455,7 @@ static void disk_init_all_channels(D64_IMAGE *image, D64 *channels)
     }
 }
 
-static void disk_handle_load(D64 *d64, char *filename, uint8_t *buf)
+static void disk_handle_load(D64 *d64, char *filename, u8 *buf)
 {
     if (filename[0] == '$') // directory
     {
@@ -470,16 +469,16 @@ static void disk_handle_load(D64 *d64, char *filename, uint8_t *buf)
     disk_init_channel(d64->image, d64); // Close channel
 }
 
-static void disk_send_done(uint8_t ret_val)
+static void disk_send_done(u8 ret_val)
 {
     c64_interface(true);
     c64_send_data("DONE", 4);
     c64_send_reply(ret_val);
 }
 
-static uint8_t disk_save_file(D64 *d64, PARSED_FILENAME *parsed, uint8_t *buf)
+static u8 disk_save_file(D64 *d64, PARSED_FILENAME *parsed, u8 *buf)
 {
-    uint16_t start_addr;
+    u16 start_addr;
     c64_receive_data(&start_addr, 2);
     c64_interface(false);
 
@@ -497,10 +496,10 @@ static uint8_t disk_save_file(D64 *d64, PARSED_FILENAME *parsed, uint8_t *buf)
     }
     disk_send_done(REPLY_OK);
 
-    *(uint16_t *)d64->sector.data = start_addr;
+    *(u16 *)d64->sector.data = start_addr;
     d64->data_ptr = 2;
 
-    uint8_t recv_size;
+    u8 recv_size;
     while ((recv_size = c64_receive_byte()))
     {
         c64_interface(false);
@@ -521,7 +520,7 @@ static uint8_t disk_save_file(D64 *d64, PARSED_FILENAME *parsed, uint8_t *buf)
     return REPLY_OK;
 }
 
-static void disk_handle_save(D64 *d64, char *filename, uint8_t *buf)
+static void disk_handle_save(D64 *d64, char *filename, u8 *buf)
 {
     PARSED_FILENAME parsed;
     if (!disk_is_file_supported(filename, &parsed))
@@ -531,7 +530,7 @@ static void disk_handle_save(D64 *d64, char *filename, uint8_t *buf)
     }
     c64_send_reply(REPLY_OK);
 
-    uint8_t ret_val = disk_save_file(d64, &parsed, buf);
+    u8 ret_val = disk_save_file(d64, &parsed, buf);
     disk_send_done(ret_val);
 
     disk_init_channel(d64->image, d64); // Close channel
@@ -542,7 +541,7 @@ static void disk_read_status(D64 *d64)
     d64->data_ptr = 0;
     d64->sector.next.track = 0;
 
-    uint8_t len = 13;
+    u8 len = 13;
     // TODO: Return last error
     memcpy(d64->sector.data, "00, OK,00,00\r", len);
     d64->data_len = len;
@@ -605,14 +604,14 @@ static void disk_handle_close(D64_IMAGE *image, D64 *channels, D64 *d64)
 
 static void disk_handle_get_byte(D64 *d64)
 {
-    uint8_t data;
+    u8 data;
     if (!d64 || !d64_read_data(d64, &data, 1))
     {
         c64_send_reply(REPLY_DISK_ERROR);
         return;
     }
 
-    uint8_t reply;
+    u8 reply;
     if (!d64_bytes_left(d64))
     {
         if (d64->channel == 15)
@@ -633,7 +632,7 @@ static void disk_handle_get_byte(D64 *d64)
 
 static D64 * disk_receive_channel(D64 *channels)
 {
-    uint8_t channel = c64_receive_byte();
+    u8 channel = c64_receive_byte();
     channel &= 0x0f;
 
     return channels + channel;
@@ -650,13 +649,13 @@ static void disk_loop(void)
     D64 *d64 = NULL, *channels = (D64 *)crt_ram_banks[1];
     disk_init_all_channels(image, channels);
 
-    uint8_t *load_buf = crt_banks[1];
-    uint8_t *save_buf = &CRT_RAM_BUF[SAVE_BUFFER_OFFSET];
+    u8 *load_buf = crt_banks[1];
+    u8 *save_buf = &CRT_RAM_BUF[SAVE_BUFFER_OFFSET];
     char filename[42] = {0};
 
     while (true)
     {
-        uint8_t command = c64_receive_command();
+        u8 command = c64_receive_command();
         switch (command)
         {
             case CMD_NONE:

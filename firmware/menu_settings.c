@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint8_t settings_flags;
+static u8 settings_flags;
 
 static void settings_refresh(OPTIONS_ELEMENT *element, const char *text)
 {
@@ -34,7 +34,7 @@ static const char * settings_basic_text(void)
     return scratch_buf;
 }
 
-static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     if (settings_flags & DAT_FLAG_PERSIST_BASIC)
     {
@@ -57,7 +57,7 @@ static const char * settings_autostart_text(void)
     return scratch_buf;
 }
 
-static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     if (settings_flags & DAT_FLAG_AUTOSTART_D64)
     {
@@ -78,16 +78,16 @@ static const char * settings_device_text(void)
     return scratch_buf;
 }
 
-static bool settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
-    uint8_t device = get_device_number(settings_flags) + 1;
+    u8 device = get_device_number(settings_flags) + 1;
     set_device_number(&settings_flags, device);
 
     settings_refresh(element, settings_device_text());
     return false;
 }
 
-static bool settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, uint8_t flags)
+static bool settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     dat_file.flags = settings_flags;
 

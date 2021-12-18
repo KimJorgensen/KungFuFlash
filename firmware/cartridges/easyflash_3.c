@@ -23,19 +23,19 @@
 #define EF3_TX_RDY  (0x40)
 #define EF3_NOT_RDY (0x00)
 
-static volatile uint32_t ef3_usb_rx_rdy = EF3_NOT_RDY;
-static volatile uint32_t ef3_usb_tx_rdy = EF3_TX_RDY;
+static volatile u32 ef3_usb_rx_rdy = EF3_NOT_RDY;
+static volatile u32 ef3_usb_tx_rdy = EF3_TX_RDY;
 
 // EasyFlash 3 USB Data
-static volatile uint8_t ef3_usb_rx_data;
-static volatile uint32_t ef3_usb_tx_data;
+static volatile u8 ef3_usb_rx_data;
+static volatile u32 ef3_usb_tx_data;
 
 static inline bool ef3_can_putc(void)
 {
     return !ef3_usb_rx_rdy;
 }
 
-static void ef3_putc(uint8_t data)
+static void ef3_putc(u8 data)
 {
     while (ef3_usb_rx_rdy);
 
@@ -48,20 +48,20 @@ static inline bool ef3_gotc(void)
     return !ef3_usb_tx_rdy;
 }
 
-static uint8_t ef3_getc(void)
+static u8 ef3_getc(void)
 {
     while (ef3_usb_tx_rdy);
 
-    uint32_t data = ef3_usb_tx_data;
+    u32 data = ef3_usb_tx_data;
     COMPILER_BARRIER();
     ef3_usb_tx_rdy = EF3_TX_RDY;
-    return (uint8_t)data;
+    return (u8)data;
 }
 
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool ef3_read_handler(uint32_t control, uint32_t addr)
+static inline bool ef3_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
@@ -76,7 +76,7 @@ static inline bool ef3_read_handler(uint32_t control, uint32_t addr)
             // $de09 EF3 USB Control register
             case 0x09:
             {
-                c64_data_write((uint8_t)(ef3_usb_rx_rdy | ef3_usb_tx_rdy));
+                c64_data_write((u8)(ef3_usb_rx_rdy | ef3_usb_tx_rdy));
             }
             return true;
 
@@ -105,7 +105,7 @@ static inline bool ef3_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void ef3_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
@@ -131,8 +131,8 @@ static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t d
             */
             case 0x02:
             {
-                uint32_t mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
-                                        (((data >> 2) & 0x01) & ~data)];
+                u32 mode = ef_mode[((data >> 5) & 0x04) | (data & 0x02) |
+                                   (((data >> 2) & 0x01) & ~data)];
                 c64_crt_control(mode);
             }
             return;
@@ -152,7 +152,7 @@ static inline void ef3_write_handler(uint32_t control, uint32_t addr, uint32_t d
     if (!(control & C64_IO2))
     {
         // EasyFlash RAM at $df00-$dfff
-        CRT_RAM_BUF[addr & 0xff] = (uint8_t)data;
+        CRT_RAM_BUF[addr & 0xff] = (u8)data;
         return;
     }
 }

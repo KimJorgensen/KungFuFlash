@@ -25,7 +25,7 @@ typedef struct
     void (*dir_up)(void *state, bool root);
     void (*prev_page)(void *state);
     void (*next_page)(void *state);
-    bool (*select)(void *state, uint8_t flags, uint8_t element);
+    bool (*select)(void *state, u8 flags, u8 element);
 } MENU;
 
 static const MENU *menu;
@@ -33,11 +33,11 @@ static const MENU *menu;
 static void handle_failed_to_read_sd(void);
 static void handle_unsupported(const char *file_name);
 static void handle_unsupported_ex(const char *title, const char *message, const char *file_name);
-static void handle_unsupported_warning(const char *message, const char *file_name, uint8_t element_no);
-static void handle_unsaved_crt(const char *file_name, void (*handle_save)(uint8_t));
-static void handle_file_options(const char *file_name, uint8_t file_type, uint8_t element_no);
-static void handle_upgrade_menu(const char *firmware, uint8_t element_no);
-static const char * to_petscii_pad(char *dest, const char *src, uint8_t size);
+static void handle_unsupported_warning(const char *message, const char *file_name, u8 element_no);
+static void handle_unsaved_crt(const char *file_name, void (*handle_save)(u8));
+static void handle_file_options(const char *file_name, u8 file_type, u8 element_no);
+static void handle_upgrade_menu(const char *firmware, u8 element_no);
+static const char * to_petscii_pad(char *dest, const char *src, u8 size);
 static bool format_path(char *buf, bool include_file);
 static void send_page_end(void);
 static void reply_page_end(void);

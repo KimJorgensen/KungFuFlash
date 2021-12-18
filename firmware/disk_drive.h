@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -23,7 +23,7 @@ typedef struct
     const char *name;
     bool wildcard;
     bool overwrite;
-    uint8_t drive;
-    uint8_t type;
+    u8 drive;
+    u8 type;
     char mode;
 } PARSED_FILENAME;

@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static void sd_format_size(char *buffer, uint32_t size)
+static void sd_format_size(char *buffer, u32 size)
 {
     char units[] = "BKmg";
     char *unit = units;
@@ -47,7 +47,7 @@ static void sd_format_element(char *buffer, FILINFO *info)
     *buffer++ = ' ';
 
     // Element name
-    const uint8_t filename_len = (ELEMENT_LENGTH-1)-6;
+    const u8 filename_len = (ELEMENT_LENGTH-1)-6;
     to_petscii_pad(buffer, info->fname, filename_len);
     buffer += filename_len;
     *buffer++ = ' ';
@@ -74,13 +74,13 @@ static void sd_send_not_found(SD_STATE *state)
     c64_send_data(scratch_buf, ELEMENT_LENGTH);
 }
 
-static uint8_t sd_send_page(SD_STATE *state, uint8_t selected_element)
+static u8 sd_send_page(SD_STATE *state, u8 selected_element)
 {
     bool send_dot_dot = !state->in_root && state->page_no == 0;
     bool send_not_found = state->page_no == 0;
 
     FILINFO file_info;
-    uint8_t element;
+    u8 element;
     for (element=0; element<MAX_ELEMENTS_PAGE; element++)
     {
         if (send_dot_dot)
@@ -158,15 +158,15 @@ static void sd_send_warning_restart(const char *message, const char *filename)
     restart_to_menu();
 }
 
-static uint8_t sd_parse_file_number(char *filename, uint8_t *extension)
+static u8 sd_parse_file_number(char *filename, u8 *extension)
 {
-    uint8_t pos = *extension-1;
+    u8 pos = *extension-1;
     if (pos <= 5 || filename[pos--] != ')')
     {
         return 0;
     }
 
-    uint8_t number;
+    u8 number;
     if (filename[pos] >= '0' && filename[pos] <= '9')
     {
         number = filename[pos--] - '0';
@@ -194,14 +194,14 @@ static bool sd_generate_new_filename(void)
 {
     char *filename = dat_file.file;
 
-    uint8_t extension;
-    uint8_t length = get_filename_length(filename, &extension);
+    u8 extension;
+    u8 length = get_filename_length(filename, &extension);
     if (length <= extension)
     {
         return false;
     }
 
-    uint8_t file_number = sd_parse_file_number(filename, &extension);
+    u8 file_number = sd_parse_file_number(filename, &extension);
     if (++file_number >= 100)
     {
         return false;
@@ -216,7 +216,7 @@ static bool sd_generate_new_filename(void)
     return false;
 }
 
-static void handle_save_updated_crt(uint8_t flags)
+static void handle_save_updated_crt(u8 flags)
 {
     c64_send_exit_menu();
     c64_send_prg_message("Saving CRT file.");
@@ -252,7 +252,7 @@ static void handle_save_updated_crt(uint8_t flags)
     file_close(&file);
 
     // Updated flag is cleared so we need to calculate a new hash
-    uint32_t flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
+    u32 flash_hash = crt_calc_flash_crc(dat_file.crt.banks);
     dat_file.crt.flash_hash = flash_hash;
     save_dat();
 
@@ -291,14 +291,14 @@ static void handle_dir_command(SD_STATE *state)
     // Search for last selected element
     FILINFO file_info;
     bool found = false;
-    uint8_t selected_element = MAX_ELEMENTS_PAGE;
+    u8 selected_element = MAX_ELEMENTS_PAGE;
 
     if (dat_file.file[0])
     {
         DIR first_page = state->start_page;
         while (true)
         {
-            uint8_t element = 0;
+            u8 element = 0;
             if (!state->in_root && state->page_no == 0)
             {
                 element++;
@@ -349,7 +349,7 @@ static void handle_dir_command(SD_STATE *state)
     }
     else if (dat_file.prg.element != ELEMENT_NOT_SELECTED)
     {
-        uint8_t file_type = get_file_type(&file_info);
+        u8 file_type = get_file_type(&file_info);
         if (file_type == FILE_D64)
         {
             menu = d64_menu_init(file_info.fname);
@@ -373,8 +373,8 @@ static void handle_change_dir(SD_STATE *state, char *path, bool select_old)
 {
     if (select_old && !state->in_root)
     {
-        uint16_t dir_index = 0;
-        uint16_t len;
+        u16 dir_index = 0;
+        u16 len;
         for (len = 0; len < sizeof(dat_file.path); len++)
         {
             char c = dat_file.path[len];
@@ -433,13 +433,13 @@ static void handle_dir_prev_page_command(SD_STATE *state)
 {
     if (state->page_no)
     {
-        uint16_t target_page = state->page_no-1;
+        u16 target_page = state->page_no-1;
         bool not_found = false;
 
         handle_dir_open(state);
         c64_send_reply(REPLY_READ_DIR_PAGE);
 
-        uint16_t elements_to_skip = MAX_ELEMENTS_PAGE * target_page;
+        u16 elements_to_skip = MAX_ELEMENTS_PAGE * target_page;
         if (elements_to_skip && !state->in_root) elements_to_skip--;
 
         while (elements_to_skip--)
@@ -498,7 +498,7 @@ static void handle_file_open(FIL *file, const char *file_name)
     }
 }
 
-static bool handle_crt_supported(uint32_t cartridge_type)
+static bool handle_crt_supported(u32 cartridge_type)
 {
     if (crt_is_supported(cartridge_type))
     {
@@ -526,7 +526,7 @@ static void handle_fw_not_in_root(const char *file_name)
 }
 
 static bool handle_load_file(SD_STATE *state, const char *file_name,
-                             uint8_t file_type, uint8_t flags, uint8_t element)
+                             u8 file_type, u8 flags, u8 element)
 {
     bool exit_menu = false;
 
@@ -610,8 +610,8 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             {
                 c64_send_exit_menu();
 
-                uint8_t banks = 4;
-                uint32_t flash_hash = crt_calc_flash_crc(banks);
+                u8 banks = 4;
+                u32 flash_hash = crt_calc_flash_crc(banks);
                 dat_file.crt.type = CRT_C128_NORMAL_CARTRIDGE;
                 dat_file.crt.hw_rev = 0;
                 dat_file.crt.exrom = 1;
@@ -645,13 +645,13 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             c64_send_prg_message("Programming flash memory.");
             c64_interface(false);
 
-            uint8_t banks = crt_program_file(&file, header.cartridge_type);
+            u8 banks = crt_program_file(&file, header.cartridge_type);
             if (!banks)
             {
                 sd_send_warning_restart("Failed to read CRT file", file_name);
             }
 
-            uint8_t crt_flags = CRT_FLAG_NONE;
+            u8 crt_flags = CRT_FLAG_NONE;
             if (flags & SELECT_FLAG_VIC)
             {
                 crt_flags |= CRT_FLAG_VIC;
@@ -667,7 +667,7 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
                        CRT_LAUNCHER_BANK + EAPI_OFFSET, EAPI_SIZE);
             }
 
-            uint32_t flash_hash = crt_calc_flash_crc(banks);
+            u32 flash_hash = crt_calc_flash_crc(banks);
             dat_file.crt.type = header.cartridge_type;
             dat_file.crt.hw_rev = header.hardware_revision;
             dat_file.crt.exrom = header.exrom;
@@ -776,10 +776,10 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
     return exit_menu;
 }
 
-static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t element)
+static bool handle_select_command(SD_STATE *state, u8 flags, u8 element)
 {
     bool exit_menu = false;
-    uint8_t element_no = element;
+    u8 element_no = element;
 
     dat_file.boot_type = DAT_NONE;
     dat_file.prg.element = ELEMENT_NOT_SELECTED;    // don't auto open T64/D64
@@ -806,7 +806,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
 
     FILINFO file_info;
     DIR dir = state->start_page;
-    for (uint8_t i=0; i<=element_no; i++)
+    for (u8 i=0; i<=element_no; i++)
     {
         if (!dir_read(&dir, &file_info))
         {
@@ -829,7 +829,7 @@ static bool handle_select_command(SD_STATE *state, uint8_t flags, uint8_t elemen
         return exit_menu;
     }
 
-    uint8_t file_type = get_file_type(&file_info);
+    u8 file_type = get_file_type(&file_info);
     strcpy(dat_file.file, file_info.fname);
 
     if (flags & SELECT_FLAG_OPTIONS)
@@ -870,7 +870,7 @@ static const MENU sd_menu = {
     .dir_up = (void (*)(void *, bool))handle_dir_up_command,
     .prev_page = (void (*)(void *))handle_dir_prev_page_command,
     .next_page = (void (*)(void *))handle_dir_next_page_command,
-    .select = (bool (*)(void *, uint8_t, uint8_t))handle_select_command
+    .select = (bool (*)(void *, u8, u8))handle_select_command
 };
 
 static const MENU *sd_menu_init(void)

@@ -21,7 +21,7 @@
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void comal80_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void comal80_write_handler(u32 control, u32 addr, u32 data)
 {
     /* The register is reset to $00 on reset. Bits:
         7   Unused

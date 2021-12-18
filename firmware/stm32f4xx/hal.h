@@ -36,10 +36,10 @@ static bool filesystem_unmount(void);
 static void system_restart(void);
 static void restart_to_menu(void);
 
-static void delay_us(uint32_t us);
-static void delay_ms(uint32_t ms);
+static void delay_us(u32 us);
+static void delay_ms(u32 ms);
 
-static void timer_start_us(uint32_t us);
-static void timer_start_ms(uint32_t ms);
+static void timer_start_us(u32 us);
+static void timer_start_ms(u32 ms);
 static void timer_reset(void);
 static bool timer_elapsed(void);

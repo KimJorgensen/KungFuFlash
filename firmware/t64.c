@@ -28,7 +28,7 @@ static bool t64_open(T64_IMAGE *image, const char *filename)
         return false;
     }
 
-    uint16_t len = file_read(&image->file, &image->header, sizeof(T64_HEADER));
+    u16 len = file_read(&image->file, &image->header, sizeof(T64_HEADER));
 
     if (len != sizeof(T64_HEADER) || image->header.version < T64_VERSION_1_0 ||
         image->header.version > T64_VERSION_2_0)
@@ -86,9 +86,9 @@ static bool t64_read_dir(T64_IMAGE *image)
     return false;
 }
 
-static size_t t64_read_prg(T64_IMAGE *image, uint8_t *buf, size_t buf_size)
+static size_t t64_read_prg(T64_IMAGE *image, u8 *buf, size_t buf_size)
 {
-    uint16_t prg_size = image->entry.end_address - image->entry.start_address;
+    u16 prg_size = image->entry.end_address - image->entry.start_address;
 
     if (prg_size >= (buf_size - 2) ||
         !file_seek(&image->file, image->entry.file_offset))
@@ -96,10 +96,10 @@ static size_t t64_read_prg(T64_IMAGE *image, uint8_t *buf, size_t buf_size)
         return 0;
     }
 
-    uint16_t len = file_read(&image->file, buf + 2, prg_size) + 2;
+    u16 len = file_read(&image->file, buf + 2, prg_size) + 2;
     if (prg_size_valid(len))
     {
-        *(uint16_t *)buf = image->entry.start_address;
+        *(u16 *)buf = image->entry.start_address;
         return len;
     }
 

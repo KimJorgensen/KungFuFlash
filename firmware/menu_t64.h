@@ -25,7 +25,7 @@ typedef struct
 {
     T64_IMAGE image;
 
-    uint8_t page;
+    u8 page;
     bool dir_end;
 } T64_STATE;
 

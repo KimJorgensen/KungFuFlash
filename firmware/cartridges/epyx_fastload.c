@@ -18,12 +18,12 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint16_t epyx_cycles;
+static u16 epyx_cycles;
 
 /*************************************************
 * C64 bus read callback
 *************************************************/
-static inline bool epyx_read_handler(uint32_t control, uint32_t addr)
+static inline bool epyx_read_handler(u32 control, u32 addr)
 {
     if (!(control & C64_ROML))
     {
@@ -55,7 +55,7 @@ static inline bool epyx_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void epyx_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void epyx_write_handler(u32 control, u32 addr, u32 data)
 {
     // No write support
 }

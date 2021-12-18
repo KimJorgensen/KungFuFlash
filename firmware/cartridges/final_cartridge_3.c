@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint32_t const fc3_mode[8] =
+static u32 const fc3_mode[8] =
 {
     STATUS_LED_ON|CRT_PORT_16K,
     STATUS_LED_ON|CRT_PORT_ULTIMAX,
@@ -33,12 +33,12 @@ static uint32_t const fc3_mode[8] =
 
 #define FC3_REGISTER_ADDR (0xdfff)
 #define FC3_REGISTER_HIDE (0)
-static uint32_t fc3_register;
+static u32 fc3_register;
 
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool fc3_vic_read_handler(uint32_t control, uint32_t addr)
+static inline bool fc3_vic_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_IO1|C64_IO2|C64_ROML|C64_ROMH)) != (C64_IO1|C64_IO2|C64_ROML|C64_ROMH))
     {
@@ -52,7 +52,7 @@ static inline bool fc3_vic_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool fc3_read_handler(uint32_t control, uint32_t addr)
+static inline bool fc3_read_handler(u32 control, u32 addr)
 {
     if ((control & (C64_IO1|C64_IO2|C64_ROML|C64_ROMH)) != (C64_IO1|C64_IO2|C64_ROML|C64_ROMH))
     {
@@ -90,7 +90,7 @@ static inline void fc3_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void fc3_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void fc3_write_handler(u32 control, u32 addr, u32 data)
 {
     /*  The FC3 register is reset to $00 on reset.
         Bit 7: Hide register, 1 = disable write to register
@@ -115,7 +115,7 @@ static inline void fc3_write_handler(uint32_t control, uint32_t addr, uint32_t d
             c64_irq_nmi(C64_NMI_LOW);
         }
 
-        uint32_t mode = fc3_mode[((data >> 5) & 0x04) | ((data >> 4) & 0x03)];
+        u32 mode = fc3_mode[((data >> 5) & 0x04) | ((data >> 4) & 0x03)];
         c64_crt_control(mode);
         if (mode & STATUS_LED_OFF)
         {

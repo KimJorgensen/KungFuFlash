@@ -18,10 +18,8 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define COMPILER_BARRIER() asm volatile("" ::: "memory")
-
 #define MENU_RAM_SIGNATURE  "KungFu:Menu"
-#define MEMU_SIGNATURE_BUF  ((uint32_t *)scratch_buf)
+#define MEMU_SIGNATURE_BUF  ((u32 *)scratch_buf)
 
 #define FW_NAME         ("Kung Fu Flash v" VERSION)
 #define FW_NAME_SIZE    20
@@ -31,7 +29,7 @@ struct                                                          \
 {                                                               \
     char fw_name[FW_NAME_SIZE];                                 \
     void (*init)(void);                                         \
-    bool (*crt_is_supported)(uint32_t cartridge_type);          \
+    bool (*crt_is_supported)(u32 cartridge_type);          \
     void (*crt_install_handler)(DAT_CRT_HEADER *crt_header);    \
 } __attribute__((packed))
 
@@ -39,4 +37,4 @@ struct                                                          \
 __attribute__((__section__(".uninit"))) static char scratch_buf[32*1024];
 
 // 64kB data buffer
-__attribute__((__section__(".sram"))) uint8_t dat_buffer[64*1024];
+__attribute__((__section__(".sram"))) static u8 dat_buffer[64*1024];

@@ -18,7 +18,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-static uint32_t const ss5_mode[8] =
+static u32 const ss5_mode[8] =
 {
     STATUS_LED_ON|CRT_PORT_ULTIMAX,
     STATUS_LED_ON|CRT_PORT_NONE,
@@ -34,7 +34,7 @@ static uint32_t const ss5_mode[8] =
 /*************************************************
 * C64 bus read callback (VIC-II cycle)
 *************************************************/
-static inline bool ss5_vic_read_handler(uint32_t control, uint32_t addr)
+static inline bool ss5_vic_read_handler(u32 control, u32 addr)
 {
     // Not needed
     return false;
@@ -43,7 +43,7 @@ static inline bool ss5_vic_read_handler(uint32_t control, uint32_t addr)
 /*************************************************
 * C64 bus read callback (CPU cycle)
 *************************************************/
-static inline bool ss5_read_handler(uint32_t control, uint32_t addr)
+static inline bool ss5_read_handler(u32 control, u32 addr)
 {
     if (crt_ptr)
     {
@@ -93,7 +93,7 @@ static inline void ss5_early_write_handler(void)
 /*************************************************
 * C64 bus write callback
 *************************************************/
-static inline void ss5_write_handler(uint32_t control, uint32_t addr, uint32_t data)
+static inline void ss5_write_handler(u32 control, u32 addr, u32 data)
 {
     /*  The SS5 register is reset to $00 on reset.
         Bit 5-7: Unused
@@ -107,10 +107,10 @@ static inline void ss5_write_handler(uint32_t control, uint32_t addr, uint32_t d
     {
         if (!(control & C64_IO1))
         {
-            uint8_t bank = ((data >> 3) & 0x02) | ((data >> 2) & 0x01);
+            u8 bank = ((data >> 3) & 0x02) | ((data >> 2) & 0x01);
             crt_rom_ptr = crt_banks[bank];
 
-            uint32_t mode = ss5_mode[((data >> 1) & 0x04) | (data & 0x03)];
+            u32 mode = ss5_mode[((data >> 1) & 0x04) | (data & 0x03)];
             c64_crt_control(mode);
 
             if (mode & STATUS_LED_OFF)
@@ -137,7 +137,7 @@ static inline void ss5_write_handler(uint32_t control, uint32_t addr, uint32_t d
 
         if (!(control & C64_ROML) && crt_ptr != crt_rom_ptr)
         {
-            crt_ptr[addr & 0x1fff] = (uint8_t)data;
+            crt_ptr[addr & 0x1fff] = (u8)data;
         }
     }
 }

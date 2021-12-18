@@ -25,7 +25,7 @@ typedef struct
     D64 d64;
     D64_IMAGE image;
 
-    uint8_t page;
+    u8 page;
     bool dir_end;
 } D64_STATE;
 

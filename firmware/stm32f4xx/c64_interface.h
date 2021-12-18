@@ -22,7 +22,7 @@
 * C64 address bus on PB0-PB15
 * Returned as 32 bit value for performance
 *************************************************/
-static inline uint32_t c64_addr_read()
+static inline u32 c64_addr_read()
 {
     return GPIOB->IDR;
 }
@@ -31,24 +31,24 @@ static inline uint32_t c64_addr_read()
 * C64 data bus on PC0-PC7
 * Returned as 32 bit value for performance
 *************************************************/
-static inline uint32_t c64_data_read()
+static inline u32 c64_data_read()
 {
     return GPIOC->IDR;
 }
 
-static inline void c64_data_write(uint8_t data)
+static inline void c64_data_write(u8 data)
 {
     // Make PC0-PC7 outout
-    *((volatile uint16_t *)&GPIOC->MODER) = 0x5555;
+    *((volatile u16 *)&GPIOC->MODER) = 0x5555;
 
-    *((volatile uint8_t *)&GPIOC->ODR) = data;
+    *((volatile u8 *)&GPIOC->ODR) = data;
     __DMB();
 }
 
 static inline void c64_data_input(void)
 {
     // Make PC0-PC7 input
-    *((volatile uint16_t *)&GPIOC->MODER) = 0x0000;
+    *((volatile u16 *)&GPIOC->MODER) = 0x0000;
     __DMB();
 }
 
@@ -66,7 +66,7 @@ static inline void c64_data_input(void)
 #define C64_ROML    0x0040  // ROML on PA6
 #define C64_ROMH    0x0080  // ROMH on PA7
 
-static inline uint32_t c64_control_read()
+static inline u32 c64_control_read()
 {
     return GPIOA->IDR;
 }
@@ -84,7 +84,7 @@ static inline uint32_t c64_control_read()
 #define C64_IRQ_NMI_HIGH    (C64_IRQ_HIGH|C64_NMI_HIGH)
 #define C64_IRQ_NMI_LOW     (C64_IRQ_LOW|C64_NMI_LOW)
 
-static inline void c64_irq_nmi(uint32_t state)
+static inline void c64_irq_nmi(u32 state)
 {
     GPIOA->BSRR = state;
 }
@@ -101,7 +101,7 @@ static inline void c64_irq_nmi(uint32_t state)
 #define STATUS_LED_ON   GPIO_BSRR_BR13
 #define STATUS_LED_OFF  GPIO_BSRR_BS13
 
-static inline void c64_crt_control(uint32_t state)
+static inline void c64_crt_control(u32 state)
 {
     GPIOC->BSRR = state;
 }
@@ -150,17 +150,17 @@ static void handler(void)                                                       
     /* Use debug cycle counter which is faster to access than timer */          \
     DWT->CYCCNT = TIM1->CNT;                                                    \
     COMPILER_BARRIER();                                                         \
-    uint32_t phi2_high = DWT->COMP0;                                            \
+    u32 phi2_high = DWT->COMP0;                                                 \
     while (DWT->CYCCNT < phi2_high);                                            \
-    uint32_t addr = c64_addr_read();                                            \
-    uint32_t control = c64_control_read();                                      \
+    u32 addr = c64_addr_read();                                                 \
+    u32 control = c64_control_read();                                           \
     if (control & C64_WRITE)                                                    \
     {                                                                           \
         COMPILER_BARRIER();                                                     \
         if (read_handler(control, addr))                                        \
         {                                                                       \
             /* Wait for phi2 to go low */                                       \
-            uint32_t phi2_low = DWT->COMP1;                                     \
+            u32 phi2_low = DWT->COMP1;                                          \
             while (DWT->CYCCNT < phi2_low);                                     \
             /* We releases the bus as fast as possible when phi2 is low */      \
             c64_data_input();                                                   \
@@ -169,7 +169,7 @@ static void handler(void)                                                       
     else                                                                        \
     {                                                                           \
         COMPILER_BARRIER();                                                     \
-        uint32_t data = c64_data_read();                                        \
+        u32 data = c64_data_read();                                             \
         write_handler(control, addr, data);                                     \
     }                                                                           \
 }
@@ -302,9 +302,9 @@ void handler(void)                                                              
     {                                                                           \
         /* Wait for CPU cycle */                                                \
         while (DWT->CYCCNT < timing##_PHI2_CPU_START);                          \
-        uint32_t addr = c64_addr_read();                                        \
+        u32 addr = c64_addr_read();                                             \
         COMPILER_BARRIER();                                                     \
-        uint32_t control = c64_control_read();                                  \
+        u32 control = c64_control_read();                                       \
         /* Check if CPU has the bus (no bad line) */                            \
         if ((control & (C64_BA|C64_WRITE)) == (C64_BA|C64_WRITE))               \
         {                                                                       \
@@ -318,7 +318,7 @@ void handler(void)                                                              
         else if (!(control & C64_WRITE))                                        \
         {                                                                       \
             early_write_handler();                                              \
-            uint32_t data = c64_data_read();                                    \
+            u32 data = c64_data_read();                                         \
             write_handler(control, addr, data);                                 \
         }                                                                       \
         /* VIC-II has the bus */                                                \
@@ -365,7 +365,7 @@ void handler(void)                                                              
 
 #define C64_INSTALL_HANDLER(handler)                    \
     /* Set TIM1_CC_IRQHandler vector */                 \
-    ((uint32_t *)0x00000000)[43] = (uint32_t)handler
+    ((u32 *)0x00000000)[43] = (u32)handler
 
 static inline bool c64_is_ntsc(void)
 {

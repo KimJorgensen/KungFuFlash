@@ -20,15 +20,15 @@
 
 static void t64_format_entry(char *buffer, T64_ENTRY *entry)
 {
-    uint16_t size = (entry->end_address - entry->start_address) + 2;
-    uint16_t blocks = (size / 254) + 1;
+    u16 size = (entry->end_address - entry->start_address) + 2;
+    u16 blocks = (size / 254) + 1;
 
     d64_format_entry(buffer, blocks, entry->filename, entry->file_type);
 }
 
-static uint8_t t64_send_page(T64_STATE *state, uint8_t selected_element)
+static u8 t64_send_page(T64_STATE *state, u8 selected_element)
 {
-    uint8_t element;
+    u8 element;
     for (element=0; element<MAX_ELEMENTS_PAGE; element++)
     {
         if (element == 0 && state->page == 0)
@@ -63,13 +63,13 @@ static uint8_t t64_send_page(T64_STATE *state, uint8_t selected_element)
     return element;
 }
 
-static bool t64_skip_to_page(T64_STATE *state, uint8_t page)
+static bool t64_skip_to_page(T64_STATE *state, u8 page)
 {
     bool page_found = true;
     state->page = page;
 
-    uint16_t skip = state->page * MAX_ELEMENTS_PAGE;
-    for (uint16_t i=2; i<skip; i++)
+    u16 skip = state->page * MAX_ELEMENTS_PAGE;
+    for (u16 i=2; i<skip; i++)
     {
         if (!t64_read_dir(&state->image))
         {
@@ -97,7 +97,7 @@ static void t64_dir(T64_STATE *state)
     state->dir_end = false;
 
     // Search for last selected element
-    uint8_t selected_element;
+    u8 selected_element;
     if (dat_file.prg.element == ELEMENT_NOT_SELECTED)
     {
         state->page = 0;
@@ -107,7 +107,7 @@ static void t64_dir(T64_STATE *state)
     else
     {
         selected_element = dat_file.prg.element % MAX_ELEMENTS_PAGE;
-        uint8_t page = dat_file.prg.element / MAX_ELEMENTS_PAGE;
+        u8 page = dat_file.prg.element / MAX_ELEMENTS_PAGE;
 
         if (!t64_skip_to_page(state, page))
         {
@@ -171,9 +171,9 @@ static void t64_prev_page(T64_STATE *state)
     }
 }
 
-static bool t64_select(T64_STATE *state, uint8_t flags, uint8_t element_no)
+static bool t64_select(T64_STATE *state, u8 flags, u8 element_no)
 {
-    uint16_t element = element_no + state->page * MAX_ELEMENTS_PAGE;
+    u16 element = element_no + state->page * MAX_ELEMENTS_PAGE;
 
     dat_file.prg.element = element;
     dat_file.boot_type = DAT_NONE;
@@ -205,7 +205,7 @@ static bool t64_select(T64_STATE *state, uint8_t flags, uint8_t element_no)
 
     t64_rewind_dir(&state->image);
     bool found = false;
-    for (uint16_t i=2; i<=element; i++)
+    for (u16 i=2; i<=element; i++)
     {
         if (!(found = t64_read_dir(&state->image)))
         {
@@ -288,7 +288,7 @@ static const MENU t64_menu = {
     .dir_up = (void (*)(void *, bool))t64_dir_up,
     .prev_page = (void (*)(void *))t64_prev_page,
     .next_page = (void (*)(void *))t64_next_page,
-    .select = (bool (*)(void *, uint8_t, uint8_t))t64_select
+    .select = (bool (*)(void *, u8, u8))t64_select
 };
 
 static const MENU * t64_menu_init(const char *file_name)

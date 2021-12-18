@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2021 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -37,7 +37,7 @@ static inline bool d64_close(D64_IMAGE *image)
 static FSIZE_t d64_get_offset(D64_IMAGE *image, D64_TS ts)
 {
     FSIZE_t offset = 0;
-    uint8_t track_on_side = ts.track;
+    u8 track_on_side = ts.track;
 
     if (track_on_side > D64_TRACKS && image->type == D64_TYPE_D71)
     {
@@ -224,12 +224,12 @@ static char * d64_get_diskname(D64 *d64)
     return d64->image->d64_header.diskname;
 }
 
-static uint16_t d64_calc_blocks_free(D64_IMAGE *image)
+static u16 d64_calc_blocks_free(D64_IMAGE *image)
 {
     D64_HEADER_SECTOR *header = &image->d64_header;
 
-    uint16_t blocks_free = 0;
-    for (uint8_t i=0; i<ARRAY_COUNT(header->entries); i++)
+    u16 blocks_free = 0;
+    for (u8 i=0; i<ARRAY_COUNT(header->entries); i++)
     {
         if (i != (D64_TRACK_DIR-1))     // Skip track 18 (header/directory)
         {
@@ -239,7 +239,7 @@ static uint16_t d64_calc_blocks_free(D64_IMAGE *image)
 
     if (image->type == D64_TYPE_D71 && header->double_sided)
     {
-        for (uint8_t i=0; i<ARRAY_COUNT(header->free_sectors_36_70); i++)
+        for (u8 i=0; i<ARRAY_COUNT(header->free_sectors_36_70); i++)
         {
             if (i != (D64_TRACK_DIR-1)) // Skip track 53 (bam)
             {
@@ -251,10 +251,10 @@ static uint16_t d64_calc_blocks_free(D64_IMAGE *image)
     return blocks_free;
 }
 
-static uint16_t d81_calc_blocks_free(D81_BAM_SECTOR *bam, bool side2)
+static u16 d81_calc_blocks_free(D81_BAM_SECTOR *bam, bool side2)
 {
-    uint16_t blocks_free = 0;
-    for (uint8_t i=0; i<ARRAY_COUNT(bam->entries); i++)
+    u16 blocks_free = 0;
+    for (u8 i=0; i<ARRAY_COUNT(bam->entries); i++)
     {
         // Skip track 40 (header/bam/directory)
         if (i != (D81_TRACK_DIR-1) || side2)
@@ -266,12 +266,12 @@ static uint16_t d81_calc_blocks_free(D81_BAM_SECTOR *bam, bool side2)
     return blocks_free;
 }
 
-static uint16_t d64_get_blocks_free(D64 *d64)
+static u16 d64_get_blocks_free(D64 *d64)
 {
     D64_IMAGE *image = d64->image;
     if (d64->image->type == D64_TYPE_D81)
     {
-        uint16_t blocks_free = d81_calc_blocks_free(&image->d81_bam1, false);
+        u16 blocks_free = d81_calc_blocks_free(&image->d81_bam1, false);
         blocks_free += d81_calc_blocks_free(&image->d81_bam2, true);
         return blocks_free;
     }
@@ -322,7 +322,7 @@ static D64_DIR_ENTRY * d64_read_dir(D64 *d64)
     return NULL;
 }
 
-static inline bool d64_is_file_type(D64_DIR_ENTRY *entry, uint8_t file_type)
+static inline bool d64_is_file_type(D64_DIR_ENTRY *entry, u8 file_type)
 {
     return (entry->type & 7) == file_type;
 }
@@ -356,7 +356,7 @@ static void d64_open_file_write(D64 *d64, D64_DIR_ENTRY *entry)
     d64->data_ptr = 0;
 }
 
-static uint8_t d64_bytes_left(D64 *d64)
+static u8 d64_bytes_left(D64 *d64)
 {
     if (d64->data_ptr < d64->data_len)
     {
@@ -366,11 +366,11 @@ static uint8_t d64_bytes_left(D64 *d64)
     return 0;
 }
 
-static size_t d64_read_data(D64 *d64, uint8_t *buf, size_t buf_size)
+static size_t d64_read_data(D64 *d64, u8 *buf, size_t buf_size)
 {
     size_t read_bytes = 0;
 
-    uint8_t bytes_to_copy;
+    u8 bytes_to_copy;
     while (!(bytes_to_copy = d64_bytes_left(d64)) || read_bytes < buf_size)
     {
         if (!bytes_to_copy)
@@ -414,7 +414,7 @@ static size_t d64_read_data(D64 *d64, uint8_t *buf, size_t buf_size)
     return read_bytes;
 }
 
-static size_t d64_read_prg(D64 *d64, D64_DIR_ENTRY *entry, uint8_t *buf,
+static size_t d64_read_prg(D64 *d64, D64_DIR_ENTRY *entry, u8 *buf,
                            size_t buf_size)
 {
     if (!d64_is_valid_prg(entry)) // Only PRGs are supported
@@ -434,10 +434,10 @@ static size_t d64_read_prg(D64 *d64, D64_DIR_ENTRY *entry, uint8_t *buf,
     return prg_len;
 }
 
-static bool d64_header_allocate(D64_BAM_ENTRY *entry, uint8_t sector)
+static bool d64_header_allocate(D64_BAM_ENTRY *entry, u8 sector)
 {
-    uint8_t *bitmap = &entry->data[sector >> 3];
-    uint8_t mask = 1 << (sector & 0x07);
+    u8 *bitmap = &entry->data[sector >> 3];
+    u8 mask = 1 << (sector & 0x07);
 
     if (*bitmap & mask)
     {
@@ -449,10 +449,10 @@ static bool d64_header_allocate(D64_BAM_ENTRY *entry, uint8_t sector)
     return false;
 }
 
-static bool d64_header_deallocate(D64_BAM_ENTRY *entry, uint8_t sector)
+static bool d64_header_deallocate(D64_BAM_ENTRY *entry, u8 sector)
 {
-    uint8_t *bitmap = &entry->data[sector >> 3];
-    uint8_t mask = 1 << (sector & 0x07);
+    u8 *bitmap = &entry->data[sector >> 3];
+    u8 mask = 1 << (sector & 0x07);
 
     if (!(*bitmap & mask))
     {
@@ -464,7 +464,7 @@ static bool d64_header_deallocate(D64_BAM_ENTRY *entry, uint8_t sector)
     return false;
 }
 
-static D81_BAM_ENTRY * d81_get_bam_entry(D64 *d64, uint8_t track)
+static D81_BAM_ENTRY * d81_get_bam_entry(D64 *d64, u8 track)
 {
     D81_BAM_SECTOR *bam = &d64->image->d81_bam1;
     if (track > ARRAY_COUNT(bam->entries))
@@ -490,11 +490,11 @@ static bool d81_deallocate(D64 *d64, D64_TS ts)
 
 static bool d71_allocate_36_70(D64 *d64, D64_TS ts)
 {
-    uint8_t track = ts.track - D64_TRACKS;
+    u8 track = ts.track - D64_TRACKS;
 
     D71_BAM_ENTRY *entry = &d64->image->d71_bam.entries[track-1];
-    uint8_t *bitmap = &entry->data[ts.sector >> 3];
-    uint8_t mask = 1 << (ts.sector & 0x07);
+    u8 *bitmap = &entry->data[ts.sector >> 3];
+    u8 mask = 1 << (ts.sector & 0x07);
 
     if (*bitmap & mask)
     {
@@ -508,11 +508,11 @@ static bool d71_allocate_36_70(D64 *d64, D64_TS ts)
 
 static bool d71_deallocate_36_70(D64 *d64, D64_TS ts)
 {
-    uint8_t track = ts.track - D64_TRACKS;
+    u8 track = ts.track - D64_TRACKS;
 
     D71_BAM_ENTRY *entry = &d64->image->d71_bam.entries[track-1];
-    uint8_t *bitmap = &entry->data[ts.sector >> 3];
-    uint8_t mask = 1 << (ts.sector & 0x07);
+    u8 *bitmap = &entry->data[ts.sector >> 3];
+    u8 mask = 1 << (ts.sector & 0x07);
 
     if (!(*bitmap & mask))
     {
@@ -524,7 +524,7 @@ static bool d71_deallocate_36_70(D64 *d64, D64_TS ts)
     return false;
 }
 
-static D64_BAM_ENTRY * d64_get_bam_entry(D64 *d64, uint8_t track)
+static D64_BAM_ENTRY * d64_get_bam_entry(D64 *d64, u8 track)
 {
     D64_HEADER_SECTOR *header = &d64->image->d64_header;
     return &header->entries[track-1];
@@ -585,7 +585,7 @@ static bool d64_delete_file(D64 *d64, D64_DIR_ENTRY *entry)
     return d64_write_bam(d64) && d64_sync(d64->image);
 }
 
-static uint8_t d64_get_tracks(D64 *d64)
+static u8 d64_get_tracks(D64 *d64)
 {
     switch (d64->image->type)
     {
@@ -595,7 +595,7 @@ static uint8_t d64_get_tracks(D64 *d64)
     }
 }
 
-static bool d64_has_free_sector(D64 *d64, uint8_t track)
+static bool d64_has_free_sector(D64 *d64, u8 track)
 {
     if (d64->image->type == D64_TYPE_D81)
     {
@@ -614,13 +614,13 @@ static bool d64_has_free_sector(D64 *d64, uint8_t track)
     return track != D64_TRACK_DIR && header->free_sectors_36_70[track-1] != 0;
 }
 
-static bool d64_find_available_track(D64 *d64, uint8_t *track)
+static bool d64_find_available_track(D64 *d64, u8 *track)
 {
-    uint8_t tracks = d64_get_tracks(d64);
+    u8 tracks = d64_get_tracks(d64);
 
-    for (int8_t offset=0; offset<tracks; offset++)
+    for (s8 offset=0; offset<tracks; offset++)
     {
-        int8_t new_track = *track - offset;
+        s8 new_track = *track - offset;
         if (new_track > 0 && d64_has_free_sector(d64, new_track))
         {
             *track = new_track;
@@ -638,7 +638,7 @@ static bool d64_find_available_track(D64 *d64, uint8_t *track)
     return false;   // disk is full
 }
 
-static uint8_t d64_get_sectors(D64 *d64, uint8_t track)
+static u8 d64_get_sectors(D64 *d64, u8 track)
 {
     switch (d64->image->type)
     {
@@ -655,9 +655,9 @@ static uint8_t d64_get_sectors(D64 *d64, uint8_t track)
     }
 }
 
-static bool d64_find_free_sector(D64 *d64, D64_TS *ts, uint8_t interleave)
+static bool d64_find_free_sector(D64 *d64, D64_TS *ts, u8 interleave)
 {
-    uint8_t sectors = d64_get_sectors(d64, ts->track);
+    u8 sectors = d64_get_sectors(d64, ts->track);
 
     for (int count=0; count<sectors; count++)
     {
@@ -706,7 +706,7 @@ static bool d64_find_free_track_sector(D64 *d64, D64_TS *ts)
         return false;
     }
 
-    uint8_t interleave = 1;
+    u8 interleave = 1;
     if (d64->image->type == D64_TYPE_D64)
     {
         interleave = 10;
@@ -725,7 +725,7 @@ static bool d64_find_free_track_sector(D64 *d64, D64_TS *ts)
     return d64_find_free_sector(d64, ts, interleave);
 }
 
-static void d64_set_sector_length(D64 *d64, uint8_t size)
+static void d64_set_sector_length(D64 *d64, u8 size)
 {
     d64->sector.next.track = 0;
     d64->sector.next.sector = size + 1;
@@ -746,7 +746,7 @@ static D64_DIR_ENTRY * d64_get_empty_dir(D64 *d64)
     }
 
     // no empty entry found - allocate new dir sector
-    uint8_t interleave = 3;
+    u8 interleave = 3;
     if (d64->image->type == D64_TYPE_D81)
     {
         interleave = 1;
@@ -773,7 +773,7 @@ static D64_DIR_ENTRY * d64_get_empty_dir(D64 *d64)
 
 static void d64_pad_filename(char *dest, const char *src)
 {
-    for (uint8_t i=0; i<16; i++)
+    for (u8 i=0; i<16; i++)
     {
         if (*src)
         {
@@ -788,7 +788,7 @@ static void d64_pad_filename(char *dest, const char *src)
 
 static bool d64_is_valid_dos_version(D64 *d64)
 {
-    uint8_t version = d64->image->d64_header.dos_version;
+    u8 version = d64->image->d64_header.dos_version;
 
     if (d64->image->type == D64_TYPE_D81)
     {
@@ -798,7 +798,7 @@ static bool d64_is_valid_dos_version(D64 *d64)
     return !version || version == D64_DOS_VERSION;
 }
 
-static bool d64_create_file(D64 *d64, const char *file_name, uint8_t file_type,
+static bool d64_create_file(D64 *d64, const char *file_name, u8 file_type,
                             D64_DIR_ENTRY *existing_file)
 {
     if (!d64_is_valid_dos_version(d64))
@@ -846,12 +846,12 @@ static bool d64_create_file(D64 *d64, const char *file_name, uint8_t file_type,
     return true;
 }
 
-static size_t d64_write_data(D64 *d64, uint8_t *buf, size_t buf_size)
+static size_t d64_write_data(D64 *d64, u8 *buf, size_t buf_size)
 {
     size_t written_bytes = 0;
     while (written_bytes < buf_size)
     {
-        uint8_t bytes_to_copy = d64_bytes_left(d64);
+        u8 bytes_to_copy = d64_bytes_left(d64);
         if (!bytes_to_copy)
         {
             d64->sector.next = d64->sector.current;

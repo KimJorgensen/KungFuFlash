@@ -59,7 +59,7 @@ struct cdc_config {
 } __attribute__((packed));
 
 /* HID mouse report desscriptor. 2 axis 5 buttons */
-static const uint8_t hid_report_desc[] = {
+static const u8 hid_report_desc[] = {
     HID_USAGE_PAGE(HID_PAGE_DESKTOP),
     HID_USAGE(HID_DESKTOP_MOUSE),
     HID_COLLECTION(HID_APPLICATION_COLLECTION),
@@ -212,10 +212,10 @@ static const struct usb_string_descriptor *const dtable[] = {
 };
 
 static usbd_device udev;
-static uint32_t ubuf[0x20];
+static u32 ubuf[0x20];
 
-static uint8_t utx_fifo[0x200], urx_fifo[0x200];
-static volatile uint32_t utx_pos = 0, urx_pos = 0;
+static u8 utx_fifo[0x200], urx_fifo[0x200];
+static volatile u32 utx_pos = 0, urx_pos = 0;
 static volatile bool utx_wait = false, urx_wait = false;
 
 static struct usb_cdc_line_coding cdc_line = {
@@ -225,11 +225,11 @@ static struct usb_cdc_line_coding cdc_line = {
     .bDataBits          = 8,
 };
 
-static usbd_respond cdc_getdesc (usbd_ctlreq *req, void **address, uint16_t *length) {
-    const uint8_t dtype = req->wValue >> 8;
-    const uint8_t dnumber = req->wValue & 0xFF;
+static usbd_respond cdc_getdesc (usbd_ctlreq *req, void **address, u16 *length) {
+    const u8 dtype = req->wValue >> 8;
+    const u8 dnumber = req->wValue & 0xFF;
     const void* desc;
-    uint16_t len = 0;
+    u16 len = 0;
     switch (dtype) {
     case USB_DTYPE_DEVICE:
         desc = &device_desc;
@@ -326,24 +326,24 @@ static char usb_getc(void)
 }
 
 /* CDC loop callback. Both for the Data IN and Data OUT endpoint */
-static void cdc_rx_tx(usbd_device *dev, uint8_t event, uint8_t ep) {
+static void cdc_rx_tx(usbd_device *dev, u8 event, u8 ep) {
     if (event == usbd_evt_eptx) {
-        uint32_t pos = utx_pos;
-        uint16_t len = 0;
+        u32 pos = utx_pos;
+        u16 len = 0;
         if (!utx_wait) {
             len = (pos < CDC_DATA_SZ) ? pos : CDC_DATA_SZ;
         }
 
-        int32_t _t = usbd_ep_write(dev, ep, &utx_fifo[0], len);
+        s32 _t = usbd_ep_write(dev, ep, &utx_fifo[0], len);
         if (_t > 0) {
             pos -= _t;
             memmove(&utx_fifo[0], &utx_fifo[_t], pos);
             utx_pos = pos;
         }
     } else {
-        uint32_t pos = urx_pos;
+        u32 pos = urx_pos;
         if (!urx_wait && pos <= (sizeof(urx_fifo) - CDC_DATA_SZ)) {
-            int32_t _t = usbd_ep_read(dev, ep, &urx_fifo[pos], CDC_DATA_SZ);
+            s32 _t = usbd_ep_read(dev, ep, &urx_fifo[pos], CDC_DATA_SZ);
             if (_t > 0) {
                 urx_pos = pos + _t;
             }
@@ -355,7 +355,7 @@ static void cdc_rx_tx(usbd_device *dev, uint8_t event, uint8_t ep) {
     }
 }
 
-static usbd_respond cdc_setconf(usbd_device *dev, uint8_t cfg) {
+static usbd_respond cdc_setconf(usbd_device *dev, u8 cfg) {
     switch (cfg) {
     case 0:
         /* deconfiguring device */

@@ -23,22 +23,22 @@
 typedef struct
 {
     char description[32];
-    uint16_t version;
-    uint16_t dir_entries;
-    uint16_t used_entries;
-    uint16_t reserved;
+    u16 version;
+    u16 dir_entries;
+    u16 used_entries;
+    u16 reserved;
     char user_description[24];
 } T64_HEADER;
 
 typedef struct
 {
-    uint8_t type;           // T64_ENTRY_TYPE
-    uint8_t file_type;
-    uint16_t start_address;
-    uint16_t end_address;
-    uint16_t reserved;
-    uint32_t file_offset;
-    uint32_t reserved2;
+    u8 type;            // T64_ENTRY_TYPE
+    u8 file_type;
+    u16 start_address;
+    u16 end_address;
+    u16 reserved;
+    u32 file_offset;
+    u32 reserved2;
     char filename[16];
 } T64_ENTRY;
 #pragma pack(pop)
@@ -57,5 +57,5 @@ typedef struct
     FIL file;
     T64_HEADER header;
     T64_ENTRY entry;
-    uint16_t next_entry;
+    u16 next_entry;
 } T64_IMAGE;
