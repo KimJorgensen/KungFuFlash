@@ -77,12 +77,14 @@ static uint8_t searchLen;
 static uint8_t *bigBuffer = NULL;
 static Directory *dir = NULL;
 
+// Use different name to bypass FW update check for NTSC users (prior v1.32)
+#define KUNG_FU_FLASH_VER_UPD "Kung Fu Flash " ## VERSION " "
 #define KUNG_FU_FLASH_VER "Kung Fu Flash v" ## VERSION
 
 // Place program name in the start of the output file
 // so it can be read by the firmware
 #pragma rodata-name (push, "LOWCODE")
-const char programNameVer[FW_NAME_SIZE] = KUNG_FU_FLASH_VER;
+const char programNameVer[FW_NAME_SIZE] = KUNG_FU_FLASH_VER_UPD;
 
 // Area used by firmware for placing BASIC commands to run at start-up
 const char padding[BASIC_CMD_BUF_SIZE] = {};
