@@ -29,8 +29,6 @@ struct                                                          \
 {                                                               \
     char fw_name[FW_NAME_SIZE];                                 \
     void (*init)(void);                                         \
-    bool (*crt_is_supported)(u32 cartridge_type);          \
-    void (*crt_install_handler)(DAT_CRT_HEADER *crt_header);    \
 } __attribute__((packed))
 
 // 32kB scratch buffer

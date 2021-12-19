@@ -19,7 +19,7 @@ MODULE = KungFuModule_v$(version)
 # debug build?
 DEBUG = 0 #1
 # optimization
-OPT = -O2 #-Og
+OPT = -Os #-Og
 
 #######################################
 # paths
@@ -187,13 +187,12 @@ $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf | $(BUILD_DIR)
 	$(BIN) --gap-fill 0xff --pad-to 0xc000 $< $@
 
 $(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR_MODULE)/$(MODULE).bin | $(BUILD_DIR)
-	cat $(BUILD_DIR)/$(TARGET).bin > $@
-	cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
+	@cat $(BUILD_DIR)/$(TARGET).bin > $@
+	@cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
 
-$(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) $(BUILD_DIR_MODULE)/$(MODULE).bin | $(BUILD_DIR)
-	cat $(BUILD_DIR)/$(TARGET).bin > $@
-	cat $(LAUNCHER) >> $@
-	cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
+$(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) | $(BUILD_DIR)
+	@cat $(BUILD_DIR)/$(TARGET).bin > $@
+	@cat $(LAUNCHER) >> $@
 
 $(BUILD_DIR):
 	mkdir -p $@

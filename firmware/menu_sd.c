@@ -505,16 +505,8 @@ static bool handle_crt_supported(u32 cartridge_type)
         return true;
     }
 
-    if (crt_module_initialized)
-    {
-        sprint(scratch_buf, "Unsupported CRT type (%u)", cartridge_type);
-        handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
-        return false;
-    }
-
-    handle_unsupported_ex("Missing firmware",
-        "Please put the firmware file in the root directory of the SD card",
-        &UPD_FILENAME[1]);
+    sprint(scratch_buf, "Unsupported CRT type (%u)", cartridge_type);
+    handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
     return false;
 }
 

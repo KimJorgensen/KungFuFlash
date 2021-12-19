@@ -386,8 +386,8 @@ static bool upd_load(FIL *file, char *firmware_name)
         if (memcmp(firmware_name, "Kung Fu Flash", 13) == 0)
         {
             // Don't allow downgrade to a PAL only version on a NTSC C64
-            if (f_size(file) == sizeof(dat_buffer) &&
-                c64_is_ntsc() && firmware_name[14] == 'v')
+            if (c64_is_ntsc() && memcmp(&firmware_name[13], " v1.", 4) == 0 &&
+                (firmware_name[17] == '0' || firmware_name[17] == '1'))
             {
                 return false;
             }
@@ -439,27 +439,11 @@ static bool load_dat(void)
     return result;
 }
 
-static void load_module(void)
-{
-    FIL file;
-    if (file_open(&file, UPD_FILENAME, FA_READ))
-    {
-        if (!file_seek(&file, sizeof(dat_buffer)) ||
-            file_read(&file, module.buf, sizeof(module.buf)) != sizeof(module.buf))
-        {
-            memset(module.buf, 0xff, sizeof(module.buf));
-        }
-
-        file_close(&file);
-    }
-}
-
 static bool auto_boot(void)
 {
     bool result = false;
 
     load_dat();
-    load_module();
     if (menu_signature() || menu_button_pressed())
     {
         invalidate_menu_signature();

@@ -18,8 +18,6 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "cartridge.c"
-
 __attribute__((__section__(".module")))
 struct
 {
@@ -30,36 +28,33 @@ struct
     };
 } module;
 
-static bool crt_module_initialized;
-
-static bool crt_init_module(void)
+static void module_load(void)
 {
-    if (!crt_module_initialized)
+    FIL file;
+    if (file_open(&file, UPD_FILENAME, FA_READ))
+    {
+        if (!file_seek(&file, sizeof(dat_buffer)) ||
+            file_read(&file, module.buf, sizeof(module.buf)) != sizeof(module.buf))
+        {
+            memset(module.buf, 0xff, sizeof(module.buf));
+        }
+
+        file_close(&file);
+    }
+}
+
+static bool module_initialized;
+
+static bool module_init(void)
+{
+    if (!module_initialized)
     {
         if (memcmp(FW_NAME, module.fw_name, FW_NAME_SIZE) == 0)
         {
             module.init();
-            crt_module_initialized = true;
+            module_initialized = true;
         }
     }
 
-    return crt_module_initialized;
-}
-
-static bool crt_is_supported(u32 cartridge_type)
-{
-    return crt_is_supported_(cartridge_type) ||
-           (crt_init_module() && module.crt_is_supported(cartridge_type));
-}
-
-static void crt_install_handler(DAT_CRT_HEADER *crt_header)
-{
-    if (crt_is_supported_(crt_header->type))
-    {
-        crt_install_handler_(crt_header);
-    }
-    else
-    {
-        module.crt_install_handler(crt_header);
-    }
+    return module_initialized;
 }

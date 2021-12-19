@@ -34,7 +34,5 @@ extern void module_init(void);
 __attribute__((__section__(".module_header")))
 MODULE_HEADER header = {
     .fw_name = FW_NAME,
-    .init = module_init,
-    .crt_is_supported = crt_is_supported_,
-    .crt_install_handler = crt_install_handler_
+    .init = module_init
 };

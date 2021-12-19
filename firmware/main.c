@@ -30,7 +30,7 @@
 #include "print.c"
 #include "filesystem.c"
 #include "file_types.c"
-#include "module.c"
+#include "cartridge.c"
 #include "commands.c"
 #include "disk_drive.h"
 #include "menu.c"

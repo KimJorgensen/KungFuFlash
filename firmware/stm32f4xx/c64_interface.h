@@ -121,6 +121,7 @@ static inline void led_toggle(void)
     C64_BUS_HANDLER_(name##_handler, read_handler, name##_write_handler)
 
 #define C64_BUS_HANDLER_(handler, read_handler, write_handler)                  \
+__attribute__((optimize("O2")))                                                 \
 static void handler(void)                                                       \
 {                                                                               \
     /* We need to clear the interrupt flag early otherwise the next */          \
@@ -271,6 +272,7 @@ static void handler(void)                                                       
                                  vic_read_handler, read_handler,                \
                                  early_write_handler, write_handler,            \
                                  early_vic_handler, timing)                     \
+__attribute__((optimize("O2")))                                                 \
 void handler(void)                                                              \
 {                                                                               \
     /* As we don't return from this handler, we need to do this here */         \
