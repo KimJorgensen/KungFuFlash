@@ -732,7 +732,7 @@ kff_close:
 
         lda SAT,x                       ; Lookup secondary address
         sta SA
-        lda #$00                        ; Clear secondary address so that CLOSE
+        ora #$e0                        ; Modify secondary address so that CLOSE
         sta SAT,x                       ; doesn't send commands to the serial bus
 
         lda #CMD_CLOSE                  ; Send command
