@@ -536,14 +536,27 @@ static void disk_handle_save(D64 *d64, char *filename, u8 *buf)
     disk_init_channel(d64->image, d64); // Close channel
 }
 
-static void disk_read_status(D64 *d64)
+static void disk_read_status(D64 *d64, const char *filename)
 {
     d64->data_ptr = 0;
     d64->sector.next.track = 0;
 
-    u8 len = 13;
-    // TODO: Return last error
-    memcpy(d64->sector.data, "00, OK,00,00\r", len);
+    const char *status;
+    if (filename[0] == 'U' && filename[1] == 'I')
+    {
+        status = "73,KUNG FU FLASH V" VERSION ",00,00\r";
+    }
+    else
+    {
+        // TODO: Return last error
+        status = "00, OK,00,00\r";
+    }
+
+    u8 len;
+    for (len=0; *status; len++)
+    {
+        d64->sector.data[len] = *status++;
+    }
     d64->data_len = len;
 }
 
@@ -566,7 +579,7 @@ static void disk_handle_open(D64 *d64, char *filename)
 
     if (d64->channel == 15)
     {
-        disk_read_status(d64);
+        disk_read_status(d64, parsed.name);
     }
     else if (disk_open_file_read(d64, parsed.name, parsed.type))
     {
@@ -616,7 +629,7 @@ static void disk_handle_get_byte(D64 *d64)
     {
         if (d64->channel == 15)
         {
-            disk_read_status(d64);
+            disk_read_status(d64, NULL);
         }
 
         reply = REPLY_END_OF_FILE;
