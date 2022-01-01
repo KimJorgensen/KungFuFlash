@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2019-2020 Kim Jørgensen
+; Copyright (c) 2019-2022 Kim Jørgensen
 ; Copyright (c) 2020 Sandor Vass
 ;
 ; Derived from Disk2easyflash 0.9.1 by ALeX Kazik
@@ -508,13 +508,13 @@ disable_ef_rom:
         lda #EASYFLASH_KILL
         sta EASYFLASH_CONTROL
 
-        lda mem_config                        ; Restore mem config
+        lda mem_config                  ; Restore mem config
         sta R6510
         pla
         plp
         cli
 return_inst:
-        rts                         ; Replaced with jmp or rts
+        rts                             ; Replaced with jmp or rts
        .byte $00,$00
 
 .if * > EASYFLASH_RAM + EASYFLASH_RAM_SIZE
@@ -876,9 +876,15 @@ kff_basin:
         bne normal_basin                ; Not KFF device
 
 do_kff_basin:
+        lda STATUS
+        beq @status_ok                  ; Status OK
+        lda #$0d
+        bne @read_done                  ; Not OK - return CR
+
+@status_ok:
         stx tmp1
         sty tmp2
-        ldx #RTS_INSTRUCTION            ; set RTS at the end of disable_ef_rom
+        ldx #RTS_INSTRUCTION            ; Set RTS at the end of disable_ef_rom
         stx return_inst
         lda #CMD_GET_CHAR               ; Send command
         jsr kff_send_command
@@ -892,8 +898,7 @@ do_kff_basin:
         lda #STATUS_READ_ERROR          ; Set device status to read error occurred
         sta STATUS
         lda #$00
-        clc
-        jmp disable_ef_rom
+        beq @read_done
 
 @read_end:
         lda #STATUS_END_OF_FILE         ; Set status to end of file
@@ -902,6 +907,7 @@ do_kff_basin:
         lda #$00                        ; Clear status
         sta STATUS
         jsr ef3usb_receive_byte         ; Get data
+@read_done:
         clc
         jmp disable_ef_rom
 
