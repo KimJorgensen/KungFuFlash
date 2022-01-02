@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -154,7 +154,7 @@ static void d64_rewind_dir(D64 *d64)
 
 static bool d64_read_header(D64_IMAGE *image)
 {
-    D64_TS ts = {D64_TRACK_DIR, 0};
+    D64_TS ts = {D64_TRACK_DIR, D64_SECTOR_HEADER};
     if (image->type == D64_TYPE_D81)
     {
         ts.track = D81_TRACK_DIR;
@@ -337,13 +337,28 @@ static bool d64_is_valid_prg(D64_DIR_ENTRY *entry)
     return false;
 }
 
+static void d64_open_read(D64 *d64, D64_TS ts)
+{
+    dbg("Reading file from track %d sector %d\n", ts.track, ts.sector);
+
+    d64->sector.next = ts;
+    d64->data_len = d64->data_ptr = 0;
+}
+
+static void d64_open_dir_read(D64 *d64)
+{
+    D64_TS ts = {D64_TRACK_DIR, D64_SECTOR_HEADER};
+    if (d64->image->type == D64_TYPE_D81)
+    {
+        ts.track = D81_TRACK_DIR;
+    }
+
+    d64_open_read(d64, ts);
+}
+
 static void d64_open_file_read(D64 *d64, D64_DIR_ENTRY *entry)
 {
-    dbg("Reading file from track %d sector %d\n", entry->start.track,
-        entry->start.sector);
-
-    d64->sector.next = entry->start;;
-    d64->data_len = d64->data_ptr = 0;
+    d64_open_read(d64, entry->start);
 }
 
 static void d64_open_file_write(D64 *d64, D64_DIR_ENTRY *entry)
@@ -929,6 +944,13 @@ static bool d64_write_finalize(D64 *d64)
 
     // write updated BAM back to disk
     return d64_write_bam(d64) && d64_sync(d64->image);
+}
+
+static void d64_init(D64_IMAGE *image, D64 *d64)
+{
+    d64->image = image;
+    d64->data_len = d64->data_ptr = 0;
+    d64->sector.next.track = 0;
 }
 
 static bool d64_open(D64_IMAGE *image, const char *filename)

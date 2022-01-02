@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -27,3 +27,15 @@ typedef struct
     u8 type;
     char mode;
 } PARSED_FILENAME;
+
+typedef struct
+{
+    u8 number;
+
+    u8 use_buf;
+    u16 data_len;
+    u16 data_ptr;
+    u8 *buf;
+
+    D64 d64;
+} DISK_CHANNEL;

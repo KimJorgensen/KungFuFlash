@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -32,8 +32,8 @@
 #define D81_SECTORS         40
 
 #define D64_TRACK_DIR       18
-#define D64_SECTOR_DIR      1
 #define D64_SECTOR_HEADER   0
+#define D64_SECTOR_DIR      1
 #define D81_TRACK_DIR       40
 #define D81_SECTOR_DIR      3
 
@@ -236,7 +236,6 @@ typedef struct
     u8 data_ptr;
 
     u8 sector_count;
-    u8 channel;
 
     D64_FILE_CREATE file;
 } D64;

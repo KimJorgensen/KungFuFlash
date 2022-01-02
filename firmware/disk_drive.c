@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -155,8 +155,7 @@ static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
     return found;
 }
 
-static u16 disk_create_dir_prg(D64 *d64, u8 **ptr,
-                                    const char *filename)
+static u16 disk_create_dir_prg(D64 *d64, u8 **ptr, const char *filename)
 {
     const u16 start_addr = 0x0401;      // Start of BASIC (for the PET)
     const u16 link_addr = 0x0101;
@@ -327,7 +326,7 @@ static bool disk_open_file_read(D64 *d64, const char *filename, u8 file_type)
     return false;
 }
 
-static void disk_handle_load_prg(D64 *d64, char *filename, u8 *buf)
+static void disk_handle_load_prg(DISK_CHANNEL *channel, char *filename)
 {
     PARSED_FILENAME parsed;
     if (!disk_is_file_supported(filename, &parsed))
@@ -336,6 +335,7 @@ static void disk_handle_load_prg(D64 *d64, char *filename, u8 *buf)
         return;
     }
 
+    D64 *d64 = &channel->d64;
     if (!disk_open_file_read(d64, parsed.name, parsed.type))
     {
         c64_send_reply(REPLY_NOT_FOUND);
@@ -355,7 +355,7 @@ static void disk_handle_load_prg(D64 *d64, char *filename, u8 *buf)
     {
         u8 reply;
         u16 bank_size;
-        if ((bank_size = d64_read_data(d64, buf, 16*1024)) == 16*1024)
+        if ((bank_size = d64_read_data(d64, channel->buf, 16*1024)) == 16*1024)
         {
             reply = REPLY_OK;           // Send bank
         }
@@ -385,15 +385,14 @@ static void disk_handle_load_prg(D64 *d64, char *filename, u8 *buf)
     }
 }
 
-static void disk_handle_load_dir(D64 *d64, char *filename, u8 *buf)
+static u16 disk_load_dir(D64 *d64, char *filename, u8 **ptr)
 {
     // Check drive number
     if (filename[0] >= '0' && filename[0] <= '9')
     {
         if (filename[0] != '0')
         {
-            c64_send_reply(REPLY_NO_DRIVE); // Try serial device (if any)
-            return;
+            return 0;
         }
 
         if (filename[1] == 0)
@@ -422,51 +421,53 @@ static void disk_handle_load_dir(D64 *d64, char *filename, u8 *buf)
 
     // TODO: Also support '=' to filter on filetype
 
-    u8 *ptr = buf;
-    u16 start_addr = disk_create_dir_prg(d64, &ptr, filename);
-    u16 prg_size = ptr - buf;
-
-    if (prg_size)
-    {
-        c64_send_reply(REPLY_END_OF_FILE);
-        c64_send_data(&prg_size, 2);
-        c64_send_data(&start_addr, 2);
-    }
-    else
-    {
-        c64_send_reply(REPLY_DISK_ERROR);
-    }
+    return disk_create_dir_prg(d64, ptr, filename);
 }
 
-static void disk_init_channel(D64_IMAGE *image, D64 *d64)
+static void disk_handle_load_dir(DISK_CHANNEL *channel, char *filename)
 {
-    d64->image = image;
-    d64->data_len = d64->data_ptr = 0;
-    d64->sector.next.track = 0;
+    u8 *ptr = channel->buf;
+    u16 start_addr = disk_load_dir(&channel->d64, filename, &ptr);
+    if (!start_addr)
+    {
+        c64_send_reply(REPLY_NO_DRIVE); // Try serial device (if any)
+    }
+
+    u16 prg_size = ptr - channel->buf;
+    c64_send_reply(REPLY_END_OF_FILE);
+    c64_send_data(&prg_size, 2);
+    c64_send_data(&start_addr, 2);
 }
 
-static void disk_init_all_channels(D64_IMAGE *image, D64 *channels)
+static void disk_init_channel(D64_IMAGE *image, DISK_CHANNEL *channel)
+{
+    channel->use_buf = false;
+    channel->data_len = 0;
+    d64_init(image, &channel->d64);
+}
+
+static void disk_init_all_channels(D64_IMAGE *image, DISK_CHANNEL *channels)
 {
     for (u8 i=0; i<16; i++)
     {
-        D64 *d64 = channels + i;
-        d64->channel = i;
-        disk_init_channel(image, d64);
+        DISK_CHANNEL *channel = channels + i;
+        channel->number = i;
+        disk_init_channel(image, channel);
     }
 }
 
-static void disk_handle_load(D64 *d64, char *filename, u8 *buf)
+static void disk_handle_load(DISK_CHANNEL *channel, char *filename)
 {
     if (filename[0] == '$') // directory
     {
-        disk_handle_load_dir(d64, filename + 1, buf);
+        disk_handle_load_dir(channel, filename + 1);
     }
     else
     {
-        disk_handle_load_prg(d64, filename, buf);
+        disk_handle_load_prg(channel, filename);
     }
 
-    disk_init_channel(d64->image, d64); // Close channel
+    disk_init_channel(channel->d64.image, channel); // Close channel
 }
 
 static void disk_send_done(u8 ret_val)
@@ -520,7 +521,7 @@ static u8 disk_save_file(D64 *d64, PARSED_FILENAME *parsed, u8 *buf)
     return REPLY_OK;
 }
 
-static void disk_handle_save(D64 *d64, char *filename, u8 *buf)
+static void disk_handle_save(DISK_CHANNEL *channel, char *filename)
 {
     PARSED_FILENAME parsed;
     if (!disk_is_file_supported(filename, &parsed))
@@ -530,10 +531,10 @@ static void disk_handle_save(D64 *d64, char *filename, u8 *buf)
     }
     c64_send_reply(REPLY_OK);
 
-    u8 ret_val = disk_save_file(d64, &parsed, buf);
+    u8 ret_val = disk_save_file(&channel->d64, &parsed, channel->buf);
     disk_send_done(ret_val);
 
-    disk_init_channel(d64->image, d64); // Close channel
+    disk_init_channel(channel->d64.image, channel); // Close channel
 }
 
 static void disk_read_status(D64 *d64, const char *filename)
@@ -542,14 +543,18 @@ static void disk_read_status(D64 *d64, const char *filename)
     d64->sector.next.track = 0;
 
     const char *status;
-    if (filename[0] == 'U' && filename[1] == 'I')
+    if (filename[0] == 'M') // Memory command
     {
-        status = "73,KUNG FU FLASH V" VERSION ",00,00\r";
+        status = "";    // Not supported
+    }
+    else if (filename[0] == 'U' && filename[1] == 'I')  // Soft reset
+    {
+        status = "73,KUNG FU FLASH V" VERSION ",00,00";
     }
     else
     {
         // TODO: Return last error
-        status = "00, OK,00,00\r";
+        status = "00, OK,00,00";
     }
 
     u8 len;
@@ -557,10 +562,42 @@ static void disk_read_status(D64 *d64, const char *filename)
     {
         d64->sector.data[len] = *status++;
     }
+    d64->sector.data[len++] = '\r';
     d64->data_len = len;
 }
 
-static void disk_handle_open(D64 *d64, char *filename)
+static void disk_handle_open_dir(DISK_CHANNEL *channel, char *filename)
+{
+    D64 *d64 = &channel->d64;
+    if (channel->number)    // Channel 1-14
+    {
+        d64_open_dir_read(d64);
+        if (!d64_read_data(d64, NULL, 0))
+        {
+            c64_send_reply(REPLY_END_OF_FILE);
+            return;
+        }
+    }
+    else                    // Channel 0
+    {
+        u8 *ptr = channel->buf + 2;
+        u16 start_addr = disk_load_dir(d64, filename, &ptr);
+        if (!start_addr)
+        {
+            c64_send_reply(REPLY_NO_DRIVE); // Try serial device (if any)
+            return;
+        }
+
+        *(u16 *)channel->buf = start_addr;
+        channel->data_len = ptr - channel->buf;
+        channel->data_ptr = 0;
+        channel->use_buf = true;
+    }
+
+    c64_send_reply(REPLY_OK);
+}
+
+static void disk_handle_open_prg(D64 *d64, char *filename)
 {
     PARSED_FILENAME parsed;
     disk_parse_filename(filename, &parsed);
@@ -577,20 +614,13 @@ static void disk_handle_open(D64 *d64, char *filename)
         return;
     }
 
-    if (d64->channel == 15)
-    {
-        disk_read_status(d64, parsed.name);
-    }
-    else if (disk_open_file_read(d64, parsed.name, parsed.type))
-    {
-        d64_read_data(d64, NULL, 0);
-    }
-    else
+    if (!disk_open_file_read(d64, parsed.name, parsed.type))
     {
         c64_send_reply(REPLY_NOT_FOUND);
         return;
     }
 
+    d64_read_data(d64, NULL, 0);
     if (d64_bytes_left(d64))
     {
         c64_send_reply(REPLY_OK);
@@ -601,35 +631,84 @@ static void disk_handle_open(D64 *d64, char *filename)
     }
 }
 
-static void disk_handle_close(D64_IMAGE *image, D64 *channels, D64 *d64)
+static void disk_handle_open(DISK_CHANNEL *channel, char *filename)
 {
-    if (d64->channel == 15)
+    if (channel->number == 15)      // Command channel
+    {
+        disk_read_status(&channel->d64, filename);
+        c64_send_reply(REPLY_OK);
+    }
+    else if (filename[0] == '$')    // Directory
+    {
+        disk_handle_open_dir(channel, filename + 1);
+    }
+    else
+    {
+        disk_handle_open_prg(&channel->d64, filename);
+    }
+}
+
+static void disk_handle_close(D64_IMAGE *image, DISK_CHANNEL *channels,
+                              DISK_CHANNEL *channel)
+{
+    if (channel->number == 15)  // Command channel
     {
         disk_init_all_channels(image, channels);
     }
     else
     {
-        disk_init_channel(image, d64);
+        disk_init_channel(image, channel);
     }
 
     c64_send_reply(REPLY_OK);
 }
 
-static void disk_handle_get_byte(D64 *d64)
+static u16 disk_bytes_left(DISK_CHANNEL *channel)
+{
+    if (!channel->use_buf)
+    {
+        return d64_bytes_left(&channel->d64);
+    }
+
+    if (channel->data_ptr < channel->data_len)
+    {
+        return channel->data_len - channel->data_ptr;
+    }
+
+    return 0;
+}
+
+static bool disk_read_data(DISK_CHANNEL *channel, u8 *data)
+{
+    if (!channel->use_buf)
+    {
+        return d64_read_data(&channel->d64, data, 1);
+    }
+
+    if (disk_bytes_left(channel))
+    {
+        *data = channel->buf[channel->data_ptr++];
+        return true;
+    }
+
+    return false;
+}
+
+static void disk_handle_get_byte(DISK_CHANNEL *channel)
 {
     u8 data;
-    if (!d64 || !d64_read_data(d64, &data, 1))
+    if (!channel || !disk_read_data(channel, &data))
     {
         c64_send_reply(REPLY_DISK_ERROR);
         return;
     }
 
     u8 reply;
-    if (!d64_bytes_left(d64))
+    if (!disk_bytes_left(channel))
     {
-        if (d64->channel == 15)
+        if (channel->number == 15)
         {
-            disk_read_status(d64, NULL);
+            disk_read_status(&channel->d64, NULL);
         }
 
         reply = REPLY_END_OF_FILE;
@@ -640,10 +719,10 @@ static void disk_handle_get_byte(D64 *d64)
     }
 
     c64_send_reply(reply);
-    c64_send_data(&data, 1);
+    c64_send_byte(data);
 }
 
-static D64 * disk_receive_channel(D64 *channels)
+static DISK_CHANNEL * disk_receive_channel(DISK_CHANNEL *channels)
 {
     u8 channel = c64_receive_byte();
     channel &= 0x0f;
@@ -659,11 +738,14 @@ static inline void disk_receive_filename(char *filename)
 static void disk_loop(void)
 {
     D64_IMAGE *image = &d64_state.image;    // Reuse memory from menu
-    D64 *d64 = NULL, *channels = (D64 *)crt_ram_banks[1];
+    DISK_CHANNEL *channel = NULL, *channels = (DISK_CHANNEL *)crt_ram_banks[1];
     disk_init_all_channels(image, channels);
 
     u8 *load_buf = crt_banks[1];
+    channels[0].buf = load_buf;
+
     u8 *save_buf = &CRT_RAM_BUF[SAVE_BUFFER_OFFSET];
+    channels[1].buf = save_buf;
     char filename[42] = {0};
 
     while (true)
@@ -676,46 +758,46 @@ static void disk_loop(void)
 
             case CMD_LOAD:
                 // Channel 0 will be used as load buffer - just as on 1541
-                d64 = channels + 0;
+                channel = channels + 0;
                 disk_receive_filename(filename);
                 dbg("Got LOAD command for: %s\n", filename);
-                disk_handle_load(d64, filename, load_buf);
+                disk_handle_load(channel, filename);
                 break;
 
             case CMD_SAVE:
                 // Channel 1 will be used as save buffer - just as on 1541
-                d64 = channels + 1;
+                channel = channels + 1;
                 disk_receive_filename(filename);
                 dbg("Got SAVE command for: %s\n", filename);
-                disk_handle_save(d64, filename, save_buf);
+                disk_handle_save(channel, filename);
                 break;
 
             case CMD_OPEN:
-                d64 = disk_receive_channel(channels);
+                channel = disk_receive_channel(channels);
                 disk_receive_filename(filename);
                 dbg("Got OPEN command for channel %d for: %s\n",
-                    d64->channel, filename);
-                disk_handle_open(d64, filename);
+                    channel->number, filename);
+                disk_handle_open(channel, filename);
                 break;
 
             case CMD_CLOSE:
-                d64 = disk_receive_channel(channels);
-                dbg("Got CLOSE command for channel %d\n", d64->channel);
-                disk_handle_close(image, channels, d64);
+                channel = disk_receive_channel(channels);
+                dbg("Got CLOSE command for channel %d\n", channel->number);
+                disk_handle_close(image, channels, channel);
                 break;
 
             case CMD_TALK:
-                d64 = disk_receive_channel(channels);
+                channel = disk_receive_channel(channels);
                 c64_send_reply(REPLY_OK);
                 break;
 
             case CMD_UNTALK:
-                d64 = NULL;
+                channel = NULL;
                 c64_send_reply(REPLY_OK);
                 break;
 
             case CMD_GET_BYTE:
-                disk_handle_get_byte(d64);
+                disk_handle_get_byte(channel);
                 break;
 
             default:
