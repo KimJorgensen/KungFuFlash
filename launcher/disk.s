@@ -85,8 +85,8 @@ QTSW            = $d4                   ; Quotation mode flag
 ERROR_FILE_NOT_FOUND    = $04
 
 ; Kernal status codes
-STATUS_READ_ERROR       = $02
 STATUS_END_OF_FILE      = $40
+STATUS_READ_ERROR       = $42
 STATUS_SAVE_FILE_EXISTS = $80
 STATUS_SAVE_DISK_FULL   = $83
 
@@ -877,9 +877,9 @@ kff_basin:
 
 do_kff_basin:
         lda STATUS
-        beq @status_ok                  ; Status OK
+        beq @status_ok
         lda #$0d
-        bne @read_done                  ; Not OK - return CR
+        bne @read_done                  ; Status not OK - return CR
 
 @status_ok:
         stx tmp1
@@ -1012,7 +1012,7 @@ kff_load:
         lda #RTS_INSTRUCTION            ; Set RTS at the end of disable_ef_rom
         sta return_inst
 
-        lda #STATUS_READ_ERROR | STATUS_END_OF_FILE
+        lda #STATUS_READ_ERROR
         sta STATUS
         lda #ERROR_FILE_NOT_FOUND       ; File not found error
         sec
