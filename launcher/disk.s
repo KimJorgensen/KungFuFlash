@@ -99,6 +99,7 @@ tmp3            = $ff
 
 ef3usb_send_receive     = $0100
 start_commands          = $8000
+load_buffer             = $8000
 
 EASYFLASH_BANK          = $de00
 EASYFLASH_CONTROL       = $de02
@@ -1058,15 +1059,49 @@ kff_load:
         sta EAH
 
 start_load:
-        jsr init_load_params
+        jsr @init_load
         jsr load_prg
         jsr copy_disable_ef_rom
         jmp disable_ef_rom
 
+@init_load:
+        lda EAH
+        cmp #>EASYFLASH_RAM             ; Check for load to EASYFLASH_RAM
+        bne init_load_params
+
+@skip_bytes:
+        clc                             ; Adjust bank size
+        lda tmp1
+        adc EAL
+        bcs @move_start
+        ldx tmp2
+        beq @no_data
+        dec tmp2
+@move_start:
+        sta tmp1
+
+        sec                             ; Adjust load_buffer pointer
+        lda #<load_buffer
+        sbc EAL
+        tay
+        lda #>load_buffer
+        adc #$00
+
+        ldx #$00                        ; Adjust start address
+        stx EAL
+        inc EAH
+        jmp init_load_ptr
+
+@no_data:
+        sta EAL
+        lda #$00
+        sta tmp1
+
 init_load_params:
-        lda #$00                        ; ptr = Start of EF flash
-        sta ptr1
-        lda #$80
+        ldy #<load_buffer               ; ptr = Start of EF flash
+        lda #>load_buffer
+init_load_ptr:
+        sty ptr1
         sta ptr2
 
         ldy #$00                        ; Index
