@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -88,7 +88,7 @@ static void d64_format_diskname(char *buffer, const char *name, u8 name_len)
 
 static void d64_format_entry_type(char *buffer, u8 type)
 {
-    if(!(type & 0x80))
+    if(!(type & D64_FILE_NO_SPLAT))
     {
         *buffer++ = '*';   // to display really deleted files as "*DEL", $80 as " DEL"
     }
@@ -100,7 +100,7 @@ static void d64_format_entry_type(char *buffer, u8 type)
     strcpy(buffer, d64_types[type & 7]);
     buffer += 3;
 
-    if(type & 0x40)
+    if(type & D64_FILE_LOCKED)
     {
         *buffer++ = '<';
     }
@@ -305,7 +305,7 @@ static bool d64_select(D64_STATE *state, u8 flags, u8 element_no)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            handle_file_options("..", FILE_NONE, element_no);
+            handle_file_options("..", FILE_DIR_UP, element_no);
         }
         else
         {
@@ -324,6 +324,7 @@ static bool d64_select(D64_STATE *state, u8 flags, u8 element_no)
         else if (!(flags & SELECT_FLAG_MOUNT))
         {
             basic_load("*");
+            dat_file.disk.mode = DISK_MODE_D64;
             dat_file.boot_type = DAT_DISK;
             d64_close(&state->image);
             return true;
@@ -388,6 +389,7 @@ static bool d64_select(D64_STATE *state, u8 flags, u8 element_no)
         }
 
         basic_load(dat_file.prg.name);
+        dat_file.disk.mode = DISK_MODE_D64;
         dat_file.boot_type = DAT_DISK;
         d64_close(&state->image);
         return true;

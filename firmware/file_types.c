@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -83,7 +83,7 @@ static u8 get_file_type(FILINFO *info)
 {
     if (info->fattrib & AM_DIR)
     {
-        return FILE_NONE;
+        return FILE_DIR;
     }
 
     char *filename = info->fname;

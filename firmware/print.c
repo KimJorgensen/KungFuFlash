@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -27,7 +27,7 @@
  */
 #include <stdarg.h>
 
-static const char hex[] = "0123456789abcdef";
+static const char hex[] = "0123456789ABCDEF";
 
 static void printhex(int x, int ndigits, void (*_putchar)(char))
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -35,6 +35,34 @@ static bool filesystem_mount(void)
 static bool filesystem_unmount(void)
 {
     FRESULT res = f_unmount("");
+    return res == FR_OK;
+}
+
+static size_t filesystem_getfree(void)
+{
+    FATFS *fs_ptr = &fs;
+    DWORD fre_clust = 0;
+
+    FRESULT res = f_getfree("", &fre_clust, &fs_ptr);
+    if (res != FR_OK)
+    {
+        err("f_getfree failed (%x)\n", res);
+    }
+
+    led_on();
+
+    return fre_clust * fs.csize;
+}
+
+static bool filesystem_getlabel(char *label)
+{
+    FRESULT res = f_getlabel("", label, NULL);
+    if (res != FR_OK)
+    {
+        err("f_getlabel failed (%x)\n", res);
+    }
+
+    led_on();
     return res == FR_OK;
 }
 

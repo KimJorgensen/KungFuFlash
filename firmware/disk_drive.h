@@ -18,6 +18,13 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
+#define DISK_STATUS_OK          "00, OK,00,00"
+#define DISK_STATUS_NOT_FOUND   "62,FILE NOT FOUND,00,00"
+#define DISK_STATUS_INIT        "73,KUNG FU FLASH V" VERSION ",00,00"
+
+const u16 dir_start_addr = 0x0401;  // Start of BASIC (for the PET)
+const u16 dir_link_addr = 0x0101;
+
 typedef struct
 {
     const char *name;
@@ -38,4 +45,6 @@ typedef struct
     u8 *buf;
 
     D64 d64;
+    DIR dir;
+    FIL file;
 } DISK_CHANNEL;

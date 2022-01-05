@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -197,7 +197,9 @@ static void handle_file_options(const char *file_name, u8 file_type, u8 element_
 
     switch (file_type)
     {
-        case FILE_NONE:
+        case FILE_DIR:
+            mount_text = "Mount";
+        case FILE_DIR_UP:
             title = "Directory Options";
             select_text = "Open";
             delete_option = false;
@@ -209,6 +211,7 @@ static void handle_file_options(const char *file_name, u8 file_type, u8 element_
             break;
 
         case FILE_PRG:
+            mount_text = "Mount and load";
         case FILE_P00:
             select_text = "Load";
             break;

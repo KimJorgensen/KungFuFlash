@@ -936,7 +936,7 @@ static bool d64_write_finalize(D64 *d64)
 
     // update the entry for the new file
     entry->blocks = d64->sector_count;
-    entry->type |= 0x80;
+    entry->type |= D64_FILE_NO_SPLAT;
     if (!d64_write_current(d64))
     {
         return false;

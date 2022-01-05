@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -140,7 +140,8 @@ typedef struct
 #pragma pack(pop)
 
 typedef enum {
-    FILE_NONE       = 0x00,
+    FILE_DIR        = 0x00,
+    FILE_DIR_UP,
     FILE_CRT,
     FILE_PRG,
     FILE_P00,
@@ -186,6 +187,11 @@ typedef enum {
     CRT_FLAG_VIC        = 0x80  // Support VIC/C128 2MHz mode reads (EF only)
 } DAT_CRT_FLAGS;
 
+typedef enum {
+    DISK_MODE_FS    = 0x00, // Use filesystem
+    DISK_MODE_D64   = 0x01  // Use D64 disk image
+} DAT_DISK_MODE;
+
 #pragma pack(push)
 #pragma pack(1)
 typedef struct
@@ -208,6 +214,11 @@ typedef struct
 
 typedef struct
 {
+    u8 mode;            // DAT_DISK_MODE
+} DAT_DISK_HEADER;
+
+typedef struct
+{
     u8 signature[8];    // DAT_SIGNATURE
 
     u8 flags;           // DAT_FLAGS
@@ -216,8 +227,9 @@ typedef struct
 
     union
     {
-        DAT_CRT_HEADER crt; // boot_type == DAT_CRT
-        DAT_PRG_HEADER prg; // boot_type == DAT_PRG
+        DAT_CRT_HEADER crt;     // boot_type == DAT_CRT
+        DAT_PRG_HEADER prg;     // boot_type == DAT_PRG
+        DAT_DISK_HEADER disk;   // boot_type == DAT_DISK
     };
 
     char path[736];

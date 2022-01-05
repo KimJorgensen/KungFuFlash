@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -183,7 +183,7 @@ static bool t64_select(T64_STATE *state, u8 flags, u8 element_no)
     {
         if (flags & SELECT_FLAG_OPTIONS)
         {
-            handle_file_options("..", FILE_NONE, element_no);
+            handle_file_options("..", FILE_DIR_UP, element_no);
         }
         else
         {

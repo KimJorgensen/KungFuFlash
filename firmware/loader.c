@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -521,6 +521,24 @@ static inline u8 device_number_d64(void)
     return get_device_number(dat_file.flags);
 }
 
+static char * basic_get_filename(FILINFO *file_info)
+{
+    char *filename = file_info->fname;
+
+    size_t len;
+    for (len=0; len<=16 && filename[len]; len++)
+    {
+        filename[len] = ff_wtoupper(filename[len]);
+    }
+
+    if (len > 16 && file_info->altname[0])
+    {
+        filename = file_info->altname;
+    }
+
+    return filename;
+}
+
 static void basic_load(const char *filename)
 {
     u8 device = device_number_d64();
@@ -599,16 +617,33 @@ static void send_prg(void)
     }
 }
 
-static bool load_d64(void)
+static bool load_disk(void)
 {
     if (!chdir_last())
     {
         return false;
     }
 
-    if (!d64_open(&d64_state.image, dat_file.file))
+    if (dat_file.disk.mode == DISK_MODE_D64)
     {
-        return false;
+        if (!d64_open(&d64_state.image, dat_file.file))
+        {
+            return false;
+        }
+    }
+    else if (dat_file.file[0])  // DISK_MODE_FS
+    {
+        FILINFO file_info;
+        if (!file_stat(dat_file.file, &file_info))
+        {
+            return false;
+        }
+
+        u8 file_type = get_file_type(&file_info);
+        if (file_type == FILE_DIR && !dir_change(dat_file.file))
+        {
+            return false;
+        }
     }
 
     return true;
@@ -707,7 +742,7 @@ static bool c64_set_mode(void)
 
         case DAT_DISK:
         {
-            if (!load_d64())
+            if (!load_disk())
             {
                 break;
             }

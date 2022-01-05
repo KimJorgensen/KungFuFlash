@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -677,12 +677,14 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             if (flags & SELECT_FLAG_MOUNT)
             {
                 basic_no_commands();
+                dat_file.disk.mode = DISK_MODE_D64;
                 dat_file.boot_type = DAT_DISK;
                 exit_menu = true;
             }
             else if (!(flags & SELECT_FLAG_ACCEPT) && autostart_d64())
             {
                 basic_load("*");
+                dat_file.disk.mode = DISK_MODE_D64;
                 dat_file.boot_type = DAT_DISK;
                 exit_menu = true;
             }
@@ -783,7 +785,7 @@ static bool handle_select_command(SD_STATE *state, u8 flags, u8 element)
         {
             if (flags & SELECT_FLAG_OPTIONS)
             {
-                handle_file_options("..", FILE_NONE, element);
+                handle_file_options("..", FILE_DIR_UP, element);
             }
             else
             {
@@ -828,7 +830,22 @@ static bool handle_select_command(SD_STATE *state, u8 flags, u8 element)
     {
         handle_file_options(file_info.fname, file_type, element);
     }
-    else if (file_type == FILE_NONE)
+    else if (flags & SELECT_FLAG_MOUNT)
+    {
+        if (file_type == FILE_DIR)
+        {
+            basic_no_commands();
+        }
+        else
+        {
+            char *filename = basic_get_filename(&file_info);
+            basic_load(filename);
+        }
+        dat_file.disk.mode = DISK_MODE_FS;
+        dat_file.boot_type = DAT_DISK;
+        exit_menu = true;
+    }
+    else if (file_type == FILE_DIR)
     {
         handle_change_dir(state, file_info.fname, false);
     }

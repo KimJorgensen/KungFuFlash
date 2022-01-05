@@ -50,7 +50,7 @@ static const u16 d64_track_offset[42] =
     0x0300, 0x0311
 };
 
-static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "CBM", "???", "???"};
+static const char *d64_types[8] = {"DEL", "SEQ", "PRG", "USR", "REL", "CBM", "DIR", "???"};
 
 typedef enum
 {
@@ -89,13 +89,15 @@ static u8 d64_get_type(FSIZE_t imgsize)
 
 typedef enum
 {
-  D64_FILE_DEL = 0,
+  D64_FILE_DEL      = 0x00,
   D64_FILE_SEQ,
   D64_FILE_PRG,
   D64_FILE_USR,
   D64_FILE_REL,
   D64_FILE_CBM,
-  D64_FILE_DIR
+  D64_FILE_DIR,
+  D64_FILE_LOCKED   = 0x40,
+  D64_FILE_NO_SPLAT = 0x80
 } D64_FILE_TYPE;
 
 #pragma pack(push)
