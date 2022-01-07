@@ -830,24 +830,27 @@ static bool handle_select_command(SD_STATE *state, u8 flags, u8 element)
     {
         handle_file_options(file_info.fname, file_type, element);
     }
-    else if (flags & SELECT_FLAG_MOUNT)
+    else if (file_type == FILE_DIR)
     {
-        if (file_type == FILE_DIR)
+        if (!(flags & SELECT_FLAG_MOUNT))
         {
-            basic_no_commands();
+            handle_change_dir(state, file_info.fname, false);
         }
         else
         {
-            char *filename = basic_get_filename(&file_info);
-            basic_load(filename);
+            basic_no_commands();
+            dat_file.disk.mode = DISK_MODE_FS;
+            dat_file.boot_type = DAT_DISK;
+            exit_menu = true;
         }
+    }
+    else if (flags & SELECT_FLAG_MOUNT && file_type == FILE_PRG)
+    {
+        char *filename = basic_get_filename(&file_info);
+        basic_load(filename);
         dat_file.disk.mode = DISK_MODE_FS;
         dat_file.boot_type = DAT_DISK;
         exit_menu = true;
-    }
-    else if (file_type == FILE_DIR)
-    {
-        handle_change_dir(state, file_info.fname, false);
     }
     else if (flags & SELECT_FLAG_DELETE)
     {
