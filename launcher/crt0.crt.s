@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2019-2020 Kim Jørgensen
+; Copyright (c) 2019-2022 Kim Jørgensen
 ;
 ; Derived from EasyFlash 3 Boot Image
 ; Copyright (c) 2012-2013 Thomas Giesel
@@ -26,7 +26,7 @@
 
 .export _exit
 .export __STARTUP__ : absolute = 1      ; Mark as startup
-.export init_system_constants_light
+.export init_system
 
 .import _main
 
@@ -38,6 +38,10 @@
 .include "zeropage.inc"
 .include "c64.inc"
 
+CINT    = $ff81     ; Initialize screen editor
+IOINIT  = $ff84     ; Initialize I/O devices
+RESTOR  = $ff8a     ; Restore I/O vectors
+
 EASYFLASH_BANK    = $DE00
 EASYFLASH_CONTROL = $DE02
 EASYFLASH_LED     = $80
@@ -48,20 +52,28 @@ EASYFLASH_KILL    = $04
 ; Actual code
 
 .code
+init_system:
+        lda #$00        ; Clear start of BASIC area
+        sta $0800
+        sta $0801
+        sta $0802
+        sta $8004       ; Trash autostart (if any)
+
+init_system_no_clear:
+        jsr IOINIT      ; Initialize I/O
+        jsr init_memory ; faster replacement for $ff87
+        jsr RESTOR      ; Restore Kernal Vectors
+        jmp CINT        ; Initialize screen editor
 
 cold_start:
 reset:
         ; same init stuff the kernel calls after reset
-        ldx #0
-        stx $d016
-        jsr $ff84   ; Initialise I/O
-
-        jsr init_system_constants_light ; faster replacement for $ff87
-        jsr $ff8a   ; Restore Kernal Vectors
-        jsr $ff81   ; Initialize screen editor
+        ldx #$00
+        stx $d016       ; 38 columns
+        jsr init_system_no_clear
 
         ; Switch to second charset
-        lda #14
+        lda #$0e
         jsr BSOUT
 
         jsr zerobss
@@ -85,7 +97,7 @@ exit:
 
 ; ------------------------------------------------------------------------
 ; faster replacement for $ff87
-init_system_constants_light:
+init_memory:
         ; from KERNAL @ FD50:
         lda #$00
         tay
@@ -97,21 +109,19 @@ init_system_constants_light:
         bne :-
         ldx #$3c
         ldy #$03
-        stx $b2
+        stx $b2         ; pointer to datasette buffer
         sty $b3
         tay
 
         ; result from loop KERNAL @ FD6C:
-        lda #$00
-        sta $c1
-        sta $0283
         lda #$a0
         sta $c2
-        sta $0284
+        sta $0284       ; pointer to end of BASIC area
 
         ; from KERNAL @ FD90:
         lda #$08
-        sta $0282       ; pointer: bottom of memory for operating system
+        sta $0282       ; pointer to beginning of BASIC area
+
         lda #$04
         sta $0288       ; high byte of screen memory address
         rts
@@ -140,28 +150,30 @@ ultimax_reset:
         cld
 
         ; enable VIC (e.g. RAM refresh)
-        lda #8
+        lda #$08
         sta $d016
 
         ; write to RAM to make sure it starts up correctly (=> RAM datasheets)
+        lda #$00
 wait:
         sta $0100, x
         dex
         bne wait
 
         ; copy the final start-up code to RAM (bottom of CPU stack)
-        ldx #(trampoline_end - trampoline)
+        ldx #(trampoline_end - trampoline) - 1
 l1:
         lda trampoline, x
         sta $0100, x
         dex
         bpl l1
+
+        lda #EASYFLASH_16K + EASYFLASH_LED
         jmp $0100
 
 trampoline:
         ; === this code is copied to the stack area, does some inits ===
         ; === starts the main application                            ===
-        lda #EASYFLASH_16K + EASYFLASH_LED
         sta EASYFLASH_CONTROL
         jmp cold_start
 trampoline_end:

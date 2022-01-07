@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2019-2020 Kim Jørgensen
+; Copyright (c) 2019-2022 Kim Jørgensen
 ;
 ; Derived from EasyFlash 3 Boot Image and EasyFash 3 Menu
 ; Copyright (c) 2012-2013 Thomas Giesel
@@ -25,7 +25,7 @@
 .importzp   tmp1, tmp2, tmp3, tmp4
 .import     popa, popax
 
-.import init_system_constants_light
+.import init_system
 .import _ef3usb_fload
 .import _ef3usb_fclose
 
@@ -43,8 +43,6 @@ IBASIN     = $0324
 MAIN       = $a483      ; Normal BASIC warm start
 BACL       = $e394      ; BASIC cold start entry point
 INIT       = $e397      ; Initialize BASIC RAM
-CINT	   = $ff81      ; Initialize screen editor
-RESTOR     = $ff8a      ; Restore I/O vectors
 SETLFS     = $ffba      ; Set logical, first, and second address
 
 ; Align with commands.h
@@ -90,15 +88,7 @@ _usbtool_prg_load_and_run:
         sei
         ldx #$ff                        ; Reset stack
         txs
-
-        jsr init_system_constants_light
-        jsr RESTOR                      ; Restore kernal vectors
-
-        ; clear start of BASIC area
-        lda #$00
-        sta $0800
-        sta $0801
-        sta $0802
+        jsr init_system
 
         ; set current file (emulate read from drive 8)
         lda #$01
@@ -107,7 +97,7 @@ _usbtool_prg_load_and_run:
         jsr SETLFS                       ; Set file parameters
 
         ; === copy to EF RAM ===
-        ldx #ef_ram_end - ef_ram_start
+        ldx #(ef_ram_end - ef_ram_start) - 1
 :
         lda ef_ram_start, x
         sta EASYFLASH_RAM, x
@@ -127,7 +117,7 @@ _usbtool_prg_load_and_run:
         ; === Start BASIC ===
 .export start_basic
 start_basic:
-        ldx #basic_starter_end - basic_starter
+        ldx #(basic_starter_end - basic_starter) - 1
 :
         lda basic_starter, x
         sta trampoline, x
@@ -148,7 +138,6 @@ start_basic:
 basic_starter:
 .org trampoline
         sta EASYFLASH_CONTROL
-        jsr CINT                        ; Initialize screen editor
 
 init_basic:
         jsr $ffff                       ; Initialize BASIC vectors

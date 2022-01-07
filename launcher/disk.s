@@ -23,7 +23,7 @@
 ; 3. This notice may not be removed or altered from any source distribution.
 ;
 
-.import init_system_constants_light
+.import init_system
 .import start_basic
 .include "ef3usb_macros.s"
 
@@ -36,7 +36,6 @@ RTS_INSTRUCTION = $60
 LUKING          = $f5af                 ; Print "SEARCHING"
 LODING          = $f5d2                 ; Print "LOADING"
 SAVING          = $f68f                 ; Print "SAVING"
-RESTOR          = $ff8a                 ; Restore I/O vectors
 BSOUT           = $ffd2                 ; Write byte to default output
 
 ; Kernal vectors
@@ -136,15 +135,7 @@ _disk_mount_and_load:
         sei
         ldx #$ff                        ; Reset stack
         txs
-        stx $8004                       ; Trash autostart (if any)
-
-        jsr init_system_constants_light
-        jsr RESTOR                      ; Restore Kernal Vectors
-
-        lda #$00                        ; Clear start of BASIC area
-        sta $0800
-        sta $0801
-        sta $0802
+        jsr init_system
 
         ; === Disk API in EF RAM ===
         ldx #disk_api_resident_end - disk_api_resident
@@ -306,40 +297,41 @@ filename_len:
         .byte $00
 ; TODO: 35 bytes are allocated for filenames. It should be 41 chars long.
 filename:
-        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
-        .byte $00,$00,$00
+        .byte $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff
+        .byte $ff,$ff,$ff
 filename_end:
+; Note: Next byte is overwritten if filename is 35 bytes or longer
 
-kff_device_number:
-        .byte $08
 mem_config:
-        .byte $00
-print_text_ptr:
-        .byte $01
+        .byte $ff
 more_to_load:
         .byte $00
+kff_device_number:
+        .byte $08
+print_text_ptr:
+        .byte $01
 
 old_open_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_close_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_chkin_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_ckout_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_clrch_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_basin_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_getin_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_clall_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_load_vector:
-        .byte $00,$00
+        .byte $ff,$ff
 old_save_vector:
-         .byte $00,$00
+        .byte $ff,$ff
 
 kernal_trampoline:                      ; Called by KFF routines
         lda #EASYFLASH_KILL
