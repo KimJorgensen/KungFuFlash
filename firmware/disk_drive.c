@@ -536,10 +536,13 @@ static void disk_handle_load_prg(DISK_CHANNEL *channel, char *filename)
     }
 }
 
-static bool disk_parse_dir(DISK_CHANNEL *channel, char *filename)
+static bool disk_parse_dir(DISK_CHANNEL *channel, char **filename_ptr)
 {
+    char *filename = *filename_ptr;
+
     // Check drive number
-    if (filename[0] >= '0' && filename[0] <= '9')
+    if (filename[0] >= '0' && filename[0] <= '9' &&
+        (filename[1] == 0 || filename[1] == ':'))
     {
         if (filename[0] != '0')
         {
@@ -550,24 +553,23 @@ static bool disk_parse_dir(DISK_CHANNEL *channel, char *filename)
         {
             filename[0] = '*';
         }
-        else
-        {
-            // Scan for filename
-            char c;
-            while ((c = *filename))
-            {
-                filename++;
-                if (c == ':')
-                {
-                    break;
-                }
-            }
-        }
     }
     else if (filename[0] == 0)
     {
         filename[0] = '*';
         filename[1] = 0;
+    }
+
+    // Scan for filename
+    char c;
+    while ((c = *filename))
+    {
+        filename++;
+        if (c == ':')
+        {
+            *filename_ptr = filename;
+            break;
+        }
     }
 
     // TODO: Also support '=' to filter on filetype
@@ -577,7 +579,7 @@ static bool disk_parse_dir(DISK_CHANNEL *channel, char *filename)
 
 static void disk_handle_load_dir(DISK_CHANNEL *channel, char *filename)
 {
-    if (!disk_parse_dir(channel, filename))
+    if (!disk_parse_dir(channel, &filename))
     {
         c64_send_reply(REPLY_NO_DRIVE); // Try serial device (if any)
         return;
@@ -787,7 +789,7 @@ static void disk_handle_open_dir(DISK_CHANNEL *channel, char *filename)
     }
     else                    // Channel 0
     {
-        if (!disk_parse_dir(channel, filename))
+        if (!disk_parse_dir(channel, &filename))
         {
             c64_send_reply(REPLY_NO_DRIVE); // Try serial device (if any)
             return;
