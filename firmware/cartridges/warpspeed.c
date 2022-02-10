@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen and Sven Oliver (SvOlli) Moll
+ * Copyright (c) 2019-2022 Kim Jørgensen and Sven Oliver (SvOlli) Moll
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -26,26 +26,19 @@
  * - write $DF00-$DFFF turns ROM off
  * still it's twice as fast as JiffyDOS and can load to RAM at $D000-$DFFF,
  * and also packs a lot of features.
- * the original hardware features also a C128 mode, which can't be recreated
- * using a crt image.
  */
+
+u32 warpspeed_on;
 
 /*************************************************
 * C64 bus read callback
 *************************************************/
 FORCE_INLINE bool warpspeed_read_handler(u32 control, u32 addr)
 {
-    /* IO access */
-    if ((control & (C64_IO1|C64_IO2)) != (C64_IO1|C64_IO2))
+    /* IO and ROM access */
+    if ((control & (C64_IO1|C64_IO2|C64_ROML|C64_ROMH)) != (C64_IO1|C64_IO2|C64_ROML|C64_ROMH))
     {
         /* $DE00-$DFFF are a mirror of $9E00-$9FFF */
-        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
-        return true;
-    }
-
-    /* ROM access */
-    if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
-    {
         C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
@@ -60,17 +53,27 @@ FORCE_INLINE void warpspeed_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
-        C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
+        C64_CRT_CONTROL(warpspeed_on);
     }
     else if (!(control & C64_IO2))
     {
-        C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_NONE);
+        C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
     }
 }
 
-static void warpspeed_init(void)
+static void warpspeed_init(DAT_CRT_HEADER *crt_header)
 {
-    C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
+    if (crt_header->type == CRT_WARP_SPEED)
+    {
+        warpspeed_on = STATUS_LED_ON|CRT_PORT_16K;
+    }
+    else // CRT_C128_WARP_SPEED
+    {
+        warpspeed_on = STATUS_LED_ON|CRT_PORT_NONE;
+    }
+
+    C64_CRT_CONTROL(warpspeed_on);
 }
 
-C64_BUS_HANDLER(warpspeed)
+// Support C128 2MHz read access
+C64_C128_BUS_HANDLER(warpspeed)

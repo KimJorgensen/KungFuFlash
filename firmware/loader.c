@@ -21,10 +21,11 @@
 #define DAT_FILENAME "/KungFuFlash.dat"
 #define UPD_FILENAME ("/KungFuFlash_v" VERSION ".upd")
 
-#define CRT_SIGNATURE "C64 CARTRIDGE   "
+#define CRT_C64_SIGNATURE  "C64 CARTRIDGE   "
+#define CRT_C128_SIGNATURE "C128 CARTRIDGE  "
 #define CRT_CHIP_SIGNATURE "CHIP"
 #define CRT_VERSION_1_0 0x100
-#define CRT_VERSION_1_1 0x101
+#define CRT_VERSION_2_0 0x200
 
 #define EAPI_OFFSET 0x3800
 #define EAPI_SIZE   0x300
@@ -78,16 +79,28 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
 {
     u32 len = file_read(file, header, sizeof(CRT_HEADER));
 
-    if (len != sizeof(CRT_HEADER) ||
-        memcmp(CRT_SIGNATURE, header->signature, sizeof(header->signature)) != 0)
+    if (len != sizeof(CRT_HEADER))
     {
         wrn("Unsupported CRT header\n");
         return false;
     }
 
+    u16 crt_type_flag = 0;
+    if (memcmp(CRT_C128_SIGNATURE, header->signature,
+               sizeof(header->signature)) == 0)
+    {
+        crt_type_flag = CRT_C128_CARTRIDGE;
+    }
+    else if (memcmp(CRT_C64_SIGNATURE, header->signature,
+                    sizeof(header->signature)) != 0)
+    {
+        wrn("Unsupported CRT signature\n");
+        return false;
+    }
+
     header->header_length = __REV(header->header_length);
     header->version = __REV16(header->version);
-    header->cartridge_type = __REV16(header->cartridge_type);
+    header->cartridge_type = __REV16(header->cartridge_type) | crt_type_flag;
 
     if (header->header_length != sizeof(CRT_HEADER))
     {
@@ -103,7 +116,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
         }
     }
 
-    if (header->version < CRT_VERSION_1_0 || header->version > CRT_VERSION_1_1)
+    if (header->version < CRT_VERSION_1_0 || header->version > CRT_VERSION_2_0)
     {
         wrn("Unsupported CRT version: %x\n", header->version);
         return false;
@@ -115,7 +128,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
 static bool crt_write_header(FIL *file, u16 type, u8 exrom, u8 game, const char *name)
 {
     CRT_HEADER header;
-    memcpy(header.signature, CRT_SIGNATURE, sizeof(header.signature));
+    memcpy(header.signature, CRT_C64_SIGNATURE, sizeof(header.signature));
     header.header_length = __REV(sizeof(CRT_HEADER));
     header.version = __REV16(CRT_VERSION_1_0);
     header.cartridge_type = __REV16(type);
@@ -186,9 +199,9 @@ static s32 crt_get_offset(CRT_CHIP_HEADER *header, u16 cartridge_type)
     if (header->start_address == 0x8000 && header->image_size <= 16*1024)
     {
         // Suport ROML only cartridges with more than 64 banks
-        if(header->image_size <= 8*1024 &&
-           (cartridge_type == CRT_FUN_PLAY_POWER_PLAY ||
-            cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA))
+        if (header->image_size <= 8*1024 &&
+            (cartridge_type == CRT_FUN_PLAY_POWER_PLAY ||
+             cartridge_type == CRT_MAGIC_DESK_DOMARK_HES_AUSTRALIA))
         {
             bool odd_bank = header->bank & 1;
             header->bank >>= 1;
@@ -202,6 +215,10 @@ static s32 crt_get_offset(CRT_CHIP_HEADER *header, u16 cartridge_type)
         }
         else
         {
+            if (cartridge_type & CRT_C128_CARTRIDGE)
+            {
+                header->bank *= 2;
+            }
             offset = header->bank * 16*1024;
         }
     }
@@ -210,6 +227,12 @@ static s32 crt_get_offset(CRT_CHIP_HEADER *header, u16 cartridge_type)
               header->image_size <= 8*1024)
     {
         offset = header->bank * 16*1024 + 8*1024;
+    }
+    // ROMH bank (C128)
+    else if (header->start_address == 0xc000 && header->image_size <= 16*1024)
+    {
+        header->bank = (header->bank * 2) + 1;
+        offset = header->bank * 16*1024;
     }
     // ROMH bank (4k Ultimax)
     else if (header->start_address == 0xf000 && header->image_size == 4*1024)
@@ -701,22 +724,29 @@ static bool c64_set_mode(void)
             }
 
             u32 state = STATUS_LED_ON;
-            if (dat_file.crt.exrom)
+            if (!(dat_file.crt.type & CRT_C128_CARTRIDGE))
             {
-                state |= C64_EXROM_HIGH;
-            }
-            else
-            {
-                state |= C64_EXROM_LOW;
-            }
+                if (dat_file.crt.exrom)
+                {
+                    state |= C64_EXROM_HIGH;
+                }
+                else
+                {
+                    state |= C64_EXROM_LOW;
+                }
 
-            if (dat_file.crt.game)
-            {
-                state |= C64_GAME_HIGH;
+                if (dat_file.crt.game)
+                {
+                    state |= C64_GAME_HIGH;
+                }
+                else
+                {
+                    state |= C64_GAME_LOW;
+                }
             }
             else
             {
-                state |= C64_GAME_LOW;
+                state |= CRT_PORT_NONE;
             }
 
             C64_CRT_CONTROL(state);

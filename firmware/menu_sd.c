@@ -505,9 +505,24 @@ static bool handle_crt_supported(u32 cartridge_type)
         return true;
     }
 
-    sprint(scratch_buf, "Unsupported CRT type (%u)", cartridge_type);
+    sprint(scratch_buf, "Unsupported %s CRT type (%u)",
+           cartridge_type & CRT_C128_CARTRIDGE ? "C128" : "C64",
+           cartridge_type & (CRT_C128_CARTRIDGE-1));
     handle_unsupported_ex("Unsupported", scratch_buf, dat_file.file);
     return false;
+}
+
+static bool handle_c128_supported(const char *file_name, u8 flags, u8 element)
+{
+    // Show warning on a C64
+    if (!(flags & SELECT_FLAG_C128) && !(flags & SELECT_FLAG_ACCEPT))
+    {
+        handle_unsupported_warning(
+            "Cartridge will only work on a C128", file_name, element);
+        return false;
+    }
+
+    return true;
 }
 
 static void handle_fw_not_in_root(const char *file_name)
@@ -559,44 +574,31 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
 
         case FILE_ROM:
         {
-            if (!(flags & SELECT_FLAG_ACCEPT))
+            FIL file;
+            handle_file_open(&file, file_name);
+
+            if (rom_load_file(&file) &&
+                // Look for C128 CRT identifier
+                (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
+                 memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
             {
-                FIL file;
-                handle_file_open(&file, file_name);
-
-                if (rom_load_file(&file) &&
-                    // Look for C128 CRT identifier
-                    (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
-                     memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
+                if (!handle_crt_supported(CRT_C128_NORMAL_CARTRIDGE))
                 {
-                    if (!handle_crt_supported(CRT_C128_NORMAL_CARTRIDGE))
-                    {
-                        break;
-                    }
-
-                    // Show warning on a C64
-                    if (!(flags & SELECT_FLAG_C128))
-                    {
-                        handle_unsupported_warning(
-                            "Cartridge will only run on a C128", file_name,
-                             element);
-                    }
-                    else
-                    {
-                        exit_menu = true;
-                    }
-                }
-                else
-                {
-                    handle_unsupported(file_name);
+                    break;
                 }
 
-                file_close(&file);
+                if (!handle_c128_supported(file_name, flags, element))
+                {
+                    break;
+                }
+                exit_menu = true;
             }
             else
             {
-                exit_menu = true;
+                handle_unsupported(file_name);
             }
+
+            file_close(&file);
 
             if (exit_menu)
             {
@@ -629,6 +631,12 @@ static bool handle_load_file(SD_STATE *state, const char *file_name,
             }
 
             if (!handle_crt_supported(header.cartridge_type))
+            {
+                break;
+            }
+
+            if (header.cartridge_type & CRT_C128_CARTRIDGE &&
+                !handle_c128_supported(file_name, flags, element))
             {
                 break;
             }

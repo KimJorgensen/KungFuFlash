@@ -23,7 +23,7 @@ The gerber files and BOM can be found [here](https://github.com/KimJorgensen/Kun
 ## Supported Cartridges
 The following cartridge types are currently supported:
 
-* Normal cartridge (8k, 16k, Ultimax)
+* Generic cartridge (8k, 16k, Ultimax)
 * Action Replay v4.x/v5/v6
 * KCS Power Cartridge
 * Final Cartridge III(+)
@@ -45,13 +45,15 @@ The following cartridge types are currently supported:
 * Freeze Machine
 * RGCD, Hucky
 * Drean
-* C128 Normal Cartridge (external function ROM)
+
+* C128 Generic cartridge (external function ROM)
+* WarpSpeed 128
 
 ## Supported File Types
 The following file types are currently supported:
 
 * Cartridge (CRT)
-* C128 cartridge (ROM, BIN)
+* C128 external function ROM (ROM, BIN)
 * Disk image (D64, D71, D81)
 * Tape image (T64)
 * Program (PRG, P00)

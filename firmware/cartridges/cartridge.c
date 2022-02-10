@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -84,7 +84,8 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
             return c64gs_handler;
 
         case CRT_WARP_SPEED:
-            return warpspeed_handler;
+        case CRT_C128_WARP_SPEED:
+            return NTSC_OR_PAL_HANDLER(warpspeed);
 
         case CRT_DINAMIC:
             return dinamic_handler;
@@ -149,7 +150,8 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
             break;
 
         case CRT_WARP_SPEED:
-            warpspeed_init();
+        case CRT_C128_WARP_SPEED:
+            warpspeed_init(crt_header);
             break;
 
         case CRT_ZAXXON_SUPER_ZAXXON:
