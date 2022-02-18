@@ -117,6 +117,13 @@ _usbtool_prg_load_and_run:
         ; === Start BASIC ===
 .export start_basic
 start_basic:
+        jsr init_basic
+
+        lda #<MAIN                      ; Restore BASIC warm start for C64GS
+        sta IMAIN
+        lda #>MAIN
+        sta IMAIN + 1
+
         ldx #(basic_starter_end - basic_starter) - 1
 :
         lda basic_starter, x
@@ -124,28 +131,17 @@ start_basic:
         dex
         bpl :-
 
-        ; Setup init BASIC vectors (needed for JiffyDOS)
-        lda BACL + 1
-        sta init_basic + 1
-        lda BACL + 2
-        sta init_basic + 2
-
         lda #EASYFLASH_KILL
         jmp trampoline
+
+init_basic:
+        jmp (BACL + 1)                  ; Initialize BASIC vectors
 .endproc
 
 ; =============================================================================
 basic_starter:
 .org trampoline
         sta EASYFLASH_CONTROL
-
-init_basic:
-        jsr $ffff                       ; Initialize BASIC vectors
-        lda #<MAIN                      ; Restore BASIC warm start for C64GS
-        sta IMAIN
-        lda #>MAIN
-        sta IMAIN + 1
-
         cli
         jmp INIT                        ; Start BASIC
 .reloc
