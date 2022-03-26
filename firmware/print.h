@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -25,7 +25,6 @@
  * According to kim-os license, you can do whatever you want with it,
  * as long as you retain this notice.
  */
-#define ARRAY_COUNT(array) (sizeof(array) / sizeof(*(array)))
 
 #define V_NON 0 /* No log */
 #define V_CRT 1 /* Log critical */

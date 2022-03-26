@@ -30,7 +30,7 @@ static void fs_format_diskname(char *buf, const char *filename)
         else
         {
             c = ff_wtoupper(c);
-            if(c == '_')
+            if (c == '_')
             {
                 c = 0xa4;
             }

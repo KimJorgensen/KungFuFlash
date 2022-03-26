@@ -35,14 +35,24 @@ typedef struct
     char mode;
 } PARSED_FILENAME;
 
+typedef enum
+{
+    DISK_BUF_NONE   = 0x00,
+    DISK_BUF_USE    = 0x01,
+    DISK_BUF_DIR    = 0x02
+} DISK_BUF_MODE;
+
 typedef struct
 {
     u8 number;
 
-    u8 use_buf;
-    u16 data_len;
-    u16 data_ptr;
-    u8 *buf;
+    u8 buf_mode;    // DISK_BUF_MODE
+    u8 buf_len;
+    u8 buf_ptr;
+    u8 buf[256];
+
+    char filename[256];
+    char *filename_dir;
 
     D64 d64;
     DIR dir;

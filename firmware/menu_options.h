@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -30,7 +30,7 @@ typedef struct
 static OPTIONS_STATE options_state;
 
 typedef struct OPTIONS_ELEMENT_s OPTIONS_ELEMENT;
-typedef bool (*options_func)(OPTIONS_STATE *, OPTIONS_ELEMENT *, u8);
+typedef u8 (*options_func)(OPTIONS_STATE *, OPTIONS_ELEMENT *, u8);
 
 struct OPTIONS_ELEMENT_s
 {
@@ -57,6 +57,6 @@ static inline void options_add_text(OPTIONS_STATE *state, const char *text);
 static void options_add_text_block(OPTIONS_STATE *state, const char *text);
 static void options_add_select(OPTIONS_STATE *state, const char *text, u8 flags, u8 element_no);
 static inline void options_add_dir(OPTIONS_STATE *state, const char *text);
-static void handle_options(void);
+static u8 handle_options(void);
 
 static const char * options_element_text(OPTIONS_ELEMENT *element, const char *text);

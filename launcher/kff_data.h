@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -18,43 +18,18 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-__attribute__((__section__(".module")))
-struct
-{
-    union
-    {
-        u8 buf[16*1024];    // 16kB module buffer
-        MODULE_HEADER;
-    };
-} module;
+#include <stdint.h>
+#include "launcher_asm.h"
 
-static void module_load(void)
-{
-    FIL file;
-    if (file_open(&file, UPD_FILENAME, FA_READ))
-    {
-        if (!file_seek(&file, sizeof(dat_buffer)) ||
-            file_read(&file, module.buf, sizeof(module.buf)) != sizeof(module.buf))
-        {
-            memset(module.buf, 0xff, sizeof(module.buf));
-        }
+#ifndef KFF_DATA_H
+#define KFF_DATA_H
 
-        file_close(&file);
-    }
-}
+#define KFF_DATA    *((volatile uint8_t*) 0xde00)
+#define KFF_COMMAND *((volatile uint8_t*) 0xde01)
 
-static bool module_initialized;
+#define KFF_SEND_BYTE(data) KFF_DATA = (data)
+#define KFF_GET_COMMAND()   (KFF_COMMAND)
 
-static bool module_init(void)
-{
-    if (!module_initialized)
-    {
-        if (memcmp(FW_NAME, module.fw_name, FW_NAME_SIZE) == 0)
-        {
-            module.init();
-            module_initialized = true;
-        }
-    }
+uint8_t kff_send_reply_progress(uint8_t reply);
 
-    return module_initialized;
-}
+#endif

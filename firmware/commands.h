@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -32,65 +32,83 @@
 #define TEXT_ELEMENT     0xe0
 
 #define FW_NAME_SIZE 20
-#define BASIC_CMD_BUF_SIZE  80
-#define LOADING_OFFSET      0x80
-#define SAVE_BUFFER_OFFSET  0x70
+#define KFF_ID_VALUE 0x2a
+#define LOADING_OFFSET 0x80
 
-typedef enum {
-    CMD_NONE = 0x00,
+// Commands from Kung Fu Flash to C64 and replies from C64 to Kung Fu Flash
+typedef enum
+{
+    CMD_NONE = 0x00,    // Get reply from C64
 
     // Menu commands
-    CMD_DIR,
-    CMD_DIR_ROOT,
-    CMD_DIR_UP,
-    CMD_DIR_PREV_PAGE,
-    CMD_DIR_NEXT_PAGE,
+    CMD_MESSAGE,
+    CMD_WARNING,
+    CMD_FLASH_MESSAGE,
+    CMD_TEXT_WAIT,
 
-    CMD_SELECT,
-    CMD_SETTINGS,
-    CMD_BASIC,
-    CMD_KILL,
-    CMD_KILL_C128,
+    CMD_MENU,
+    CMD_READ_DIR,
+    CMD_READ_DIR_PAGE,
 
-    CMD_RESET,
+    CMD_MOUNT_DISK,
+    CMD_WAIT_RESET,     // Disable screen and wait for reset
+    CMD_WAIT_SYNC,
 
     // Disk commands
-    CMD_LOAD = 0x80,
-    CMD_SAVE,
-    CMD_OPEN,
-    CMD_CLOSE,
-    CMD_TALK,
-    CMD_UNTALK,
-    CMD_GET_BYTE,
+    CMD_NO_DRIVE = 0x10,
+    CMD_DISK_ERROR,
+    CMD_NOT_FOUND,
+    CMD_END_OF_FILE,
 
-    // EAPI commands
-    CMD_EAPI_INIT = 0xf0,
-    CMD_WRITE_FLASH,
-    CMD_ERASE_SECTOR
+    // SYNC command
+    CMD_SYNC = 0x55,
+
+    REPLY_OK = 0x80,
+
+    // Menu replies
+    REPLY_DIR,
+    REPLY_DIR_ROOT,
+    REPLY_DIR_UP,
+    REPLY_DIR_PREV_PAGE,
+    REPLY_DIR_NEXT_PAGE,
+
+    REPLY_SELECT,
+    REPLY_SETTINGS,
+    REPLY_BASIC,
+    REPLY_KILL,
+    REPLY_KILL_C128,
+
+    REPLY_RESET,
+
+    // Disk replies
+    REPLY_LOAD = 0x90,
+    REPLY_SAVE,
+    REPLY_OPEN,
+    REPLY_CLOSE,
+    REPLY_TALK,
+    REPLY_UNTALK,
+    REPLY_GET_BYTE,
 } COMMAND_TYPE;
 
-typedef enum {
+typedef enum
+{
+    // EAPI commands
+    CMD_EAPI_NONE = 0x00,
+    CMD_EAPI_INIT,
+    CMD_WRITE_FLASH,
+    CMD_ERASE_SECTOR,
+} EAPI_COMMAND_TYPE;
+
+typedef enum
+{
+    // EAPI replies
+    REPLY_EAPI_OK = 0x00,
+    REPLY_WRITE_WAIT,
+    REPLY_WRITE_ERROR,
+} EAPI_REPLY_TYPE;
+
+typedef enum
+{
     SELECT_FLAG_OPTIONS = 0x40,
     SELECT_FLAG_C128    = 0x80
 } SELECT_FLAGS;
-
-typedef enum {
-    REPLY_OK = 0x00,        // No action on C64
-
-    // Menu replies
-    REPLY_READ_DIR,
-    REPLY_READ_DIR_PAGE,
-
-    REPLY_EXIT_MENU,        // Exit menu and wait for EFSTART:xxx command
-
-    // Disk replies
-    REPLY_NO_DRIVE = 0x80,
-
-    REPLY_DISK_ERROR,
-    REPLY_NOT_FOUND,
-    REPLY_END_OF_FILE,
-
-    // EAPI replies
-    REPLY_WRITE_WAIT = 0xf0,
-    REPLY_WRITE_ERROR
-} REPLY_TYPE;

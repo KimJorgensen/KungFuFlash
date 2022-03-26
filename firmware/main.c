@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -25,7 +25,7 @@
 #include "common.h"
 #include "commands.h"
 #include "print.h"
-#include "module.h"
+#include "memory.h"
 #include "hal.c"
 #include "print.c"
 #include "filesystem.c"

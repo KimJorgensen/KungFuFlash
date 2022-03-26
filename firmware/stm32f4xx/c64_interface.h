@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -217,44 +217,44 @@ static void handler(void)                                                       
 #define C64_NO_DELAY()
 
 #define C64_VIC_BUS_HANDLER(name)                                               \
-    C64_VIC_BUS_HANDLER_(name##_ntsc_handler, NTSC, name);                      \
+    C64_VIC_BUS_HANDLER_(name##_ntsc_handler, NTSC, name)                       \
     C64_VIC_BUS_HANDLER_(name##_pal_handler, PAL, name)
 
 #define C64_VIC_BUS_HANDLER_(handler, timing, name)                             \
     C64_VIC_BUS_HANDLER_EX__(handler, timing##_CPU_VIC_DELAY(),                 \
                              name##_read_handler, name##_read_handler,          \
-                             timing##_WRITE_DELAY, name##_write_handler,        \
+                             timing##_WRITE_DELAY(), name##_write_handler,      \
                              timing##_VIC_DELAY(), timing)
 
 #define C64_VIC_BUS_HANDLER_EX(name)                                            \
-    C64_VIC_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name);                   \
+    C64_VIC_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name)                    \
     C64_VIC_BUS_HANDLER_EX_(name##_pal_handler, PAL, name)
 
 #define C64_VIC_BUS_HANDLER_EX_(handler, timing, name)                          \
     C64_VIC_BUS_HANDLER_EX__(handler, timing##_CPU_VIC_DELAY(),                 \
                             name##_vic_read_handler, name##_read_handler,       \
-                            name##_early_write_handler, name##_write_handler,   \
+                            name##_early_write_handler(), name##_write_handler, \
                             timing##_VIC_DELAY(), timing)
 
 #define C64_C128_BUS_HANDLER(name)                                              \
-    C64_C128_BUS_HANDLER_(name##_ntsc_handler, NTSC, name);                     \
+    C64_C128_BUS_HANDLER_(name##_ntsc_handler, NTSC, name)                      \
     C64_C128_BUS_HANDLER_(name##_pal_handler, PAL, name)
 
 #define C64_C128_BUS_HANDLER_(handler, timing, name)                            \
     C64_VIC_BUS_HANDLER_EX__(handler, timing##_CPU_VIC_DELAY(),                 \
                             name##_read_handler, name##_read_handler,           \
-                            timing##_WRITE_DELAY, name##_write_handler,         \
+                            timing##_WRITE_DELAY(), name##_write_handler,       \
                             C64_NO_DELAY(), timing)
 
 #define C64_C128_BUS_HANDLER_EX(name)                                           \
-    C64_C128_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name);                  \
+    C64_C128_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name)                   \
     C64_C128_BUS_HANDLER_EX_(name##_pal_handler, PAL, name)
 
 #define C64_C128_BUS_HANDLER_EX_(handler, timing, name)                         \
     C64_VIC_BUS_HANDLER_EX__(handler,                                           \
                             C64_EARLY_CPU_VIC_HANDLER(name),                    \
                             name##_vic_read_handler, name##_read_handler,       \
-                            timing##_WRITE_DELAY, name##_write_handler,         \
+                            timing##_WRITE_DELAY(), name##_write_handler,       \
                             C64_EARLY_VIC_HANDLER(name, timing), timing)
 
 #define C64_EARLY_CPU_VIC_HANDLER(name)                                         \
@@ -299,7 +299,7 @@ void handler(void)                                                              
         }                                                                       \
         else if (!(control & C64_WRITE))                                        \
         {                                                                       \
-            early_write_handler();                                              \
+            early_write_handler;                                                \
             u32 data = C64_DATA_READ();                                         \
             write_handler(control, addr, data);                                 \
         }                                                                       \

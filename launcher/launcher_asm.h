@@ -1,8 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
- *
- * Derived from EasyFlash 3 Boot Image and EasyFash 3 Menu
- * Copyright (c) 2012-2013 Thomas Giesel
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,11 +17,19 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifndef _LAUNCHER_ASM_H_
 #define _LAUNCHER_ASM_H_
 
-void usbtool_prg_load_and_run(void);
-char* __fastcall__ ef3usb_get_cmd(bool send_fclose);
+void __fastcall__ kff_send_size_data(void *data, uint8_t size);
+void __fastcall__ kff_receive_data(void *data, uint16_t size);
+uint8_t __fastcall__ kff_send_reply(uint8_t reply);
+
+void kff_wait_for_sync(void);
+
 void wait_for_reset(void);
 uint8_t is_c128(void);
 

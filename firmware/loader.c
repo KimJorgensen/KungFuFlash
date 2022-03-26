@@ -254,7 +254,7 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
     while (!f_eof(crt_file))
     {
         CRT_CHIP_HEADER header;
-        if(!crt_load_chip_header(crt_file, &header))
+        if (!crt_load_chip_header(crt_file, &header))
         {
             err("Failed to read CRT chip header\n");
             banks_in_use = 0;
@@ -567,7 +567,7 @@ static void basic_load(const char *filename)
     u8 device = device_number_d64();
 
     // BASIC commands to run at start-up
-    sprint((char *)dat_buffer, "%cLOAD\"%s\",%d,1%cRUN%c", device,
+    sprint((char *)dat_buffer, "%cLOAD\"%s\",%d,1%cRUN\r%c", device,
            filename, device, 0, 0);
 }
 
@@ -610,7 +610,7 @@ static bool chdir_last(void)
 
 static void sanitize_sd_filename(char *dest, const char *src, u8 size)
 {
-    for(u8 i=0; i<size && *src; i++)
+    for (u8 i=0; i<size && *src; i++)
     {
         char c = sanitize_char(*src++);
         *dest++ = ff_wtoupper(c);
@@ -634,7 +634,7 @@ static void send_prg(void)
     }
 
     basic_loading(name);
-    if(!c64_send_prg(dat_buffer, dat_file.prg.size))
+    if (!c64_send_prg(dat_buffer, dat_file.prg.size))
     {
         system_restart();
     }
@@ -675,6 +675,13 @@ static bool load_disk(void)
 static void c64_launcher_mode(void)
 {
     crt_ptr = CRT_LAUNCHER_BANK;
+    kff_init();
+    C64_INSTALL_HANDLER(kff_handler);
+}
+
+static void c64_ef3_mode_disable(void)
+{
+    c64_disable();
     ef_init();
     C64_INSTALL_HANDLER(ef3_handler);
 }
@@ -690,6 +697,7 @@ static bool c64_set_mode(void)
             result = prg_size_valid(dat_file.prg.size);
             if (result)
             {
+                c64_ef3_mode_disable();
                 c64_enable();
                 send_prg();
             }
@@ -718,41 +726,14 @@ static bool c64_set_mode(void)
             if (!c64_is_reset())
             {
                 // Disable VIC-II output if C64 has been started (needed for FC3)
-                c64_interface(true);
-                c64_send_wait_for_reset();
+                c64_interface_sync();
+                c64_send_command(CMD_WAIT_RESET);
                 c64_disable();
             }
 
-            u32 state = STATUS_LED_ON;
-            if (!(dat_file.crt.type & CRT_C128_CARTRIDGE))
-            {
-                if (dat_file.crt.exrom)
-                {
-                    state |= C64_EXROM_HIGH;
-                }
-                else
-                {
-                    state |= C64_EXROM_LOW;
-                }
-
-                if (dat_file.crt.game)
-                {
-                    state |= C64_GAME_HIGH;
-                }
-                else
-                {
-                    state |= C64_GAME_LOW;
-                }
-            }
-            else
-            {
-                state |= CRT_PORT_NONE;
-            }
-
-            C64_CRT_CONTROL(state);
+            crt_install_handler(&dat_file.crt);
             // Try prevent triggering bug in H.E.R.O. No effect at power-on though
             c64_sync_with_vic();
-            crt_install_handler(&dat_file.crt);
             c64_enable();
             result = true;
         }
@@ -760,12 +741,10 @@ static bool c64_set_mode(void)
 
         case DAT_USB:
         {
-            c64_disable();
-            ef_init();
+            c64_ef3_mode_disable();
             c64_enable();
 
             basic_loading("FROM USB");
-            c64_send_message("Communicating with USB...");
             result = true;
         }
         break;
@@ -778,26 +757,15 @@ static bool c64_set_mode(void)
             }
 
             c64_disable();
-            ef_init();
-
-            // Copy Launcher to memory to allow bank switching in EasyFlash emulation
-            // BASIC commands to run are placed at the start of flash ($8000)
-            u32 offset = BASIC_CMD_BUF_SIZE;
-            memcpy(crt_banks[0] + offset, CRT_LAUNCHER_BANK + offset, 16*1024 - offset);
-            crt_ptr = crt_banks[0];
-
+            kff_init();
             c64_enable();
-            if (!c64_send_mount_disk())
-            {
-                system_restart();
-            }
             result = true;
         }
         break;
 
         case DAT_BASIC:
         {
-            c64_disable();
+            c64_ef3_mode_disable();
             // Unstoppable reset! - https://www.c64-wiki.com/wiki/Reset_Button
             C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
             c64_enable();
@@ -831,7 +799,7 @@ static bool c64_set_mode(void)
         case DAT_DIAG:
         {
             c64_disable();
-            ef_init();
+            kff_init();
             result = true;
         }
     }

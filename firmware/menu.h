@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,23 +21,23 @@
 typedef struct
 {
     void *state;
-    void (*dir)(void *state);
-    void (*dir_up)(void *state, bool root);
-    void (*prev_page)(void *state);
-    void (*next_page)(void *state);
-    bool (*select)(void *state, u8 flags, u8 element);
+    u8 (*dir)(void *state);
+    u8 (*dir_up)(void *state, bool root);
+    u8 (*prev_page)(void *state);
+    u8 (*next_page)(void *state);
+    u8 (*select)(void *state, u8 flags, u8 element);
 } MENU;
 
 static const MENU *menu;
 
-static void handle_failed_to_read_sd(void);
-static void handle_unsupported(const char *file_name);
-static void handle_unsupported_ex(const char *title, const char *message, const char *file_name);
-static void handle_unsupported_warning(const char *message, const char *file_name, u8 element_no);
-static void handle_unsaved_crt(const char *file_name, void (*handle_save)(u8));
-static void handle_file_options(const char *file_name, u8 file_type, u8 element_no);
-static void handle_upgrade_menu(const char *firmware, u8 element_no);
+static void fail_to_read_sd(void);
+static u8 handle_unsupported(const char *file_name);
+static u8 handle_unsupported_ex(const char *title, const char *message, const char *file_name);
+static u8 handle_unsupported_warning(const char *message, const char *file_name, u8 element_no);
+static u8 handle_unsaved_crt(const char *file_name, void (*handle_save)(u8));
+static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no);
+static u8 handle_upgrade_menu(const char *firmware, u8 element_no);
 static const char * to_petscii_pad(char *dest, const char *src, u8 size);
 static bool format_path(char *buf, bool include_file);
 static void send_page_end(void);
-static void reply_page_end(void);
+static u8 handle_page_end(void);

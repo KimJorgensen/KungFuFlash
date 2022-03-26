@@ -11,8 +11,6 @@ TARGET = KungFuFlash_v$(version)
 LAUNCHER_DIR = ../launcher/
 LAUNCHER = $(LAUNCHER_DIR)build/KungFuLauncher_v$(version).bin
 
-MODULE = KungFuModule_v$(version)
-
 ######################################
 # building variables
 ######################################
@@ -26,7 +24,6 @@ OPT = -Os #-Og
 #######################################
 # Build path
 BUILD_DIR = build
-BUILD_DIR_MODULE = $(BUILD_DIR)/module
 
 ######################################
 # source
@@ -40,14 +37,6 @@ fatfs/ffunicode.c
 # ASM sources
 ASM_SOURCES =  \
 stm32f4xx/startup_stm32f405xx.s
-
-# C sources for module
-C_SOURCES_MODULE =  \
-cartridges/module_crt.c
-
-# ASM sources for module
-ASM_SOURCES_MODULE =  \
-stm32f4xx/module_stm32f405xx.s
 
 #######################################
 # binaries
@@ -95,9 +84,6 @@ C_DEFS =  \
 -DSTM32F405xx \
 -DVERSION=\"${version}\"
 
-C_DEFS_MODULE =  \
--DMODULE
-
 # AS includes
 AS_INCLUDES =
 
@@ -121,47 +107,21 @@ endif
 
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
-CFLAGS_MODULE = $(CFLAGS) $(C_DEFS_MODULE)
 
 #######################################
 # LDFLAGS
 #######################################
 # link script
 LDSCRIPT = stm32f4xx/STM32F405RGTx_FLASH.ld
-LDSCRIPT_MODULE = stm32f4xx/STM32F405RGTx_module.ld
 
 # libraries
 LIBS = -lc -lm -lnosys
 LIBDIR =
 LDFLAGS_COMMON = $(MCU) -specs=nano.specs $(LIBDIR) $(LIBS) -Wl,--gc-sections
 LDFLAGS = $(LDFLAGS_COMMON) -T$(LDSCRIPT) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref
-LDFLAGS_MODULE = $(LDFLAGS_COMMON) -T$(LDSCRIPT_MODULE) -Wl,-Map=$(BUILD_DIR_MODULE)/$(MODULE).map,--cref
 
 # default action: build all
 all: $(BUILD_DIR)/$(TARGET).upd
-
-#######################################
-# build the module
-#######################################
-# list of objects
-OBJECTS_MODULE = $(addprefix $(BUILD_DIR_MODULE)/,$(notdir $(C_SOURCES_MODULE:.c=.o)))
-vpath %.c $(sort $(dir $(C_SOURCES_MODULE)))
-# list of ASM program objects
-OBJECTS_MODULE += $(addprefix $(BUILD_DIR_MODULE)/,$(notdir $(ASM_SOURCES_MODULE:.s=.o)))
-vpath %.s $(sort $(dir $(ASM_SOURCES_MODULE)))
-
-$(BUILD_DIR_MODULE)/%.o: %.c Makefile | $(BUILD_DIR_MODULE)
-	$(CC) -c $(CFLAGS_MODULE) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
-
-$(BUILD_DIR_MODULE)/%.o: %.s Makefile | $(BUILD_DIR_MODULE)
-	$(AS) -c $(CFLAGS_MODULE) -Wa,-a,-ad,-alms=$(BUILD_DIR_MODULE)/$(notdir $(<:.s=.lst)) $< -o $@
-
-$(BUILD_DIR_MODULE)/$(MODULE).bin: $(BUILD_DIR_MODULE)/$(MODULE).elf | $(BUILD_DIR_MODULE)
-	$(BIN) $< $@
-
-$(BUILD_DIR_MODULE)/$(MODULE).elf: $(OBJECTS_MODULE) Makefile
-	$(CC) $(OBJECTS_MODULE) $(LDFLAGS_MODULE) -o $@
-	$(SZ) $@
 
 #######################################
 # build the application
@@ -186,18 +146,14 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 $(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf | $(BUILD_DIR)
 	$(BIN) --gap-fill 0xff --pad-to 0xc000 $< $@
 
-$(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin $(BUILD_DIR_MODULE)/$(MODULE).bin | $(BUILD_DIR)
+$(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin | $(BUILD_DIR)
 	@cat $(BUILD_DIR)/$(TARGET).bin > $@
-	@cat $(BUILD_DIR_MODULE)/$(MODULE).bin >> $@
 
 $(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) | $(BUILD_DIR)
 	@cat $(BUILD_DIR)/$(TARGET).bin > $@
 	@cat $(LAUNCHER) >> $@
 
 $(BUILD_DIR):
-	mkdir -p $@
-
-$(BUILD_DIR_MODULE):
 	mkdir -p $@
 
 $(LAUNCHER): $(wildcard $(LAUNCHER_DIR)*)

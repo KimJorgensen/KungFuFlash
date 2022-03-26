@@ -34,95 +34,103 @@
 
 static void menu_loop()
 {
-    if(!c64_send_reset_to_menu())
-    {
-        restart_to_menu();
-    }
-
     menu = sd_menu_init();
     char *search = sd_state.search;
 
-    dbg("Waiting for commands...\n");
+    u8 cmd = CMD_MENU;
     bool should_save_dat = true;
-    bool exit_loop = false;
-    while (!exit_loop)
+
+    dbg("Waiting for commands...\n");
+    while (true)
     {
-        u8 data;
-        u8 command = c64_got_byte() ?
-                          c64_receive_command() : CMD_NONE;
-        switch (command)
+        c64_set_command(cmd);
+        u8 reply;
+        while (!c64_get_reply(cmd, &reply))
         {
-            case CMD_NONE:
-                if (usb_gotc())
-                {
-                    c64_reset(true); // Force exit menu on C64
-                    dat_file.boot_type = DAT_USB;
-                    should_save_dat = false;
-                    exit_loop = true;
-                }
+            if (usb_gotc())
+            {
+                dat_file.boot_type = DAT_USB;
+                should_save_dat = false;
+                cmd = CMD_WAIT_SYNC;
+                break;
+            }
+        }
+
+        if (cmd == CMD_WAIT_SYNC)
+        {
+            break;
+        }
+
+        u8 data;
+        switch (reply)
+        {
+            case REPLY_OK:
+                cmd = CMD_NONE;
                 break;
 
-            case CMD_DIR:
+            case REPLY_DIR:
                 c64_receive_string(search);
                 convert_to_ascii(search, (u8 *)search, SEARCH_LENGTH+1);
-                menu->dir(menu->state);
+                cmd = menu->dir(menu->state);
                 break;
 
-            case CMD_DIR_ROOT:
-                menu->dir_up(menu->state, true);
+            case REPLY_DIR_ROOT:
+                cmd = menu->dir_up(menu->state, true);
                 break;
 
-            case CMD_DIR_UP:
-                menu->dir_up(menu->state, false);
+            case REPLY_DIR_UP:
+                cmd = menu->dir_up(menu->state, false);
                 break;
 
-            case CMD_DIR_PREV_PAGE:
-                menu->prev_page(menu->state);
+            case REPLY_DIR_PREV_PAGE:
+                cmd = menu->prev_page(menu->state);
                 break;
 
-            case CMD_DIR_NEXT_PAGE:
-                menu->next_page(menu->state);
+            case REPLY_DIR_NEXT_PAGE:
+                cmd = menu->next_page(menu->state);
                 break;
 
-            case CMD_SELECT:
+            case REPLY_SELECT:
                 data = c64_receive_byte();
-                exit_loop = menu->select(menu->state, data & 0xc0, data & 0x3f);
+                cmd = menu->select(menu->state, data & 0xc0, data & 0x3f);
                 break;
 
-            case CMD_SETTINGS:
-                handle_settings();
+            case REPLY_SETTINGS:
+                cmd = handle_settings();
                 break;
 
-            case CMD_BASIC:
-                c64_send_exit_menu();
+            case REPLY_BASIC:
                 dat_file.boot_type = DAT_BASIC;
                 should_save_dat = persist_basic_selection();
-                exit_loop = true;
+                cmd = CMD_WAIT_SYNC;
                 break;
 
-            case CMD_KILL:
-                c64_send_exit_menu();
+            case REPLY_KILL:
                 dat_file.boot_type = DAT_KILL;
                 should_save_dat = persist_basic_selection();
-                exit_loop = true;
+                cmd = CMD_WAIT_SYNC;
                 break;
 
-            case CMD_KILL_C128:
-                c64_send_exit_menu();
+            case REPLY_KILL_C128:
                 dat_file.boot_type = DAT_KILL_C128;
                 should_save_dat = persist_basic_selection();
-                exit_loop = true;
+                cmd = CMD_WAIT_SYNC;
                 break;
 
-            case CMD_RESET:
-                c64_send_exit_menu();
+            case REPLY_RESET:
+                c64_send_command(CMD_WAIT_RESET);
                 system_restart();
                 break;
 
             default:
-                wrn("Got unknown command: %02x\n", command);
-                c64_send_reply(REPLY_OK);
+                wrn("Got unknown reply: %02x\n", reply);
+                cmd = CMD_NONE;
                 break;
+        }
+
+        if (!c64_interface_active())
+        {
+            break;
         }
     }
 
@@ -133,9 +141,8 @@ static void menu_loop()
     }
 }
 
-static void handle_failed_to_read_sd(void)
+static void fail_to_read_sd(void)
 {
-    c64_send_exit_menu();
     c64_send_warning("Failed to read SD card");
     restart_to_menu();
 }
@@ -149,22 +156,24 @@ static OPTIONS_STATE * build_options(const char *title, const char *message)
     return options;
 }
 
-static void handle_unsupported_ex(const char *title, const char *message, const char *file_name)
+static u8 handle_unsupported_ex(const char *title, const char *message, const char *file_name)
 {
     OPTIONS_STATE *options = build_options(title, message);
 
     options_add_text_block(options, file_name);
     options_add_dir(options, "OK");
 
-    handle_options();
+    return handle_options();
 }
 
-static void handle_unsupported(const char *file_name)
+static u8 handle_unsupported(const char *file_name)
 {
-    handle_unsupported_ex("Unsupported", "File is not supported or invalid", file_name);
+    return handle_unsupported_ex("Unsupported",
+                                 "File is not supported or invalid", file_name);
 }
 
-static void handle_unsupported_warning(const char *message, const char *file_name, u8 element_no)
+static u8 handle_unsupported_warning(const char *message, const char *file_name,
+                                     u8 element_no)
 {
     OPTIONS_STATE *options = build_options("Unsupported", message);
 
@@ -172,10 +181,10 @@ static void handle_unsupported_warning(const char *message, const char *file_nam
     options_add_dir(options, "Cancel");
     options_add_select(options, "Continue", SELECT_FLAG_ACCEPT, element_no);
 
-    handle_options();
+    return handle_options();
 }
 
-static void handle_unsaved_crt(const char *file_name, void (*handle_save)(u8))
+static u8 handle_unsaved_crt(const char *file_name, void (*handle_save)(u8))
 {
     OPTIONS_STATE *options = build_options("Unsaved changes",
                                            "How do you want to save the changes to CRT?");
@@ -184,10 +193,10 @@ static void handle_unsaved_crt(const char *file_name, void (*handle_save)(u8))
     options_add_callback(options, handle_save, "New file", 0);
     options_add_dir(options, "Cancel");
 
-    handle_options();
+    return handle_options();
 }
 
-static void handle_file_options(const char *file_name, u8 file_type, u8 element_no)
+static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no)
 {
     const char *title = "File Options";
     const char *select_text;
@@ -210,8 +219,6 @@ static void handle_file_options(const char *file_name, u8 file_type, u8 element_
             vic_text = "Run (VIC-II/C128 mode)";
             break;
 
-        case FILE_PRG:
-            mount_text = "Mount and load";
         case FILE_P00:
             select_text = "Load";
             break;
@@ -224,6 +231,7 @@ static void handle_file_options(const char *file_name, u8 file_type, u8 element_
         case FILE_D64_STAR:
             delete_option = false;
         case FILE_D64_PRG:
+        case FILE_PRG:
             select_text = "Mount and load";
             mount_text = "Load"; // No mount
             break;
@@ -255,22 +263,22 @@ static void handle_file_options(const char *file_name, u8 file_type, u8 element_
     }
     options_add_dir(options, "Cancel");
 
-    handle_options();
+    return handle_options();
 }
 
-static void handle_upgrade_menu(const char *firmware, u8 element_no)
+static u8 handle_upgrade_menu(const char *firmware, u8 element_no)
 {
     OPTIONS_STATE *options = build_options("Firmware Upgrade",
                                            "This will upgrade the firmware to");
     options_add_text_block(options, firmware);
     options_add_select(options, "Upgrade", SELECT_FLAG_ACCEPT, element_no);
     options_add_dir(options, "Cancel");
-    handle_options();
+    return handle_options();
 }
 
 static const char * to_petscii_pad(char *dest, const char *src, u8 size)
 {
-    for(u8 i=0; i<size; i++)
+    for (u8 i=0; i<size; i++)
     {
         char c = *src;
         if (c)
@@ -340,8 +348,8 @@ static void send_page_end(void)
     c64_send_data(scratch_buf, ELEMENT_LENGTH);
 }
 
-static void reply_page_end(void)
+static u8 handle_page_end(void)
 {
-    c64_send_reply(REPLY_READ_DIR_PAGE);
     send_page_end();
+    return CMD_READ_DIR_PAGE;
 }

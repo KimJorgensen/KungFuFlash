@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -42,17 +42,18 @@
 #include "screen.h"
 #include "dir.h"
 #include "base.h"
-#include "kff_usb.h"
+#include "kff_data.h"
+#include "ef3usb_loader.h"
 #include "disk.h"
 #include "launcher_asm.h"
 
 /* declarations */
-static void mainLoop(void);
-static void browserLoop(void);
-static void updateScreen(void);
+static void mainLoopEF3(void);
+static void mainLoopKFF(void);
+static uint8_t menuLoop(void);
 
+static void updateScreen(void);
 static void help(void);
-static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected);
 static bool isSearchChar(uint8_t c);
 static uint8_t search(uint8_t c);
 static void showDir(void);
@@ -60,13 +61,12 @@ static void updateDir(uint8_t last_selected);
 static void printDirPage(void);
 static void printElement(uint8_t pos);
 
-static const char *usb_read_text(void);
+static const char *kff_read_text(void);
+static void showKFFMessage(uint8_t color);
 static void showMessage(const char *text, uint8_t color);
 
 /* definitions */
 #define EF3_USB_CMD_LEN 12
-#define LONG_PRESS 2000
-#define CH_SHIFT_ENTER (0x80|CH_ENTER)
 
 static bool isC128 = false;
 
@@ -85,9 +85,6 @@ static Directory *dir = NULL;
 // so it can be read by the firmware
 #pragma rodata-name (push, "LOWCODE")
 const char programNameVer[FW_NAME_SIZE] = KUNG_FU_FLASH_VER_UPD;
-
-// Area used by firmware for placing BASIC commands to run at start-up
-const char padding[BASIC_CMD_BUF_SIZE] = {};
 #pragma rodata-name (pop)
 
 static const char programBar[] = {"          " KUNG_FU_FLASH_VER "           "};
@@ -114,15 +111,23 @@ int main(void)
 
     isC128 = is_c128() != 0;
 
-    mainLoop();
+    if (USB_STATUS == KFF_ID_VALUE)
+    {
+        mainLoopKFF();
+    }
+    else
+    {
+        mainLoopEF3();
+    }
+
     free(dir);
     return 0;
 }
 
-static void mainLoop(void)
+static void mainLoopEF3(void)
 {
-    const char *cmd, *text;
     uint8_t i;
+    const char *cmd;
 
     // Get command from Kung Fu Flash cartridge using the EF3 USB protocol
     for (i=0; i<EF3_USB_CMD_LEN; i++)
@@ -132,73 +137,14 @@ static void mainLoop(void)
 
     while (true)
     {
-        bool send_fclose = false;
-
         if (cmd == NULL)
         {
-            showMessage("Communication with cartridge failed.", ERRORC);
+            showMessage("Communicating with USB...", WARNC);
         }
-        else if (cmd[0] == 'm' && cmd[1] == 's')    // Show message
-        {
-            uint8_t color = TEXTC;                  // msg: Normal message
-            if (cmd[2] == 'w')                      // msw: Warning message
-            {
-                color = WARNC;
-            }
-            else if (cmd[2] == 'e')                 // mse: Error message
-            {
-                color = ERRORC;
-            }
-
-            ef3usb_send_str("read");
-            text = usb_read_text();
-            showMessage(text, color);
-
-            if (cmd[2] == 'w')
-            {
-                waitKey();
-            }
-            else if (cmd[2] == 'f')                 // msf: Flash programming message
-            {
-                textcolor(ERRORC);
-                cprintf("PLEASE DO NOT POWER OFF OR RESET");
-            }
-
-            send_fclose = true;
-        }
-        else if (strcmp(cmd, "txt") == 0)           // Print text
-        {
-            uint8_t cxy[3];
-
-            ef3usb_send_str("read");
-            ef3usb_receive_data(&cxy, sizeof(cxy));
-            text = usb_read_text();
-
-            textcolor(cxy[0]);
-            cputsxy(cxy[1], cxy[2], text);
-
-            send_fclose = true;
-        }
-        else if (strcmp(cmd, "rst") == 0)           // Reset to menu
-        {
-            ef3usb_send_str("done");
-            browserLoop();
-            send_fclose = true;
-        }
-        else if (strcmp(cmd, "wfr") == 0)           // Disable screen and wait for reset
-        {
-            ef3usb_send_str("done");
-            wait_for_reset();
-        }
-        else if (strcmp(cmd, "mnt") == 0)           // Mount disk
-        {
-            ef3usb_send_str("done");
-            disk_mount_and_load();
-        }
-        else if (strcmp(cmd, "prg") == 0)           // Load PRG
+        else if (strcmp(cmd, "prg") == 0)   // Load PRG
         {
             ef3usb_send_str("load");
-            usbtool_prg_load_and_run();
+            ef3usb_load_and_run();
         }
         else
         {
@@ -207,18 +153,97 @@ static void mainLoop(void)
             ef3usb_send_str("etyp");
         }
 
-        cmd = ef3usb_get_cmd(send_fclose);
+        while (!(cmd = ef3usb_check_cmd()));
     }
 }
 
-static const char *usb_read_text(void)
+static void mainLoopKFF(void)
+{
+        uint16_t size;
+    const char *text;
+    uint8_t cmd, reply, cxy[3];
+
+    // Get command from Kung Fu Flash cartridge using the KFF protocol
+    cmd = KFF_GET_COMMAND();
+    if (!cmd || cmd >= REPLY_OK)
+    {
+        showMessage("Communication with cartridge failed.", ERRORC);
+    }
+
+    while (true)
+    {
+        reply = REPLY_OK;
+        switch (cmd)
+        {
+            case CMD_NONE:
+                break;
+
+            case CMD_MESSAGE:
+                showKFFMessage(TEXTC);
+                break;
+
+            case CMD_WARNING:
+                showKFFMessage(WARNC);
+                waitKey();
+                kff_wait_for_sync();
+                break;
+
+            case CMD_FLASH_MESSAGE:
+                showKFFMessage(TEXTC);
+                textcolor(ERRORC);
+                cprintf("PLEASE DO NOT POWER OFF OR RESET");
+                kff_wait_for_sync();
+                break;
+
+            case CMD_TEXT_WAIT:
+                kff_receive_data(&cxy, sizeof(cxy));
+                text = kff_read_text();
+                textcolor(cxy[0]);
+                cputsxy(cxy[1], cxy[2], text);
+                kff_wait_for_sync();
+                break;
+
+            case CMD_MENU:
+                cmd = menuLoop();
+                continue;
+
+            case CMD_WAIT_SYNC:
+                clrscr();
+                kff_wait_for_sync();
+                break;
+
+            case CMD_MOUNT_DISK:
+                disk_mount_and_load();
+                break;
+
+            case CMD_WAIT_RESET:
+                wait_for_reset();
+                break;
+
+            default:
+                showMessage("Communication with cartridge failed.", ERRORC);
+                cprintf("Unexpected command: %x", cmd);
+                break;
+        }
+
+        cmd = kff_send_reply(reply);
+    }
+}
+
+static const char *kff_read_text(void)
 {
     uint16_t size;
-    ef3usb_receive_data(&size, 2);
-    ef3usb_receive_data(bigBuffer, size);
+    kff_receive_data(&size, 2);
+    kff_receive_data(bigBuffer, size);
     bigBuffer[size] = 0;
 
     return bigBuffer;
+}
+
+static void showKFFMessage(uint8_t color)
+{
+    const char *text = kff_read_text();
+    showMessage(text, color);
 }
 
 static void updateScreen(void)
@@ -234,160 +259,84 @@ static void updateScreen(void)
     showDir();
 }
 
-static bool handleCommand(uint8_t cmd, bool options, uint8_t last_selected)
+static uint8_t menuLoop(void)
 {
-    bool quit_browser = false;
-    uint8_t data, reply;
-
-    if (cmd == CMD_SELECT)
-    {
-        data = dir->selected;
-        if (isC128)
-        {
-            data |= SELECT_FLAG_C128;
-        }
-        if (options)
-        {
-            data |= SELECT_FLAG_OPTIONS;
-        }
-
-        reply = kff_send_ext_command(cmd, data);
-    }
-    else if (cmd == CMD_DIR)
-    {
-        reply = kff_send_data_command(cmd, searchBuffer, searchLen);
-    }
-    else
-    {
-        reply = kff_send_command(cmd);
-    }
-
-    switch (reply)
-    {
-        case REPLY_OK:
-            break;
-
-        case REPLY_READ_DIR:
-            readDir(dir);
-            showDir();
-            break;
-
-        case REPLY_READ_DIR_PAGE:
-            if (!readDirPage(dir))
-            {
-                dir->selected = last_selected;
-            }
-
-            if (dir->selected >= dir->no_of_elements)
-            {
-                dir->selected = dir->no_of_elements ? dir->no_of_elements-1 : 0;
-            }
-
-            if (dir->selected < dir->text_elements)
-            {
-                dir->selected = dir->text_elements;
-            }
-
-            showDir();
-            break;
-
-        case REPLY_EXIT_MENU:
-            quit_browser = true;
-            break;
-
-        default:
-            break;
-    }
-
-    return quit_browser;
-}
-
-static void browserLoop(void)
-{
-    char *element = NULL;
-    uint8_t c, j, last_selected = 0;
-    uint16_t joy_cnt = 0, fire_cnt = 0;
-    bool options = false, joy_down = false;
-    uint8_t kff_cmd = CMD_DIR;
+    uint8_t c, last_selected = 0;
+    uint8_t data, cmd, reply;
 
     memset(dir, 0, sizeof(Directory));
     updateScreen();
 
+    cmd = CMD_NONE;
+    kff_send_size_data(searchBuffer, searchLen);
+    reply = REPLY_DIR;
+
     while (true)
     {
-        c = kbhit() ? cgetc() : 0;
-        if (!c)
+        if (cmd != CMD_NONE || reply != REPLY_OK)
         {
-            j = joy_read(JOY_2);
-            c = JOY_UP(j) ? CH_CURS_UP :
-                JOY_DOWN(j) ? CH_CURS_DOWN :
-                JOY_LEFT(j) ? CH_CURS_LEFT :
-                JOY_RIGHT(j) ? CH_CURS_RIGHT :
-                JOY_BTN_1(j) ? CH_ENTER : 0;
-
-            if (c)
-            {
-                if (joy_cnt)
-                {
-                    c = 0;
-                }
-                else if (c == CH_ENTER)
-                {
-                    if (fire_cnt < LONG_PRESS)
-                    {
-                        // wait for release or long press
-                        fire_cnt++;
-                        c = 0;
-                    }
-                    else if (fire_cnt == LONG_PRESS)
-                    {
-                        // long press
-                        fire_cnt++;
-                        joy_cnt = 30;
-                        c = CH_SHIFT_ENTER;
-                    }
-                    else
-                    {
-                        // wait for release
-                        c = 0;
-                    }
-                }
-                else
-                {
-                    fire_cnt = 0;
-                    // TODO: Use timer for this?
-                    joy_cnt = joy_down ? 120 : 1200;
-                    joy_down = true;
-                }
-            }
-            else
-            {
-                if (fire_cnt && fire_cnt < LONG_PRESS)
-                {
-                    // short press
-                    c = CH_ENTER;
-                }
-
-                fire_cnt = 0;
-                joy_down = false;
-                joy_cnt = 30;
-            }
+            cmd = kff_send_reply_progress(reply);
         }
 
-        if (joy_cnt)
+        reply = REPLY_OK;
+        switch (cmd)
         {
-            joy_cnt--;
+            case CMD_NONE:
+                break;
+
+            case CMD_READ_DIR:
+                readDir(dir);
+                showDir();
+                waitRelease();
+                continue;
+
+            case CMD_READ_DIR_PAGE:
+                if (!readDirPage(dir))
+                {
+                    dir->selected = last_selected;
+                }
+
+                if (dir->selected >= dir->no_of_elements)
+                {
+                    dir->selected =
+                        dir->no_of_elements ? dir->no_of_elements-1 : 0;
+                }
+
+                if (dir->selected < dir->text_elements)
+                {
+                    dir->selected = dir->text_elements;
+                }
+
+                showDir();
+                continue;
+
+            default:
+                return cmd;
         }
 
+        c = kbhit() ? cgetc() : getJoy();
         switch (c)
         {
+            case CH_NONE:
+                break;
+
             // --- start / enter directory
             case CH_ENTER:
             case CH_SHIFT_ENTER:
                 if (dir->no_of_elements)
                 {
-                    options = c == CH_SHIFT_ENTER;
-                    kff_cmd = CMD_SELECT;
+                    data = dir->selected;
+                    if (isC128)
+                    {
+                        data |= SELECT_FLAG_C128;
+                    }
+                    if (c == CH_SHIFT_ENTER)
+                    {
+                        data |= SELECT_FLAG_OPTIONS;
+                    }
+
+                    KFF_SEND_BYTE(data);
+                    reply = REPLY_SELECT;
                 }
                 break;
 
@@ -395,11 +344,11 @@ static void browserLoop(void)
             case CH_DEL:
                 if (searchBuffer[0] && *dir->name != ' ')
                 {
-                    kff_cmd = search(c);
+                    reply = search(c);
                 }
                 else
                 {
-                    kff_cmd = CMD_DIR_UP;
+                    reply = REPLY_DIR_UP;
                 }
                 break;
 
@@ -407,11 +356,11 @@ static void browserLoop(void)
             case CH_HOME:
                 if (searchBuffer[0] && *dir->name != ' ')
                 {
-                    kff_cmd = search(c);
+                    reply = search(c);
                 }
                 else
                 {
-                    kff_cmd = CMD_DIR_ROOT;
+                    reply = REPLY_DIR_ROOT;
                 }
                 break;
 
@@ -427,7 +376,7 @@ static void browserLoop(void)
                     else if (dir->no_of_elements == MAX_ELEMENTS_PAGE)
                     {
                         dir->selected = 0;
-                        kff_cmd = CMD_DIR_NEXT_PAGE;
+                        reply = REPLY_DIR_NEXT_PAGE;
                     }
                 }
                 break;
@@ -444,7 +393,7 @@ static void browserLoop(void)
                     else
                     {
                         dir->selected = MAX_ELEMENTS_PAGE-1;
-                        kff_cmd = CMD_DIR_PREV_PAGE;
+                        reply = REPLY_DIR_PREV_PAGE;
                     }
                 }
                 break;
@@ -461,7 +410,7 @@ static void browserLoop(void)
                     else
                     {
                         last_selected = dir->no_of_elements-1;
-                        kff_cmd = CMD_DIR_NEXT_PAGE;
+                        reply = REPLY_DIR_NEXT_PAGE;
                     }
                 }
                 break;
@@ -470,7 +419,7 @@ static void browserLoop(void)
                 if (dir->no_of_elements)
                 {
                     last_selected = 0;
-                    kff_cmd = CMD_DIR_PREV_PAGE;
+                    reply = REPLY_DIR_PREV_PAGE;
                 }
                 break;
 
@@ -479,41 +428,31 @@ static void browserLoop(void)
                 break;
 
             case CH_F5:
-                kff_cmd = CMD_SETTINGS;
+                reply = REPLY_SETTINGS;
                 break;
 
             case CH_F6:
-                kff_cmd = CMD_KILL_C128;
+                reply = REPLY_KILL_C128;
                 break;
 
             case CH_F7:
-                kff_cmd = CMD_BASIC;
+                reply = REPLY_BASIC;
                 break;
 
             case CH_F8:
-                kff_cmd = CMD_KILL;
+                reply = REPLY_KILL;
                 break;
 
             case CH_STOP:
-                kff_cmd = CMD_RESET;
+                reply = REPLY_RESET;
                 break;
 
             default:
                 if (isSearchChar(c) && *dir->name != ' ')
                 {
-                    kff_cmd = search(c);
+                    reply = search(c);
                 }
                 break;
-        }
-
-        if (kff_cmd != CMD_NONE)
-        {
-            if(handleCommand(kff_cmd, options, last_selected))
-            {
-                break;
-            }
-
-            kff_cmd = CMD_NONE;
         }
     }
 }
@@ -587,7 +526,6 @@ static uint8_t search(uint8_t c)
 
             if (getJoy())
             {
-                while(getJoy());
                 c = CH_ENTER;
                 break;
             }
@@ -607,10 +545,12 @@ static uint8_t search(uint8_t c)
     if (!changed)
     {
         showDir();
-        return CMD_NONE;
+        waitRelease();
+        return REPLY_OK;
     }
 
-    return CMD_DIR;
+    kff_send_size_data(searchBuffer, searchLen);
+    return REPLY_DIR;
 }
 
 static void showDir(void)
@@ -674,6 +614,7 @@ static void help(void)
     gotoxy(0, 24);
     waitKey();
     updateScreen();
+    waitRelease();
 }
 
 static void updateDir(uint8_t last_selected)

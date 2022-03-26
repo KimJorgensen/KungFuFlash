@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,6 +21,9 @@
 #define COMPILER_BARRIER() asm volatile("" ::: "memory")
 
 #define FORCE_INLINE __attribute__((always_inline)) static inline
+#define NO_RETURN __attribute__((noreturn)) static void
+
+#define ARRAY_COUNT(array) (sizeof(array) / sizeof(*(array)))
 
 typedef uint32_t u32;
 typedef int32_t s32;

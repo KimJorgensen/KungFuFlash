@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -43,7 +43,8 @@ typedef struct
 } T64_ENTRY;
 #pragma pack(pop)
 
-typedef enum {
+typedef enum
+{
     T64_FREE_ENTRY          = 0x00,
     T64_NORMAL_TAPE_FILE,
     T64_TAPE_WITH_HEADER,

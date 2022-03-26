@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -36,43 +36,106 @@
 #include <joystick.h>
 #include "base.h"
 
-static uint8_t getJoy(void)
-{
-    uint8_t debounce = 0;
+#define LONG_PRESS  (140)
+#define KEY_PRESS   (80)
+#define KEY_REPEAT  (20)
+#define MIN_PRESS   (4)
+#define DEBOUNCE    (30)
 
-    if (joy_read(JOY_2) & JOY_MASK)
+static uint8_t debounceJoy(void)
+{
+    uint8_t i, j, pressed = 0;
+
+    for (i=0; i<DEBOUNCE; i++)
     {
-        while (++debounce);
-        if (joy_read(JOY_2) & JOY_MASK)
+        j = joy_read(JOY_2) & JOY_MASK;
+        if (j)
         {
-            return 1;
+            pressed = j;
         }
     }
 
-    return 0;
+    return pressed;
 }
 
-uint8_t waitKey(void)
+uint8_t getJoy(void)
+{
+    static uint8_t last;
+    uint8_t j;
+    uint16_t cnt, cnt_min, cnt_max;
+
+    cnt_min = JOY_BTN_1(last) ? LONG_PRESS + 1 : MIN_PRESS;
+    cnt_max = last ? KEY_REPEAT : KEY_PRESS;
+
+    for (cnt=0; cnt<cnt_max; cnt++)
+    {
+        last = debounceJoy();
+        if (!last)
+        {
+            break;
+        }
+
+        j = last;
+        if (JOY_BTN_1(j))
+        {
+            cnt_max = LONG_PRESS;
+        }
+    }
+
+    if (cnt < cnt_min)
+    {
+        return CH_NONE;
+    }
+
+    if (JOY_BTN_1(j))
+    {
+        if (cnt < LONG_PRESS)
+        {
+            return CH_ENTER;    // short press
+        }
+
+        return CH_SHIFT_ENTER;  // long press
+    }
+
+    return JOY_UP(j) ? CH_CURS_UP :
+            JOY_DOWN(j) ? CH_CURS_DOWN :
+             JOY_LEFT(j) ? CH_CURS_LEFT :
+              JOY_RIGHT(j) ? CH_CURS_RIGHT : CH_NONE;
+}
+
+void waitKey(void)
 {
 	revers(1);
 	textcolor(COLOR_VIOLET);
 	cputs("PRESS A KEY");
 	revers(0);
 
-    while(getJoy());
     while (1)
     {
         if (kbhit())
         {
-            return cgetc();
+            cgetc();
+            break;
         }
 
         if (getJoy())
         {
-            while(getJoy());
             break;
         }
     }
+}
 
-	return 0;
+void waitRelease(void)
+{
+    while (1)
+    {
+        if (kbhit())
+        {
+            cgetc();
+        }
+        else if (!getJoy())
+        {
+            break;
+        }
+    }
 }

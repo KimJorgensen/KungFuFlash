@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -33,7 +33,7 @@ static void sysclk_config(void)
     // Enable HSE
     RCC->CR |= RCC_CR_HSEON;
     // Wait till HSE is ready
-    while(!(RCC->CR & RCC_CR_HSERDY));
+    while (!(RCC->CR & RCC_CR_HSERDY));
 
     // Enable power interface clock
     RCC->APB1ENR |= RCC_APB1ENR_PWREN;
@@ -57,7 +57,7 @@ static void sysclk_config(void)
     // Enable the main PLL
     RCC->CR |= RCC_CR_PLLON;
     // Wait till the main PLL is ready
-    while(!(RCC->CR & RCC_CR_PLLRDY));
+    while (!(RCC->CR & RCC_CR_PLLRDY));
 
     // Enable prefetch, instruction cache and data cache
     // Set latency to 5 wait states
@@ -67,7 +67,7 @@ static void sysclk_config(void)
     // Select the main PLL as system clock source
     MODIFY_REG(RCC->CFGR, RCC_CFGR_SWS, RCC_CFGR_SW_PLL);
     // Wait till the main PLL is used as system clock source
-    while(!(RCC->CFGR & RCC_CFGR_SWS_PLL));
+    while (!(RCC->CFGR & RCC_CFGR_SWS_PLL));
 }
 
 /*************************************************
@@ -98,7 +98,7 @@ static inline bool timer_elapsed()
 static inline void delay_us(u32 us)
 {
     timer_start_us(us);
-    while(!timer_elapsed());
+    while (!timer_elapsed());
 }
 
 static void delay_ms(u32 ms)
@@ -165,7 +165,7 @@ static void crc_config(void)
 
 /************************************************/
 
-static void system_restart(void)
+NO_RETURN system_restart(void)
 {
     filesystem_unmount();
     led_off();
@@ -175,7 +175,7 @@ static void system_restart(void)
     while (true);
 }
 
-static void restart_to_menu(void)
+NO_RETURN restart_to_menu(void)
 {
     set_menu_signature();
     system_restart();

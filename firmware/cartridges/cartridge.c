@@ -50,6 +50,7 @@ static u32 freezer_state;
 #include "freeze_machine.c"
 #include "rgcd.c"
 #include "c128_normal.c"
+#include "kff.c"
 
 #define NTSC_OR_PAL_HANDLER(name)   \
     ntsc ? name##_ntsc_handler : name##_pal_handler
@@ -188,6 +189,34 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
 
 static void crt_install_handler(DAT_CRT_HEADER *crt_header)
 {
+    u32 state = STATUS_LED_ON;
+    if (!(crt_header->type & CRT_C128_CARTRIDGE))
+    {
+        if (crt_header->exrom)
+        {
+            state |= C64_EXROM_HIGH;
+        }
+        else
+        {
+            state |= C64_EXROM_LOW;
+        }
+
+        if (crt_header->game)
+        {
+            state |= C64_GAME_HIGH;
+        }
+        else
+        {
+            state |= C64_GAME_LOW;
+        }
+    }
+    else
+    {
+        state |= CRT_PORT_NONE;
+    }
+
+    C64_CRT_CONTROL(state);
+
     crt_ptr = crt_banks[0];
     crt_init(crt_header);
 

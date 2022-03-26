@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -41,7 +41,7 @@ static void diag_loop(void)
     {
         c64_enable();
         c64_send_message(diag_header);
-        c64_send_text(COLOR_VIOLET, 0, 4, diag_underline);
+        c64_send_text_wait(COLOR_VIOLET, 0, 4, diag_underline);
     }
     else
     {
@@ -74,10 +74,10 @@ static void diag_loop(void)
         if (!usb_only)
         {
             // Restore handler to display result on C64
-            C64_INSTALL_HANDLER(ef3_handler);
-            c64_interface(true);
+            C64_INSTALL_HANDLER(kff_handler);
+            c64_interface_sync();
 
-            c64_send_text(COLOR_LIGHTGREEN, 0, 7, scratch_buf);
+            c64_send_text_wait(COLOR_LIGHTGREEN, 0, 7, scratch_buf);
         }
     }
 }

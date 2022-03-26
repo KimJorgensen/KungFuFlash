@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,10 +20,10 @@
 
 static u8 settings_flags;
 
-static void settings_refresh(OPTIONS_ELEMENT *element, const char *text)
+static u8 settings_refresh(OPTIONS_ELEMENT *element, const char *text)
 {
     options_element_text(element, text);
-    menu->dir(menu->state); // Refresh settings
+    return menu->dir(menu->state);  // Refresh settings
 }
 
 static const char * settings_basic_text(void)
@@ -34,7 +34,7 @@ static const char * settings_basic_text(void)
     return scratch_buf;
 }
 
-static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
+static u8 settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     if (settings_flags & DAT_FLAG_PERSIST_BASIC)
     {
@@ -45,8 +45,7 @@ static bool settings_basic_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element
         settings_flags |= DAT_FLAG_PERSIST_BASIC;
     }
 
-    settings_refresh(element, settings_basic_text());
-    return false;
+    return settings_refresh(element, settings_basic_text());
 }
 
 static const char * settings_autostart_text(void)
@@ -57,7 +56,7 @@ static const char * settings_autostart_text(void)
     return scratch_buf;
 }
 
-static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
+static u8 settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     if (settings_flags & DAT_FLAG_AUTOSTART_D64)
     {
@@ -68,8 +67,7 @@ static bool settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *ele
         settings_flags |= DAT_FLAG_AUTOSTART_D64;
     }
 
-    settings_refresh(element, settings_autostart_text());
-    return false;
+    return settings_refresh(element, settings_autostart_text());
 }
 
 static const char * settings_device_text(void)
@@ -78,29 +76,26 @@ static const char * settings_device_text(void)
     return scratch_buf;
 }
 
-static bool settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
+static u8 settings_device_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     u8 device = get_device_number(settings_flags) + 1;
     set_device_number(&settings_flags, device);
 
-    settings_refresh(element, settings_device_text());
-    return false;
+    return settings_refresh(element, settings_device_text());
 }
 
-static bool settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
+static u8 settings_save(OPTIONS_STATE *state, OPTIONS_ELEMENT *element, u8 flags)
 {
     dat_file.flags = settings_flags;
 
-    c64_send_exit_menu();
-    c64_send_prg_message("Saving settings.");
-    c64_interface(false);
+    sd_send_prg_message("Saving settings.");
     save_dat();
     restart_to_menu();
 
-    return false;
+    return CMD_NONE;
 }
 
-static void handle_settings(void)
+static u8 handle_settings(void)
 {
     settings_flags = dat_file.flags;
 
@@ -110,5 +105,5 @@ static void handle_settings(void)
     options_add_text_element(options, settings_device_change, settings_device_text());
     options_add_text_element(options, settings_save, "Save");
     options_add_dir(options, "Cancel");
-    handle_options();
+    return handle_options();
 }

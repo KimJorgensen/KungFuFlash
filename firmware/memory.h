@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -21,18 +21,11 @@
 #define MENU_RAM_SIGNATURE  "KungFu:Menu"
 #define MEMU_SIGNATURE_BUF  ((u32 *)scratch_buf)
 
-#define FW_NAME         ("Kung Fu Flash v" VERSION)
-#define FW_NAME_SIZE    20
-
-#define MODULE_HEADER                                           \
-struct                                                          \
-{                                                               \
-    char fw_name[FW_NAME_SIZE];                                 \
-    void (*init)(void);                                         \
-} __attribute__((packed))
-
-// 32kB scratch buffer
-__attribute__((__section__(".uninit"))) static char scratch_buf[32*1024];
-
 // 64kB data buffer
 __attribute__((__section__(".sram"))) static u8 dat_buffer[64*1024];
+
+// 16kB scratch buffer
+__attribute__((__section__(".sram"))) static char scratch_buf[16*1024];
+
+// 32kB buffer for CRT RAM
+__attribute__((__section__(".uninit"))) static u8 crt_ram_buf[32*1024];

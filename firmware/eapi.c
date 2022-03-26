@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -73,15 +73,15 @@ static void eapi_save_buffer_byte(FIL *file, u16 pos, u8 byte, bool sync)
 
 static void eapi_disable_interface(void)
 {
-    c64_send_reply(REPLY_WRITE_WAIT);
-    c64_receive_byte(); // Wait for C64
+    ef3_send_reply(REPLY_WRITE_WAIT);
+    ef3_receive_byte(); // Wait for C64
     c64_interface(false);
 }
 
 static void eapi_enable_interface(void)
 {
     c64_interface(true);
-    c64_send_data("DONE", 4);
+    ef3_send_data("DONE", 4);
 }
 
 static void eapi_handle_write_flash(FIL *file, u16 addr, u8 value)
@@ -118,14 +118,14 @@ static void eapi_handle_write_flash(FIL *file, u16 addr, u8 value)
         flash_program_byte(dest, value);
     }
 
-    u8 result = REPLY_OK;
+    u8 result = REPLY_EAPI_OK;
     if (*dest != value)
     {
         wrn("Flash write failed at $%04x (%x)\n", addr, crt_ptr);
         result = REPLY_WRITE_ERROR;
     }
 
-    c64_send_reply(result);
+    ef3_send_reply(result);
 }
 
 static void eapi_handle_erase_sector(FIL *file, u8 bank, u16 addr)
@@ -133,7 +133,7 @@ static void eapi_handle_erase_sector(FIL *file, u8 bank, u16 addr)
     if (bank >= 64 || (bank % 8))
     {
         wrn("Got invalid sector to erase: bank %d\n", bank);
-        c64_send_reply(REPLY_WRITE_ERROR);
+        ef3_send_reply(REPLY_WRITE_ERROR);
         return;
     }
 
@@ -201,7 +201,7 @@ static void eapi_handle_erase_sector(FIL *file, u8 bank, u16 addr)
     }
 
     eapi_enable_interface();
-    c64_send_reply(REPLY_OK);
+    ef3_send_reply(REPLY_EAPI_OK);
 }
 
 static void eapi_loop(void)
@@ -213,31 +213,31 @@ static void eapi_loop(void)
     eapi_open_dat(&file);
     while (true)
     {
-        u8 command = c64_receive_command();
+        u8 command = ef3_receive_command();
         switch (command)
         {
-            case CMD_NONE:
+            case CMD_EAPI_NONE:
             break;
 
             case CMD_EAPI_INIT:
             {
                 dbg("Got EAPI_INIT command\n");
-                c64_send_reply(REPLY_OK);
+                ef3_send_reply(REPLY_EAPI_OK);
             }
             break;
 
             case CMD_WRITE_FLASH:
             {
-                c64_receive_data(&addr, 2);
-                value = c64_receive_byte();
+                ef3_receive_data(&addr, 2);
+                value = ef3_receive_byte();
                 eapi_handle_write_flash(&file, addr, value);
             }
             break;
 
             case CMD_ERASE_SECTOR:
             {
-                c64_receive_data(&addr, 2);
-                value = c64_receive_byte();
+                ef3_receive_data(&addr, 2);
+                value = ef3_receive_byte();
                 dbg("Got ERASE_SECTOR command (%d:$%04x)\n", value, addr);
                 eapi_handle_erase_sector(&file, value, addr);
             }
@@ -246,7 +246,7 @@ static void eapi_loop(void)
             default:
             {
                 wrn("Got unknown EAPI command: %02x\n", command);
-                c64_send_reply(REPLY_OK);
+                ef3_send_reply(REPLY_EAPI_OK);
             }
             break;
         }

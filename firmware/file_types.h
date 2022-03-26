@@ -19,7 +19,8 @@
  */
 
 // From https://vice-emu.sourceforge.io/vice_17.html
-typedef enum {
+typedef enum
+{
     CRT_NORMAL_CARTRIDGE = 0x00,
     CRT_ACTION_REPLAY,
     CRT_KCS_POWER_CARTRIDGE,
@@ -105,7 +106,8 @@ typedef enum {
     CRT_C128_WARP_SPEED
 } CRT_TYPE;
 
-typedef enum {
+typedef enum
+{
     CRT_CHIP_ROM = 0x00,
     CRT_CHIP_RAM,
     CRT_CHIP_FLASH
@@ -144,7 +146,8 @@ typedef struct
 } P00_HEADER;
 #pragma pack(pop)
 
-typedef enum {
+typedef enum
+{
     FILE_DIR        = 0x00,
     FILE_DIR_UP,
     FILE_CRT,
@@ -162,7 +165,8 @@ typedef enum {
     FILE_UNKNOWN
 } FILE_TYPE;
 
-typedef enum {
+typedef enum
+{
     DAT_FLAG_PERSIST_BASIC      = 0x01,
     DAT_FLAG_AUTOSTART_D64      = 0x02,
     DAT_FLAG_DEVICE_NUM_D64_1   = 0x04,
@@ -172,7 +176,8 @@ typedef enum {
 #define DAT_FLAG_DEVICE_D64_POS 0x02
 #define DAT_FLAG_DEVICE_D64_MSK (0x03 << DAT_FLAG_DEVICE_D64_POS)
 
-typedef enum {
+typedef enum
+{
     DAT_NONE = 0x00,
     DAT_CRT,
     DAT_PRG,
@@ -185,14 +190,16 @@ typedef enum {
     DAT_DIAG
 } DAT_BOOT_TYPE;
 
-typedef enum {
+typedef enum
+{
     CRT_FLAG_NONE       = 0x00,
     CRT_FLAG_UPDATED    = 0x01, // EasyFlash CRT has been updated via EAPI
 
     CRT_FLAG_VIC        = 0x80  // Support VIC/C128 2MHz mode reads (EF only)
 } DAT_CRT_FLAGS;
 
-typedef enum {
+typedef enum
+{
     DISK_MODE_FS    = 0x00, // Use filesystem
     DISK_MODE_D64   = 0x01  // Use D64 disk image
 } DAT_DISK_MODE;

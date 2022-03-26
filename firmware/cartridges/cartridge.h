@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -28,7 +28,7 @@
 
 #define CRT_DAT_BANK(bank)      (dat_buffer + (u32)(16*1024 * bank))
 
-#define CRT_RAM_BUF             ((u8 *)scratch_buf)
+#define CRT_RAM_BUF             (crt_ram_buf)
 #define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (u32)(8*1024 * bank))
 
 // Fast look-up of 8k RAM bank address

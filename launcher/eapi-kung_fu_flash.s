@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2019-2020 Kim Jørgensen
+; Copyright (c) 2019-2022 Kim Jørgensen
 ;
 ; Derived from EasySDK
 ; (c) 2009-2010 Thomas 'skoe' Giesel
@@ -23,12 +23,12 @@
 .include "ef3usb_macros.s"
 
 ; Align with commands.h
-CMD_EAPI_INIT           = $f0
-CMD_WRITE_FLASH         = $f1
-CMD_ERASE_SECTOR        = $f2
+CMD_EAPI_INIT           = $01
+CMD_WRITE_FLASH         = $02
+CMD_ERASE_SECTOR        = $03
 
-REPLY_WRITE_WAIT        = $f0
-REPLY_WRITE_ERROR       = $f1
+REPLY_WRITE_WAIT        = $01
+REPLY_WRITE_ERROR       = $02
 
 ; error codes
 EAPI_ERR_RAM            = 1
@@ -54,7 +54,7 @@ EASYFLASH_IO_BANK    = $de00
 EAPICodeBase:
         .byte $65, $61, $70, $69        ; signature "EAPI"
 
-        .byte "KungFuFlash 1.1"
+        .byte "KungFuFlash 1.2"
         .byte 0                         ; 16 bytes, must be 0-terminated
 
 ; =============================================================================

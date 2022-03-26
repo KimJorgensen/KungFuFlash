@@ -1,5 +1,8 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
+ *
+ * Derived from EasyFlash 3 Boot Image and EasyFash 3 Menu
+ * Copyright (c) 2012-2013 Thomas Giesel
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -18,16 +21,13 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#ifndef KFF_USB_H
-#define KFF_USB_H
-
 #include <stdint.h>
+#include <stdbool.h>
 #include "ef3usb.h"
 
-uint8_t kff_send_command(uint8_t cmd);
-uint8_t kff_send_ext_command(uint8_t cmd, uint8_t data);
-uint8_t kff_send_data_command(uint8_t cmd, uint8_t *data, uint8_t size);
+#ifndef _EF3USB_LOADER_H_
+#define _EF3USB_LOADER_H_
 
-void kff_receive_data(void* data, uint16_t size);
+void ef3usb_load_and_run(void);
 
-#endif
+#endif /* _EF3USB_LOADER_H_ */

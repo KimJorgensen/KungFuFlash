@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -36,7 +36,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "dir.h"
-#include "kff_usb.h"
+#include "kff_data.h"
 
 /*
  * read a directory
