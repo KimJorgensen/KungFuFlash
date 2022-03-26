@@ -24,12 +24,16 @@
 ;
 
 .import init_system
+.import init_basic
 .import start_basic
 .include "ef3usb_macros.s"
 
 ; 6502 Instructions
 BIT_INSTRUCTION = $2c
 LDA_INSTRUCTION = $a9
+
+; BASIC functions
+MAIN            = $a483                 ; Normal BASIC warm start
 
 ; Kernal functions
 LUKING          = $f5af                 ; Print "SEARCHING"
@@ -186,7 +190,10 @@ _disk_mount_and_load:
         dey
         bpl :-
 
-        jsr install_disk_vectors
+        ; === Start BASIC ===
+        jsr init_basic
+        ldx #<main_trampoline           ; New MAIN handler
+        ldy #>main_trampoline
         jmp start_basic
 .endproc
 
@@ -216,6 +223,16 @@ kff_device_number:
 
 ; -----------------------------------------------------------------------------
 ; Called by C64 kernal routines
+; -----------------------------------------------------------------------------
+main_trampoline:
+        jsr enable_kff_rom
+        jmp kff_main
+
+normal_main_disable:
+        jsr disable_kff_rom
+normal_main:
+        jmp MAIN                        ; Hardcoded for C64GS
+
 ; -----------------------------------------------------------------------------
 open_trampoline:
 	lda FA
@@ -384,7 +401,6 @@ disable_kff_rom:
         pha
         lda #KFF_KILL
         sta KFF_CONTROL
-
 mem_config:
         lda #$ff                        ; Restore mem config
         sta R6510
@@ -409,6 +425,22 @@ kernal_call:
 .endif
 .reloc
 disk_api_end:
+
+; =============================================================================
+.proc kff_main
+kff_main:
+        lda IOPEN                       ; Need to install vectors?
+        cmp #<open_trampoline
+        bne @install
+        lda IOPEN + 1
+        cmp #>open_trampoline
+        beq @normal_main
+
+@install:
+        jsr install_disk_vectors
+@normal_main:
+        jmp normal_main_disable
+.endproc
 
 ; =============================================================================
 .proc kff_open

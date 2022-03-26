@@ -112,14 +112,13 @@ _ef3usb_load_and_run:
         sta IBASIN + 1
 
         ; === Start BASIC ===
+        jsr init_basic
+        ldx #<MAIN                      ; Restore BASIC warm start for C64GS
+        ldy #>MAIN
 .export start_basic
 start_basic:
-        jsr init_basic
-
-        lda #<MAIN                      ; Restore BASIC warm start for C64GS
-        sta IMAIN
-        lda #>MAIN
-        sta IMAIN + 1
+        stx IMAIN                       ; Install MAIN handler
+        sty IMAIN + 1
 
         ldx #(basic_starter_end - basic_starter) - 1
 :
@@ -131,6 +130,7 @@ start_basic:
         lda #EASYFLASH_KILL
         jmp trampoline
 
+.export init_basic
 init_basic:
         jmp (BACL + 1)                  ; Initialize BASIC vectors
 .endproc
