@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -128,4 +128,4 @@ static void ef_init(void)
 }
 
 // Needed for VIC-II and C128 read accesses at 2 MHz (e.g. for Prince of Persia)
-C64_C128_BUS_HANDLER_EX(ef)
+C64_VIC_BUS_HANDLER(ef)

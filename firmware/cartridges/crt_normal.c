@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,29 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
+/*************************************************
+* C64 bus read callback (early VIC-II cycle)
+*************************************************/
+FORCE_INLINE u32 crt_early_vic_handler(u32 addr)
+{
+    // Speculative read
+    return crt_ptr[addr & 0x3fff];
+}
+
+/*************************************************
+* C64 bus read callback (VIC-II cycle)
+*************************************************/
+FORCE_INLINE bool crt_vic_read_handler(u32 control, u32 data)
+{
+    if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
+    {
+        C64_DATA_WRITE(data);
+        return true;
+    }
+
+    return false;
+}
 
 /*************************************************
 * C64 bus read callback
@@ -40,5 +63,6 @@ FORCE_INLINE void crt_write_handler(u32 control, u32 addr, u32 data)
     // No write support
 }
 
-// Support MAX cartridges where character and sprite data is read from the cartridge
+// Support MAX cartridges where the VIC-II reads character and sprite data
+// directly from the cartridge
 C64_VIC_BUS_HANDLER(crt)

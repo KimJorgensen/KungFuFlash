@@ -216,15 +216,25 @@ static void handler(void)                                                       
 
 #define C64_NO_DELAY()
 
+#define C64_EARLY_CPU_VIC_HANDLER(name)                                         \
+    /* Note: addr gets overwritten here */                                      \
+    addr = name##_early_vic_handler(addr);                                      \
+    COMPILER_BARRIER();
+
+#define C64_EARLY_VIC_HANDLER(name, timing)                                     \
+    C64_EARLY_CPU_VIC_HANDLER(name);                                            \
+    timing##_VIC_DELAY_SHORT();
+
 #define C64_VIC_BUS_HANDLER(name)                                               \
     C64_VIC_BUS_HANDLER_(name##_ntsc_handler, NTSC, name)                       \
     C64_VIC_BUS_HANDLER_(name##_pal_handler, PAL, name)
 
 #define C64_VIC_BUS_HANDLER_(handler, timing, name)                             \
-    C64_VIC_BUS_HANDLER_EX__(handler, timing##_CPU_VIC_DELAY(),                 \
-                             name##_read_handler, name##_read_handler,          \
-                             timing##_WRITE_DELAY(), name##_write_handler,      \
-                             timing##_VIC_DELAY(), timing)
+    C64_VIC_BUS_HANDLER_EX__(handler,                                           \
+                            C64_EARLY_CPU_VIC_HANDLER(name),                    \
+                            name##_vic_read_handler, name##_read_handler,       \
+                            timing##_WRITE_DELAY(), name##_write_handler,       \
+                            C64_EARLY_VIC_HANDLER(name, timing), timing)
 
 #define C64_VIC_BUS_HANDLER_EX(name)                                            \
     C64_VIC_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name)                    \
@@ -245,26 +255,6 @@ static void handler(void)                                                       
                             name##_read_handler, name##_read_handler,           \
                             timing##_WRITE_DELAY(), name##_write_handler,       \
                             C64_NO_DELAY(), timing)
-
-#define C64_C128_BUS_HANDLER_EX(name)                                           \
-    C64_C128_BUS_HANDLER_EX_(name##_ntsc_handler, NTSC, name)                   \
-    C64_C128_BUS_HANDLER_EX_(name##_pal_handler, PAL, name)
-
-#define C64_C128_BUS_HANDLER_EX_(handler, timing, name)                         \
-    C64_VIC_BUS_HANDLER_EX__(handler,                                           \
-                            C64_EARLY_CPU_VIC_HANDLER(name),                    \
-                            name##_vic_read_handler, name##_read_handler,       \
-                            timing##_WRITE_DELAY(), name##_write_handler,       \
-                            C64_EARLY_VIC_HANDLER(name, timing), timing)
-
-#define C64_EARLY_CPU_VIC_HANDLER(name)                                         \
-    /* Note: addr gets overwritten here */                                      \
-    addr = name##_early_vic_handler(addr);                                      \
-    COMPILER_BARRIER();
-
-#define C64_EARLY_VIC_HANDLER(name, timing)                                     \
-    C64_EARLY_CPU_VIC_HANDLER(name);                                            \
-    timing##_VIC_DELAY_SHORT();
 
 // This supports VIC-II reads from the cartridge (i.e. character and sprite data)
 // but uses 100% CPU - other interrupts are not served due to the interrupt priority
