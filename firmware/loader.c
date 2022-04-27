@@ -33,7 +33,7 @@
 static bool prg_load_file(FIL *file)
 {
     u16 len = file_read(file, dat_buffer, sizeof(dat_buffer));
-    dbg("Loaded PRG size: %u\n", len);
+    dbg("Loaded PRG size: %u", len);
 
     if (prg_size_valid(len))
     {
@@ -53,7 +53,7 @@ static bool p00_load_file(FIL *file)
     if (len != sizeof(P00_HEADER) ||
         memcmp("C64File", header.signature, sizeof(header.signature)) != 0)
     {
-        wrn("Unsupported P00 header\n");
+        wrn("Unsupported P00 header");
         return false;
     }
 
@@ -81,7 +81,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
 
     if (len != sizeof(CRT_HEADER))
     {
-        wrn("Unsupported CRT header\n");
+        wrn("Unsupported CRT header");
         return false;
     }
 
@@ -94,7 +94,7 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     else if (memcmp(CRT_C64_SIGNATURE, header->signature,
                     sizeof(header->signature)) != 0)
     {
-        wrn("Unsupported CRT signature\n");
+        wrn("Unsupported CRT signature");
         return false;
     }
 
@@ -106,19 +106,19 @@ static bool crt_load_header(FIL *file, CRT_HEADER *header)
     {
         if (header->header_length != 0x20)
         {
-            wrn("Unsupported CRT header length: %u\n", header->header_length);
+            wrn("Unsupported CRT header length: %u", header->header_length);
             return false;
         }
         else
         {
-            log("Ignoring non-standard CRT header length: %u\n",
+            log("Ignoring non-standard CRT header length: %u",
                 header->header_length);
         }
     }
 
     if (header->version < CRT_VERSION_1_0 || header->version > CRT_VERSION_2_0)
     {
-        wrn("Unsupported CRT version: %x\n", header->version);
+        wrn("Unsupported CRT version: %x", header->version);
         return false;
     }
 
@@ -256,7 +256,7 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
         CRT_CHIP_HEADER header;
         if (!crt_load_chip_header(crt_file, &header))
         {
-            err("Failed to read CRT chip header\n");
+            err("Failed to read CRT chip header");
             banks_in_use = 0;
             break;
         }
@@ -264,7 +264,7 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
         s32 offset = crt_get_offset(&header, cartridge_type);
         if (offset == -1)
         {
-            wrn("Unsupported CRT chip bank %u at $%x. Size %u\n",
+            wrn("Unsupported CRT chip bank %u at $%x. Size %u",
                 header.bank, header.start_address, header.image_size);
             banks_in_use = 0;
             break;
@@ -276,7 +276,7 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
 
         if (file_read(crt_file, read_buf, header.image_size) != header.image_size)
         {
-            err("Failed to read CRT chip image. Bank %u at $%x\n",
+            err("Failed to read CRT chip image. Bank %u at $%x",
                 header.bank, header.start_address);
             banks_in_use = 0;
             break;
@@ -302,7 +302,7 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
         // Skip image
         else if (header.bank >= 64)
         {
-            wrn("No room for CRT chip bank %u at $%x\n",
+            wrn("No room for CRT chip bank %u at $%x",
                 header.bank, header.start_address);
             continue;
         }
@@ -399,7 +399,7 @@ static u32 crt_calc_flash_crc(u8 crt_banks)
 static bool upd_load(FIL *file, char *firmware_name)
 {
     u32 len = file_read(file, dat_buffer, sizeof(dat_buffer));
-    dbg("Loaded UPD size: %u\n", len);
+    dbg("Loaded UPD size: %u", len);
 
     if (len == sizeof(dat_buffer))
     {
@@ -439,7 +439,7 @@ static bool mount_sd_card(void)
         return false;
     }
 
-    log("SD Card successfully mounted\n");
+    log("SD Card successfully mounted");
     return dir_change("/");
 }
 
@@ -452,7 +452,7 @@ static bool load_dat(void)
         file_read(&file, dat_buffer, sizeof(dat_buffer)) != sizeof(dat_buffer) ||
         memcmp(DAT_SIGNATURE, dat_file.signature, sizeof(dat_file.signature)) != 0)
     {
-        wrn(DAT_FILENAME " file not found or invalid\n");
+        wrn(DAT_FILENAME " file not found or invalid");
         memset(&dat_file, 0, sizeof(dat_file));
         memcpy(dat_file.signature, DAT_SIGNATURE, sizeof(dat_file.signature));
         result = false;
@@ -495,12 +495,12 @@ static bool auto_boot(void)
 
 static bool save_dat(void)
 {
-    dbg("Saving " DAT_FILENAME " file\n");
+    dbg("Saving " DAT_FILENAME " file");
 
     FIL file;
     if (!file_open(&file, DAT_FILENAME, FA_WRITE|FA_CREATE_ALWAYS))
     {
-        wrn("Could not open " DAT_FILENAME " for writing\n");
+        wrn("Could not open " DAT_FILENAME " for writing");
         return false;
     }
 
@@ -567,7 +567,7 @@ static void basic_load(const char *filename)
     u8 device = device_number_d64();
 
     // BASIC commands to run at start-up
-    sprint((char *)dat_buffer, "%cLOAD\"%s\",%d,1%cRUN\r%c", device,
+    sprint((char *)dat_buffer, "%cLOAD\"%s\",%u,1%cRUN\r%c", device,
            filename, device, 0, 0);
 }
 

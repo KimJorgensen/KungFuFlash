@@ -23,7 +23,7 @@ static void eapi_open_dat(FIL *file)
     if (!file_open(file, DAT_FILENAME, FA_READ|FA_WRITE)
         || f_size(file) != (sizeof(dat_file) + sizeof(dat_buffer)))
     {
-        err(DAT_FILENAME " file not found or invalid\n");
+        err(DAT_FILENAME " file not found or invalid");
         restart_to_menu();
     }
 }
@@ -34,7 +34,7 @@ static void eapi_save_header(FIL *file)
         file_write(file, &dat_file, sizeof(dat_file)) != sizeof(dat_file) ||
         !file_sync(file))
     {
-        err("Failed to write dat header\n");
+        err("Failed to write dat header");
         restart_to_menu();
     }
 }
@@ -44,7 +44,7 @@ static void eapi_load_buffer(FIL *file)
     if (!file_seek(file, sizeof(dat_file)) ||
         file_read(file, &dat_buffer, sizeof(dat_buffer)) != sizeof(dat_buffer))
     {
-        err("Failed to load dat buffer\n");
+        err("Failed to load dat buffer");
         restart_to_menu();
     }
 }
@@ -55,7 +55,7 @@ static void eapi_save_buffer(FIL *file)
         file_write(file, &dat_buffer, sizeof(dat_buffer)) != sizeof(dat_buffer) ||
         !file_sync(file))
     {
-        err("Failed to save dat buffer\n");
+        err("Failed to save dat buffer");
         restart_to_menu();
     }
 }
@@ -66,7 +66,7 @@ static void eapi_save_buffer_byte(FIL *file, u16 pos, u8 byte, bool sync)
         file_write(file, &byte, 1) != 1 ||
         (sync && !file_sync(file)))
     {
-        err("Failed to save dat buffer byte\n");
+        err("Failed to save dat buffer byte");
         restart_to_menu();
     }
 }
@@ -121,7 +121,7 @@ static void eapi_handle_write_flash(FIL *file, u16 addr, u8 value)
     u8 result = REPLY_EAPI_OK;
     if (*dest != value)
     {
-        wrn("Flash write failed at $%04x (%x)\n", addr, crt_ptr);
+        wrn("Flash write failed at $%04x (%x)", addr, crt_ptr);
         result = REPLY_WRITE_ERROR;
     }
 
@@ -132,7 +132,7 @@ static void eapi_handle_erase_sector(FIL *file, u8 bank, u16 addr)
 {
     if (bank >= 64 || (bank % 8))
     {
-        wrn("Got invalid sector to erase: bank %d\n", bank);
+        wrn("Got invalid sector to erase: bank %u", bank);
         ef3_send_reply(REPLY_WRITE_ERROR);
         return;
     }
@@ -221,7 +221,7 @@ static void eapi_loop(void)
 
             case CMD_EAPI_INIT:
             {
-                dbg("Got EAPI_INIT command\n");
+                dbg("Got EAPI_INIT command");
                 ef3_send_reply(REPLY_EAPI_OK);
             }
             break;
@@ -238,14 +238,14 @@ static void eapi_loop(void)
             {
                 ef3_receive_data(&addr, 2);
                 value = ef3_receive_byte();
-                dbg("Got ERASE_SECTOR command (%d:$%04x)\n", value, addr);
+                dbg("Got ERASE_SECTOR command (%u:$%04x)", value, addr);
                 eapi_handle_erase_sector(&file, value, addr);
             }
             break;
 
             default:
             {
-                wrn("Got unknown EAPI command: %02x\n", command);
+                wrn("Got unknown EAPI command: %x", command);
                 ef3_send_reply(REPLY_EAPI_OK);
             }
             break;

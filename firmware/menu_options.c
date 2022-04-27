@@ -115,7 +115,7 @@ static OPTIONS_ELEMENT * options_add_element(OPTIONS_STATE *state, options_func 
 {
     if (state->no_of_elements == MAX_ELEMENTS_PAGE)
     {
-        wrn("Too many options on page. Overwriting last element\n");
+        wrn("Too many options on page. Overwriting last element");
         state->no_of_elements = MAX_ELEMENTS_PAGE-1;
     }
 

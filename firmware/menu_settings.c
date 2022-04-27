@@ -72,7 +72,7 @@ static u8 settings_autostart_change(OPTIONS_STATE *state, OPTIONS_ELEMENT *eleme
 
 static const char * settings_device_text(void)
 {
-    sprint(scratch_buf, "Disk device number: %d", get_device_number(settings_flags));
+    sprint(scratch_buf, "Disk device number: %u", get_device_number(settings_flags));
     return scratch_buf;
 }
 

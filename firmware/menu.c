@@ -40,7 +40,7 @@ static void menu_loop()
     u8 cmd = CMD_MENU;
     bool should_save_dat = true;
 
-    dbg("Waiting for commands...\n");
+    dbg("Waiting for commands...");
     while (true)
     {
         c64_set_command(cmd);
@@ -123,7 +123,7 @@ static void menu_loop()
                 break;
 
             default:
-                wrn("Got unknown reply: %02x\n", reply);
+                wrn("Got unknown reply: %x", reply);
                 cmd = CMD_NONE;
                 break;
         }

@@ -211,7 +211,7 @@ static bool sdio_cmd_send(u8 idx, u32 arg, int resp_type, u32 *buf)
             // Don't get spammed if no card is inserted or if card is removed
             if (idx != 1 && idx != 13 && idx != 41)
             {
-                err("%s timeout idx=%d arg=%08x\n", __func__, idx, arg);
+                err("%s timeout idx=%u arg=%08x", __func__, idx, arg);
             }
             return false;
         }
@@ -222,7 +222,7 @@ static bool sdio_cmd_send(u8 idx, u32 arg, int resp_type, u32 *buf)
             // Ignore CRC error for these commands
             if (idx != 1 && idx != 12 && idx != 41)
             {
-                err("%s crcfail idx=%d arg=%08x\n", __func__, idx, arg);
+                err("%s crcfail idx=%u arg=%08x", __func__, idx, arg);
                 return false;
             }
         }
@@ -253,7 +253,7 @@ static bool sdio_check_ready(u32 tout_ms)
         }
     }
 
-    err("sdio timeout\n");
+    err("sdio timeout");
     return false;
 }
 
@@ -272,7 +272,7 @@ DSTATUS disk_initialize(BYTE pdrv)
 
     if (!sdio_cmd_send(0, 0, RESP_NONE, NULL))
     {
-        err("could not reset card\n");
+        err("could not reset card");
         goto fail;
     }
 
@@ -289,7 +289,7 @@ DSTATUS disk_initialize(BYTE pdrv)
                 (resp[0] & BIT31))
             {
                 card_type = (resp[0] & BIT30) ? CT_SD2 | CT_BLOCK : CT_SD2;
-                dbg("card type: SD2\n");
+                dbg("card type: SD2");
                 break;
             }
         }
@@ -297,7 +297,7 @@ DSTATUS disk_initialize(BYTE pdrv)
 
         if (!card_type)
         {
-            err("could not read card type\n");
+            err("could not read card type");
             goto fail;
         }
     }
@@ -327,14 +327,14 @@ DSTATUS disk_initialize(BYTE pdrv)
 
             if (timer_elapsed() && --timeouts)
             {
-                err("cmd %d failed\n", cmd);
+                err("cmd %u failed", cmd);
                 goto fail;
             }
         }
     }
 
     byte_swap(&card_info[32], resp[0]);
-    dbg("card OCR: %08x\n", ((u32*)card_info)[8]);
+    dbg("card OCR: %08x", ((u32*)card_info)[8]);
 
     // card state 'ready'
     if (!sdio_cmd_send(2, 0, RESP_LONG, resp)) // enter ident state
@@ -462,7 +462,7 @@ static UINT disk_read_imp(BYTE* buf, DWORD sector, UINT count)
 
     if (sta & SDIO_STA_TRX_ERROR_FLAGS)
     {
-        wrn("%s SDIO_STA: %08x\n", __func__, sta);
+        wrn("%s SDIO_STA: %08x", __func__, sta);
     }
 
     // Stop multi block transfer
@@ -536,7 +536,7 @@ static UINT disk_write_imp(const BYTE* buf, DWORD sector, UINT count)
 
     if (!sdio_cmd_send(cmd, sector, RESP_SHORT, &resp) || (resp & 0xC0580000))
     {
-        err("%s %d\n", __func__, __LINE__);
+        err("%s %u", __func__, __LINE__);
         return false;
     }
 
@@ -568,7 +568,7 @@ static UINT disk_write_imp(const BYTE* buf, DWORD sector, UINT count)
 
     if (sta & SDIO_STA_TRX_ERROR_FLAGS)
     {
-        wrn("%s SDIO_STA: %08x\n", __func__, sta);
+        wrn("%s SDIO_STA: %08x", __func__, sta);
     }
 
     // Stop multi block transfer
@@ -603,7 +603,7 @@ DRESULT disk_write(BYTE pdrv, const BYTE* buf, DWORD sector, UINT count)
 
     if (c64_interface_active())
     {
-        err("%s C64 interface active\n", __func__);
+        err("%s C64 interface active", __func__);
         return RES_ERROR;
     }
 

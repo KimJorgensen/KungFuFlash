@@ -41,7 +41,7 @@
 int main(void)
 {
     configure_system();
-    log("System configured\n\n");
+    log("System configured\n");
     c64_launcher_mode();
 
     bool sd_msg_shown = false;
@@ -90,7 +90,7 @@ int main(void)
         diag_loop();
     }
 
-    dbg("In main loop...\n");
+    dbg("In main loop...");
     while (true)
     {
         // Forward data from USB to C64

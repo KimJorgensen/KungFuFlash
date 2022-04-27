@@ -31,196 +31,195 @@ static const char hex[] = "0123456789ABCDEF";
 
 static void printhex(int x, int ndigits, void (*_putchar)(char))
 {
-	unsigned char *p;
-	int i;
-	int c;
-	int started = 0;
+    unsigned char *p;
+    int i;
+    char c;
+    int started = 0;
 
-	p = &((unsigned char *)&x)[3];
+    p = &((unsigned char *)&x)[3];
 
-	for (i = 0; i < sizeof(x); i++) {
+    for (i = 0; i < sizeof(x); i++)
+    {
+        if (*p != 0 || (ndigits && i >= sizeof(x) - ndigits / 2) ||
+            i == sizeof(x) - 1)
+        {
+            started = 1;
+        }
 
-		if (*p != 0 || (ndigits && i >= sizeof(x) - ndigits / 2) ||
-		    i == sizeof(x) - 1) {
-			started = 1;
-		}
+        if (started)
+        {
+            c = hex[*p >> 4];
+            _putchar(c);
+            c = hex[*p & 0xf];
+            _putchar(c);
+        }
 
-		if (started) {
-			c = hex[*p >> 4];
-			_putchar(c);
-			c = hex[*p & 0xf];
-			_putchar(c);
-		}
-
-		p--;
-	}
+        p--;
+    }
 }
 
-static void printint(int x, int sgnd, void (*_putchar)(char))
+static void printint(int _x, int sgnd, int ndigits, void (*_putchar)(char))
 {
-	int div = 1000000000;
-	int started = 0;
-	if (x == 0) {
-		_putchar('0');
-		return;
-	}
-	if (sgnd && x < 0) {
-		_putchar('-');
-		x = -x;
-	}
-	while (div > 0) {
-		if (x / div || started) {
-			started = 1;
-			_putchar('0' + (x / div));
-		}
-		x = x % div;
-		div /= 10;
-	}
+    char buf[20];
+    unsigned int x;
+    int i = sizeof(buf) - 1;
+    int d = 0;
+
+    if (!_x && !ndigits)
+    {
+        buf[i--] = '0';
+    }
+
+    if (sgnd)
+    {
+        x = (_x < 0) ? -_x : _x;
+    }
+    else
+    {
+        x = _x;
+    }
+
+    while ((x || d < ndigits) && i > 1)
+    {
+        buf[i--] = '0' + x % 10;
+        x /= 10;
+        d++;
+    }
+
+    if (sgnd && _x < 0)
+    {
+        buf[i] = '-';
+    }
+    else
+    {
+        i++;
+    }
+
+    for (; i < sizeof(buf); i++)
+    {
+        _putchar(buf[i]);
+    }
 }
 
-/* Minimal printf function. Supports strings, chars and hex numbers. */
-static void print(const char *fmt, ...)
+static void vkprint(const char *fmt, va_list args, void (*_putchar)(char))
 {
-	va_list args;
-	char *s;
-	va_start(args, fmt);
-	int ndigits = 0;
-	int fmt_prefix = 0;
+    char *s;
+    int ndigits = 0;
+    int perc = 0;
 
-	for (; *fmt; fmt++) {
+    for (; *fmt; fmt++)
+    {
+        if (*fmt == '%' && !perc)
+        {
+            perc = 1;
+            continue;
+        }
 
-		if (*fmt == '%' && !fmt_prefix) {
-			fmt_prefix = 1;
-			continue;
-		}
+        if (!perc)
+        {
+            _putchar(*fmt);
+            continue;
+        }
 
-		if (!fmt_prefix) {
-			put_char(*fmt);
-			continue;
-		}
+        switch (*fmt)
+        {
+        case '%':
+            _putchar('%');
+            break;
+        case 'c':
+            _putchar(va_arg(args, int));
+            break;
+        case 's':
+            s = va_arg(args, char *);
 
-		fmt_prefix = 0;
+            ndigits -= strlen(s);
 
-		switch (*fmt) {
-		case '%':
-			put_char('%');
-			break;
-		case 'c':
-			put_char(va_arg(args, int));
-			break;
-		case 's':
-			while (ndigits--)
-				put_char(' ');
-			s = va_arg(args, char *);
-			while (*s)
-				put_char(*s++);
-			ndigits = 0;
-			break;
+            while (*s)
+            {
+                _putchar(*s++);
+            }
 
-		case 'p':
-			put_char('0');
-			put_char('x');
-			printhex(va_arg(args, int), ndigits, put_char);
-			break;
-		case 'u':
-			printint(va_arg(args, unsigned int), 0, put_char);
-			break;
-		case 'd':
-			printint(va_arg(args, int), 1, put_char);
-			break;
-		case 'x':
-			printhex(va_arg(args, int), ndigits, put_char);
-			ndigits = 0;
-			break;
+            while (ndigits-- > 0)
+            {
+                _putchar(' ');
+            }
 
-		default:
-			if (isdigit(*fmt)) {
-				fmt_prefix = 1;
-				ndigits = ndigits * 10 + *fmt - '0';
-			}
-			break;
-		}
-	}
+            ndigits = 0;
+            break;
 
-	va_end(args);
+        case 'p':
+            _putchar('0');
+            _putchar('x');
+        case 'x':
+        case 'X':
+            printhex(va_arg(args, int), ndigits, _putchar);
+            ndigits = 0;
+            break;
+
+        case 'd':
+            printint(va_arg(args, unsigned int), 1, ndigits, _putchar);
+            ndigits = 0;
+            break;
+
+        case 'u':
+            printint(va_arg(args, unsigned int), 0, ndigits, _putchar);
+            ndigits = 0;
+            break;
+
+        default:
+            if (isdigit(*fmt))
+            {
+                ndigits = ndigits * 10 + *fmt - '0';
+            }
+            break;
+        }
+
+        if (!isdigit(*fmt))
+        {
+            perc = 0;
+        }
+    }
 }
 
-static char *tmpbuf;
-static int cnt;
+static char *buf_putchar_buf;
+static int buf_putchar_buflen;
 
 static void buf_putchar(char c)
 {
-	tmpbuf[cnt++] = c;
+    buf_putchar_buf[buf_putchar_buflen++] = c;
 }
 
-/* Minimal sprintf function. Supports strings, chars and hex numbers. */
+/* Minimal printf functions. Supports strings, chars and hex numbers. */
+static void print(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	vkprint(fmt, args, put_char);
+	va_end(args);
+}
+
+static void print_log(const char *level, const char *fmt, ...)
+{
+	va_list args;
+    while (*level)
+    {
+        put_char(*level++);
+    }
+
+    va_start(args, fmt);
+	vkprint(fmt, args, put_char);
+	va_end(args);
+    put_char('\n');
+}
+
 static void sprint(char *buf, const char *fmt, ...)
 {
 	va_list args;
-	char *s;
+	buf_putchar_buf = buf;
+	buf_putchar_buflen = 0;
+
 	va_start(args, fmt);
-	int ndigits = 0;
-	int fmt_prefix = 0;
-
-	cnt = 0;
-	tmpbuf = buf;
-
-	for (; *fmt; fmt++) {
-
-		if (*fmt == '%' && !fmt_prefix) {
-			fmt_prefix = 1;
-			continue;
-		}
-
-		if (!fmt_prefix) {
-			buf_putchar(*fmt);
-			continue;
-		}
-
-		fmt_prefix = 0;
-
-		switch (*fmt) {
-		case '%':
-			buf_putchar('%');
-			break;
-		case 'c':
-			buf_putchar(va_arg(args, int));
-			break;
-		case 's':
-			while (ndigits--)
-				buf_putchar(' ');
-			s = va_arg(args, char *);
-			while (*s)
-				buf_putchar(*s++);
-			ndigits = 0;
-			break;
-
-		case 'p':
-			buf_putchar('0');
-			buf_putchar('x');
-			printhex(va_arg(args, int), ndigits, buf_putchar);
-			break;
-		case 'u':
-			printint(va_arg(args, unsigned int), 0, buf_putchar);
-			break;
-		case 'd':
-			printint(va_arg(args, int), 1, buf_putchar);
-			break;
-		case 'x':
-		case 'X':
-			printhex(va_arg(args, int), ndigits, buf_putchar);
-			ndigits = 0;
-			break;
-
-		default:
-			if (isdigit(*fmt)) {
-				fmt_prefix = 1;
-				ndigits = ndigits * 10 + *fmt - '0';
-			}
-			break;
-		}
-	}
-
+	vkprint(fmt, args, buf_putchar);
 	va_end(args);
 	buf_putchar('\0');
 }

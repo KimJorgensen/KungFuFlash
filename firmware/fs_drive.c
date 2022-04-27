@@ -67,7 +67,7 @@ static char * fs_get_diskname(DISK_CHANNEL *channel)
     // Reuse memory from D64
     char *diskname = channel->d64.image->d64_header.diskname;
     fs_format_diskname(diskname, path);
-    sprint(diskname + 18, "%02x 2A", disk_id);
+    sprint(diskname + 18, "%2X 2A", disk_id);
 
     return diskname;
 }
@@ -128,7 +128,7 @@ static char * fs_get_filename(D64_DIR_ENTRY *entry)
     char *ptr = entry->filename;
     while (*ptr)
     {
-        if (*ptr  == '\xa0')
+        if (*ptr == '\xa0')
         {
             *ptr = 0;
             break;

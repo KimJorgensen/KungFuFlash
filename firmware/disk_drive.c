@@ -378,7 +378,7 @@ static void disk_parse_filename(char *filename, PARSED_FILENAME *parsed)
     // Scan for wildcard, type and mode
     while (*f_ptr)
     {
-        // Allow comma in 8.3 filenames on SD card - TOOD: Can we do better here?
+        // Allow comma in 8.3 filenames on SD card - TODO: Can we do better here?
         if (*f_ptr == ',' && dat_file.disk.mode)
         {
             *f_ptr++ = 0;   // Null terminate filename
@@ -503,7 +503,7 @@ static u8 disk_handle_load_prg(DISK_CHANNEL *channel)
 
     *(u16 *)ptr = prg_size  - 2;
 
-    dbg("Sending PRG. Start $%x size %u\n", *(u16 *)(ptr + 2), prg_size);
+    dbg("Sending PRG. Start $%x size %u", *(u16 *)(ptr + 2), prg_size);
 
     return CMD_NONE;
 }
@@ -904,7 +904,7 @@ static void disk_loop(void)
                 // Channel 0 will be used as load buffer - just as on 1541
                 channel = channels + 0;
                 disk_receive_filename(channel->filename);
-                dbg("Got LOAD command for: %s\n", channel->filename);
+                dbg("Got LOAD command for: %s", channel->filename);
                 cmd = disk_handle_load(channel);
                 break;
 
@@ -913,31 +913,29 @@ static void disk_loop(void)
                 channel = channels + 1;
                 disk_receive_filename(channel->filename);
                 disk_receive_data(channel->buf);
-                dbg("Got SAVE command for: %s\n", channel->filename);
+                dbg("Got SAVE command for: %s", channel->filename);
                 cmd = disk_handle_save(channel);
                 break;
 
             case REPLY_OPEN:
                 channel = disk_receive_channel(channels);
                 disk_receive_filename(channel->filename);
-                dbg("Got OPEN command for channel %d for: %s\n",
+                dbg("Got OPEN command for channel %u for: %s",
                     channel->number, channel->filename);
                 cmd = disk_handle_open(channel);
                 break;
 
             case REPLY_CLOSE:
                 channel = disk_receive_channel(channels);
-                dbg("Got CLOSE command for channel %d\n", channel->number);
+                dbg("Got CLOSE command for channel %u", channel->number);
                 cmd = disk_handle_close(channel, channels);
                 break;
 
             case REPLY_TALK:
                 channel = disk_receive_channel(channels);
-                // TOOD: delete - dbg("Got TALK command for channel %d\n", channel->number);
                 break;
 
             case REPLY_UNTALK:
-                // TOOD: delete - dbg("Got UNTALK command\n");
                 channel = NULL;
                 break;
 
@@ -946,7 +944,7 @@ static void disk_loop(void)
                 break;
 
             default:
-                wrn("Got unknown disk reply: %02x\n", reply);
+                wrn("Got unknown disk reply: %x", reply);
                 break;
         }
     }

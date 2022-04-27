@@ -189,7 +189,7 @@ static char ascii_to_petscii(char c)
 
 static void c64_send_petscii(const char *text)
 {
-    dbg("Sending text \"%s\"\n", text);
+    dbg("Sending text \"%s\"", text);
 
     u16 text_len = strlen(text) + 1;
     if (text_len > 800)
@@ -287,7 +287,7 @@ static bool ef3_send_command(const char *cmd, const char *exp)
 
     if (strcmp(buffer, exp) != 0)
     {
-        wrn("Command %s failed. Expected %s got: %s\n", cmd, exp, buffer);
+        wrn("Command %s failed. Expected %s got: %s", cmd, exp, buffer);
         return false;
     }
 
@@ -301,7 +301,7 @@ static u8 ef3_receive_command(void)
     ef3_receive_data(cmd_buf, sizeof(cmd_buf));
     if (memcmp("KFF:", cmd_buf, 4) != 0)
     {
-        wrn("Got invalid command: %02x %02x %02x %02x %02x\n",
+        wrn("Got invalid command: %x %x %x %x %x",
             cmd_buf[0], cmd_buf[1], cmd_buf[2], cmd_buf[3], cmd_buf[4]);
         return CMD_NONE;
     }
@@ -314,9 +314,9 @@ static bool ef3_wait_for_close(void)
     char buffer[2];
 
     ef3_receive_data(buffer, 2);
-    if(buffer[0] != 0 || buffer[1] != 0)
+    if (buffer[0] != 0 || buffer[1] != 0)
     {
-        wrn("Expected close, but got: %02x %02x\n", buffer[0], buffer[1]);
+        wrn("Expected close, but got: %x %x", buffer[0], buffer[1]);
         return false;
     }
 
@@ -327,14 +327,14 @@ static bool c64_send_prg(const void *data, u16 size)
 {
     u16 tx_size;
 
-    dbg("Sending PRG file. Size: %u bytes\n", size);
+    dbg("Sending PRG file. Size: %u bytes", size);
     if (!ef3_send_command("PRG", "LOAD"))
     {
         return false;
     }
 
     ef3_receive_data(&tx_size, 2);
-    if(tx_size > size)
+    if (tx_size > size)
     {
         tx_size = size;
     }

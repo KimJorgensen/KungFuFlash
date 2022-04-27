@@ -47,7 +47,7 @@ static FSIZE_t d64_get_offset(D64_IMAGE *image, D64_TS ts)
 
     if (!track_on_side || track_on_side > ARRAY_COUNT(d64_track_offset))
     {
-        log("Invalid track/sector\n");
+        log("Invalid track/sector");
         return -1;
     }
 
@@ -60,7 +60,7 @@ static FSIZE_t d81_get_offset(D64_TS ts)
 {
     if (!ts.track || ts.track > D81_TRACKS)
     {
-        log("Invalid track/sector\n");
+        log("Invalid track/sector");
         return -1;
     }
 
@@ -82,7 +82,7 @@ static bool d64_seek(D64_IMAGE *image, D64_TS ts)
 
     if (offset >= f_size(&image->file) || !file_seek(&image->file, offset))
     {
-        wrn("Failed to seek to track %d sector %d\n", ts.track, ts.sector);
+        wrn("Failed to seek to track %u sector %u", ts.track, ts.sector);
         return false;
     }
 
@@ -286,7 +286,7 @@ static D64_DIR_ENTRY * d64_read_next_dir(D64 *d64)
         // Allow up to 320 dir entries. 144 is max for a standard D64/D71 disk
         if (d64->sector_count >= 40)
         {
-            wrn("Directory too big or there is a recursive link\n");
+            wrn("Directory too big or there is a recursive link");
             return NULL;
         }
         d64->sector_count++;
@@ -339,7 +339,7 @@ static bool d64_is_valid_prg(D64_DIR_ENTRY *entry)
 
 static void d64_open_read(D64 *d64, D64_TS ts)
 {
-    dbg("Reading file from track %d sector %d\n", ts.track, ts.sector);
+    dbg("Reading file from track %u sector %u", ts.track, ts.sector);
 
     d64->sector.next = ts;
     d64->data_len = d64->data_ptr = 0;
@@ -363,7 +363,7 @@ static void d64_open_file_read(D64 *d64, D64_DIR_ENTRY *entry)
 
 static void d64_open_file_write(D64 *d64, D64_DIR_ENTRY *entry)
 {
-    dbg("Writing file to track %d sector %d\n", entry->start.track,
+    dbg("Writing file to track %u sector %u", entry->start.track,
         entry->start.sector);
 
     d64->sector.current = entry->start;
@@ -442,7 +442,7 @@ static size_t d64_read_prg(D64 *d64, D64_DIR_ENTRY *entry, u8 *buf,
     size_t prg_len = d64_read_data(d64, buf, buf_size);
     if (d64_bytes_left(d64))
     {
-        wrn("File too big to fit buffer or there is a recursive link\n");
+        wrn("File too big to fit buffer or there is a recursive link");
         return 0;
     }
 

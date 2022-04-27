@@ -294,7 +294,7 @@ static u8 sd_handle_dir(SD_STATE *state)
     dir_current(dat_file.path, sizeof(dat_file.path));
     state->in_root = format_path(scratch_buf, false);
     scratch_buf[0] = state->search[0] ? SEARCH_SUPPORTED : CLEAR_SEARCH;
-    dbg("Reading path %s\n", dat_file.path);
+    dbg("Reading path %s", dat_file.path);
 
     // Search for last selected element
     FILINFO file_info;
@@ -641,7 +641,7 @@ static u8 sd_handle_load(SD_STATE *state, const char *file_name, u8 file_type,
                      memcmp("eapi", dat_buffer + EAPI_OFFSET, 4) == 0)
             {
                 convert_to_ascii(scratch_buf, dat_buffer + EAPI_OFFSET + 4, 16);
-                dbg("EAPI detected: %s\n", scratch_buf);
+                dbg("EAPI detected: %s", scratch_buf);
 
                 // Replace EAPI with the one for Kung Fu Flash
                 memcpy(dat_buffer + EAPI_OFFSET,
