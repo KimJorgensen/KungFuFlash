@@ -168,15 +168,27 @@ static bool fs_create_file(DISK_CHANNEL *channel, const char *filename,
     return file_open(&channel->file, filename, mode);
 }
 
-static inline size_t fs_write_data(DISK_CHANNEL *channel, u8 *buf,
-                                   size_t buf_size)
+static size_t fs_write_data(DISK_CHANNEL *channel, u8 *buf,
+                            size_t buf_size)
 {
-    return file_write(&channel->file, buf, buf_size);
+    size_t result = file_write(&channel->file, buf, buf_size);
+    if (!file_sync(&channel->file))
+    {
+        result = 0;
+    }
+
+    return result;
 }
 
 static inline bool fs_write_finalize(DISK_CHANNEL *channel)
 {
     return file_close(&channel->file);
+}
+
+static bool fs_delete_file(DISK_CHANNEL *channel, D64_DIR_ENTRY *entry)
+{
+    char *filename = fs_get_filename(entry);
+    return file_delete(filename);
 }
 
 static bool fs_dir_up(void)

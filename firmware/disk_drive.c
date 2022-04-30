@@ -54,7 +54,7 @@ static void put_diskname(u8 **ptr, char* str)
     str[16] = '"';
     str[17] = ' ';
 
-    for (u8 i=0; i<23; i++)
+    for (u32 i=0; i<23; i++)
     {
         char c = *str++;
         if (c == 0xa0)
@@ -71,7 +71,7 @@ static void put_filename(u8 **ptr, const char* str)
     put_u8(ptr, '"');
     char end_char = '"';
 
-    for (u8 i=0; i<16; i++)
+    for (u32 i=0; i<16; i++)
     {
         char c = *str++;
         if (end_char != '"')
@@ -123,7 +123,7 @@ static void put_dir_entry(u8 **ptr, D64_DIR_ENTRY *entry)
 static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
 {
     bool found = true;
-    for (u8 i=0; i<16; i++)
+    for (u32 i=0; i<16; i++)
     {
         char f = filename[i];
         char e = entry->filename[i];
@@ -292,6 +292,16 @@ static bool disk_write_finalize(DISK_CHANNEL *channel)
     return fs_write_finalize(channel);
 }
 
+static bool disk_delete_file(DISK_CHANNEL *channel, D64_DIR_ENTRY *entry)
+{
+    if (dat_file.disk.mode)
+    {
+        return d64_delete_file(&channel->d64, entry);
+    }
+
+    return fs_delete_file(channel, entry);
+}
+
 static void disk_put_dir_header(DISK_CHANNEL *channel, u8 **ptr)
 {
     put_u16(ptr, dir_start_addr);       // start address
@@ -378,8 +388,7 @@ static void disk_parse_filename(char *filename, PARSED_FILENAME *parsed)
     // Scan for wildcard, type and mode
     while (*f_ptr)
     {
-        // Allow comma in 8.3 filenames on SD card - TODO: Can we do better here?
-        if (*f_ptr == ',' && dat_file.disk.mode)
+        if (*f_ptr == ',')
         {
             *f_ptr++ = 0;   // Null terminate filename
             end_of_filename = true;
@@ -475,9 +484,11 @@ static bool disk_open_read(DISK_CHANNEL *channel, const char *filename,
     if (entry)
     {
         disk_open_file_read(channel, entry);
+        disk_last_error = DISK_STATUS_OK;
         return true;
     }
 
+    disk_last_error = DISK_STATUS_NOT_FOUND;
     return false;
 }
 
@@ -562,19 +573,61 @@ static u8 disk_handle_load_dir(DISK_CHANNEL *channel)
     u16 prg_size = (ptr - KFF_BUF) - 4;
     *(u16 *)KFF_BUF = prg_size;
 
+    disk_last_error = DISK_STATUS_OK;
     return CMD_NONE;
+}
+
+static void disk_receive_data(u8 *buf)
+{
+    u8 size = c64_receive_byte();
+    *buf++ = size;
+
+    while (size--)
+    {
+        *buf++ = c64_receive_byte();
+    }
+}
+
+static void disk_send_data(u8 *buf)
+{
+    u8 size = *buf++;
+    c64_send_byte(size);
+
+    while (size--)
+    {
+        c64_send_byte(*buf++);
+    }
 }
 
 static void disk_close_channel(DISK_CHANNEL *channel)
 {
-    channel->buf_mode = DISK_BUF_NONE;
+    if (channel->buf_mode == DISK_BUF_SAVE)
+    {
+        c64_send_command(CMD_WAIT_SYNC);
+        c64_interface(false);
+        disk_receive_data(channel->buf2);   // Save temp data
+
+        if (channel->buf_ptr)
+        {
+            disk_write_data(channel, channel->buf, channel->buf_ptr);
+        }
+
+        disk_write_finalize(channel);
+
+        disk_send_data(channel->buf2);   // Send temp data back
+        c64_interface_sync();
+    }
+
+    channel->buf_mode = DISK_BUF_USE;
+    channel->buf_ptr = 0;
     channel->buf_len = 0;
+    channel->buf2_ptr = 0;
     d64_init(channel->d64.image, &channel->d64);
 }
 
 static void disk_init_all_channels(D64_IMAGE *image, DISK_CHANNEL *channels)
 {
-    for (u8 i=0; i<16; i++)
+    for (u32 i=0; i<16; i++)
     {
         DISK_CHANNEL *channel = channels + i;
         channel->number = i;
@@ -624,17 +677,6 @@ static u8 disk_save_file(DISK_CHANNEL *channel, PARSED_FILENAME *parsed,
     return CMD_NONE;
 }
 
-static void disk_send_data(u8 *buf)
-{
-    u8 size = *buf++;
-    c64_send_byte(size);
-
-    while (size--)
-    {
-        c64_send_byte(*buf++);
-    }
-}
-
 static u8 disk_handle_save(DISK_CHANNEL *channel)
 {
     char *filename = channel->filename;
@@ -650,9 +692,13 @@ static u8 disk_handle_save(DISK_CHANNEL *channel)
                       !d64_is_file_type(existing, parsed.type))) ||
         (!existing && parsed.wildcard))
     {
+        disk_last_error = DISK_STATUS_EXISTS;
         return CMD_DISK_ERROR;
     }
 
+    disk_receive_data(channel->buf);    // Save temp data
+
+    disk_last_error = DISK_STATUS_OK;
     c64_send_command(CMD_NONE);
     c64_interface(false);
 
@@ -665,12 +711,96 @@ static u8 disk_handle_save(DISK_CHANNEL *channel)
     return cmd;
 }
 
-static bool disk_read_status(DISK_CHANNEL *channel, char *filename)
+static u32 disk_write_status(DISK_CHANNEL *channel, u8 status, u8 track, u8 sector)
 {
-    const char *status;
-    if (filename[0] == 'M') // Memory command
+    const char *status_text;
+    switch (status)
     {
-        status = "";    // Not supported
+        case DISK_STATUS_SCRATCHED:
+            status_text = "FILES SCRATCHED";
+            break;
+
+        case DISK_STATUS_NOT_FOUND:
+            status_text = "FILE NOT FOUND";
+            break;
+
+        case DISK_STATUS_EXISTS:
+            status_text = "FILE EXISTS";
+            break;
+
+        case DISK_STATUS_INIT:
+            status_text = "KUNG FU FLASH V" VERSION;
+            break;
+
+        case DISK_STATUS_UNSUPPORTED:
+            return 0;
+
+        default:
+            status_text = " OK";
+            break;
+    }
+
+    sprint((char *)channel->buf, "%2u,%s,%2u,%2u",
+            status, status_text, track, sector);
+
+    u32 len = strlen((char *)channel->buf);
+    return len;
+}
+
+static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
+{
+    u8 status = DISK_STATUS_OK;
+    u8 track = 0, sector = 0;
+
+    if (!filename[0])   // No command
+    {
+        return true;
+    }
+    else if (filename[0] == 'M')    // Memory command
+    {
+        status = DISK_STATUS_UNSUPPORTED;
+    }
+    else if (filename[0] == 'S')    // Scratch command
+    {
+        // Scan for drive number and start of filename
+        while (*filename)
+        {
+            if (filename[1] == ':')
+            {
+                // Check drive number
+                if (filename[0] >= '1' && filename[0] <= '9')
+                {
+                    return false;
+                }
+
+                filename += 2;
+                break;
+            }
+
+            filename++;
+        }
+
+        c64_send_command(CMD_WAIT_SYNC);
+        c64_interface(false);
+        disk_receive_data(channel->buf);   // Save temp data
+
+        disk_rewind_dir(channel);
+
+        D64_DIR_ENTRY *entry;
+        while ((entry = disk_read_dir(channel)))
+        {
+            if (disk_filename_match(entry, filename) &&
+                disk_delete_file(channel, entry))
+            {
+                disk_rewind_dir(channel);
+                track++;
+            }
+        }
+
+        disk_send_data(channel->buf);  // Send temp data back
+        c64_interface_sync();
+
+        status = DISK_STATUS_SCRATCHED;
     }
     else if (filename[0] == 'C' && filename[1] == 'D')  // Directory command
     {
@@ -697,22 +827,22 @@ static bool disk_read_status(DISK_CHANNEL *channel, char *filename)
     {
         status = DISK_STATUS_INIT;
     }
+    else if (disk_last_error)
+    {
+        status = disk_last_error;
+    }
     else
     {
-        // TODO: Return last error
         status = DISK_STATUS_OK;
     }
 
-    u8 len;
-    for (len=0; *status; len++)
-    {
-        channel->buf[len] = *status++;
-    }
-    channel->buf[len++] = '\r';
+    disk_last_error = DISK_STATUS_OK;
 
-    channel->buf_len = len;
+    u32 len = disk_write_status(channel, status, track, sector);
+    channel->buf[len++] = (u8)'\r';
+    channel->buf_len = (u8)len;
     channel->buf_ptr = 0;
-    channel->buf_mode = DISK_BUF_USE;
+    channel->buf2_ptr = 0;
 
     return true;
 }
@@ -725,6 +855,7 @@ static u8 disk_handle_open_dir(DISK_CHANNEL *channel)
         disk_read_data(channel, NULL, 0);
         if (!disk_bytes_left(channel))
         {
+            disk_last_error = DISK_STATUS_OK;
             return CMD_END_OF_FILE;
         }
     }
@@ -742,27 +873,52 @@ static u8 disk_handle_open_dir(DISK_CHANNEL *channel)
         channel->buf_mode = DISK_BUF_DIR;
     }
 
+    disk_last_error = DISK_STATUS_OK;
     return CMD_NONE;
 }
 
-static u8 disk_handle_open_prg(DISK_CHANNEL *channel, char *filename)
+static u8 disk_handle_open_write(DISK_CHANNEL *channel, PARSED_FILENAME *parsed)
 {
-    PARSED_FILENAME parsed;
-    disk_parse_filename(filename, &parsed);
-
-    if (parsed.drive || parsed.type == D64_FILE_REL)
+    D64_DIR_ENTRY *existing = disk_find_file(channel, parsed->name, 0);
+    if ((existing && (!parsed->overwrite ||
+                      !d64_is_file_type(existing, parsed->type))) ||
+        (!existing && parsed->wildcard))
     {
-        return CMD_NO_DRIVE;    // Try serial device (if any)
+        disk_last_error = DISK_STATUS_EXISTS;
+        return CMD_NONE;
     }
 
-    if (parsed.mode == 'W')
+    disk_last_error = DISK_STATUS_OK;
+    c64_send_command(CMD_WAIT_SYNC);
+    c64_interface(false);
+    disk_receive_data(channel->buf);    // Save temp data
+
+    u8 cmd;
+    if (disk_create_file(channel, parsed->name, parsed->type, existing))
     {
-        return CMD_DISK_ERROR;  // Not supported yet
+        channel->buf_len = 0;
+        channel->buf_ptr = 0;
+        channel->buf_mode = DISK_BUF_SAVE;
+        cmd = CMD_NONE;
+    }
+    else
+    {
+        cmd = CMD_DISK_ERROR;
     }
 
-    if (!disk_open_read(channel, parsed.name, parsed.type))
+    disk_send_data(channel->buf);   // Send temp data back
+    c64_interface_sync();
+
+    return cmd;
+}
+
+static u8 disk_handle_open_read(DISK_CHANNEL *channel, PARSED_FILENAME *parsed)
+{
+    if (!disk_open_read(channel, parsed->name, parsed->type))
     {
-        return CMD_NOT_FOUND;
+        channel->buf_len = 0;
+        channel->buf_mode = DISK_BUF_USE;
+        return CMD_NONE;
     }
 
     disk_read_data(channel, NULL, 0);
@@ -774,13 +930,36 @@ static u8 disk_handle_open_prg(DISK_CHANNEL *channel, char *filename)
     return CMD_NONE;
 }
 
+static u8 disk_handle_open_prg(DISK_CHANNEL *channel, char *filename)
+{
+    PARSED_FILENAME parsed;
+    disk_parse_filename(filename, &parsed);
+
+    if (parsed.drive)
+    {
+        return CMD_NO_DRIVE;    // Try serial device (if any)
+    }
+
+    if (parsed.type == D64_FILE_REL)
+    {
+        return CMD_DISK_ERROR;  // Not supported yet
+    }
+
+    if (parsed.mode == 'W')
+    {
+        return disk_handle_open_write(channel, &parsed);
+    }
+
+    return disk_handle_open_read(channel, &parsed);
+}
+
 static u8 disk_handle_open(DISK_CHANNEL *channel)
 {
     char *filename = channel->filename;
 
     if (channel->number == 15)      // Command channel
     {
-        if (!disk_read_status(channel, filename))
+        if (!disk_handle_command(channel, filename))
         {
             return CMD_NO_DRIVE;    // Try serial device (if any)
         }
@@ -810,23 +989,29 @@ static u8 disk_handle_close(DISK_CHANNEL *channel, DISK_CHANNEL *channels)
     return CMD_NONE;
 }
 
-static u8 disk_handle_get_byte(DISK_CHANNEL *channel)
+static u8 disk_handle_send_byte(DISK_CHANNEL *channel)
 {
-    u8 data;
-    if (!channel || !disk_read_data(channel, &data, 1))
+    if (!channel)
     {
         return CMD_DISK_ERROR;
     }
 
-    *KFF_BUF = data;
+    if (channel->number == 15 && !disk_bytes_left(channel))
+    {
+        disk_handle_command(channel, "-");  // Write disk status to buffer
+    }
+
+    u8 data;
+    if (!disk_read_data(channel, &data, 1))
+    {
+        return CMD_DISK_ERROR;
+    }
+
+    *KFF_BUF = data;    // Send the byte
 
     if (!disk_bytes_left(channel))
     {
-        if (channel->number == 15)
-        {
-            disk_read_status(channel, NULL);
-        }
-        else if (channel->buf_mode == DISK_BUF_DIR)
+        if (channel->buf_mode == DISK_BUF_DIR)
         {
             u8 *ptr = channel->buf;
             if (!disk_put_dir_entry(channel, &ptr))
@@ -843,6 +1028,64 @@ static u8 disk_handle_get_byte(DISK_CHANNEL *channel)
         return CMD_END_OF_FILE;
     }
 
+    return CMD_NONE;
+}
+
+static u8 disk_handle_unlisten(DISK_CHANNEL *channel)
+{
+    if (!channel || channel->number != 15 || !channel->buf2_ptr)
+    {
+        return CMD_NONE;
+    }
+
+    // Null terminate "filename"
+    if (channel->buf2[channel->buf2_ptr - 1] == (u8)'\r')
+    {
+        channel->buf2[--channel->buf2_ptr] = 0;
+    }
+    else
+    {
+        channel->buf2[channel->buf2_ptr] = 0;
+    }
+
+    disk_handle_command(channel, channel->filename);
+    return CMD_NONE;
+}
+
+static u8 disk_handle_receive_byte(DISK_CHANNEL *channel)
+{
+    if (!channel)
+    {
+        return CMD_DISK_ERROR;
+    }
+
+    u8 data = c64_receive_byte();
+
+    if (channel->number == 15)
+    {
+        channel->buf2[channel->buf2_ptr++] = data;
+        return CMD_NONE;
+    }
+
+    if (channel->buf_mode != DISK_BUF_SAVE)
+    {
+        return CMD_DISK_ERROR;
+    }
+
+    channel->buf[channel->buf_ptr++] = data;
+    if (channel->buf_ptr)
+    {
+        return CMD_NONE;    // Buffer not full
+    }
+
+    c64_send_command(CMD_WAIT_SYNC);
+    c64_interface(false);
+    disk_receive_data(channel->buf2);   // Save temp data
+
+    disk_write_data(channel, channel->buf, sizeof(channel->buf));
+
+    disk_send_data(channel->buf2);  // Send temp data back
+    c64_interface_sync();
     return CMD_NONE;
 }
 
@@ -870,29 +1113,58 @@ static void disk_receive_filename(char *filename)
     *filename = 0;
 }
 
-static void disk_receive_data(u8 *buf)
+static u8 disk_send_command(u8 cmd, DISK_CHANNEL*channels)
 {
-    u8 size = c64_receive_byte();
-    *buf++ = size;
+    c64_set_command(cmd);
 
-    while (size--)
+    u32 led_status = STATUS_LED_OFF;
+    for (u32 i=0; i<15; i++)
     {
-        *buf++ = c64_receive_byte();
+        DISK_CHANNEL *channel = channels + i;
+        if (channel->buf_mode != DISK_BUF_USE || channel->buf_len)
+        {
+            // LED on if a file is open
+            led_status = STATUS_LED_ON;
+            break;
+        }
     }
+    timer_start_ms(175);
+
+    u8 reply;
+    while (!c64_get_reply(cmd, &reply))
+    {
+        if (timer_elapsed())
+        {
+            if (disk_last_error > DISK_STATUS_SCRATCHED &&
+                disk_last_error < DISK_STATUS_INIT)
+            {
+                // Blink if an error has occurred
+                led_status = led_status == STATUS_LED_OFF ?
+                    STATUS_LED_ON : STATUS_LED_OFF;
+            }
+
+            C64_CRT_CONTROL(led_status);
+        }
+    }
+
+    return reply;
 }
 
 static void disk_loop(void)
 {
     D64_IMAGE *image = &d64_state.image;    // Reuse memory from menu
-    DISK_CHANNEL *channel = NULL, *channels = (DISK_CHANNEL *)(crt_ram_buf + 0x100);
+    DISK_CHANNEL*channels = (DISK_CHANNEL *)(crt_ram_buf + 0x100);
+    DISK_CHANNEL *channel, *talk = NULL, *listen = NULL;
     memset(channels, 0, sizeof(DISK_CHANNEL) * 16);
     disk_init_all_channels(image, channels);
+
+    disk_last_error = DISK_STATUS_INIT;
 
     // BASIC commands to run are placed in dat_buffer
     u8 cmd = CMD_MOUNT_DISK;
     while (true)
     {
-        u8 reply = c64_send_command(cmd);
+        u8 reply = disk_send_command(cmd, channels);
         cmd = CMD_NONE;
 
         switch (reply)
@@ -912,7 +1184,6 @@ static void disk_loop(void)
                 // Channel 1 will be used as save buffer - just as on 1541
                 channel = channels + 1;
                 disk_receive_filename(channel->filename);
-                disk_receive_data(channel->buf);
                 dbg("Got SAVE command for: %s", channel->filename);
                 cmd = disk_handle_save(channel);
                 break;
@@ -932,15 +1203,28 @@ static void disk_loop(void)
                 break;
 
             case REPLY_TALK:
-                channel = disk_receive_channel(channels);
+                talk = disk_receive_channel(channels);
                 break;
 
             case REPLY_UNTALK:
-                channel = NULL;
+                talk = NULL;
                 break;
 
-            case REPLY_GET_BYTE:
-                cmd = disk_handle_get_byte(channel);
+            case REPLY_SEND_BYTE:
+                cmd = disk_handle_send_byte(talk);
+                break;
+
+            case REPLY_LISTEN:
+                listen = disk_receive_channel(channels);
+                break;
+
+            case REPLY_UNLISTEN:
+                cmd = disk_handle_unlisten(listen);
+                listen = NULL;
+                break;
+
+            case REPLY_RECEIVE_BYTE:
+                cmd = disk_handle_receive_byte(listen);
                 break;
 
             default:

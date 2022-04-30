@@ -547,14 +547,21 @@ static inline u8 device_number_d64(void)
 static char * basic_get_filename(FILINFO *file_info)
 {
     char *filename = file_info->fname;
+    bool comma_found = false;
 
     size_t len;
     for (len=0; len<=16 && filename[len]; len++)
     {
-        filename[len] = ff_wtoupper(filename[len]);
+        char c = ff_wtoupper(filename[len]);
+        filename[len] = c;
+
+        if (c == ',')
+        {
+            comma_found = true;
+        }
     }
 
-    if (len > 16 && file_info->altname[0])
+    if ((len > 16 || comma_found) && file_info->altname[0])
     {
         filename = file_info->altname;
     }

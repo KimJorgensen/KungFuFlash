@@ -30,7 +30,6 @@
 
 ; 6502 Instructions
 BIT_INSTRUCTION = $2c
-LDA_INSTRUCTION = $a9
 
 ; BASIC functions
 MAIN            = $a483                 ; Normal BASIC warm start
@@ -49,6 +48,7 @@ ICHKIN          = $031e
 ICKOUT          = $0320
 ICLRCH          = $0322
 IBASIN          = $0324
+IBSOUT          = $0326
 IGETIN          = $032a
 ICLALL          = $032c
 ILOAD           = $0330
@@ -114,6 +114,7 @@ CMD_NO_DRIVE            = $10
 CMD_DISK_ERROR          = $11
 CMD_NOT_FOUND           = $12
 CMD_END_OF_FILE         = $13
+CMD_WAIT_SYNC           = $50
 CMD_SYNC                = $55
 
 REPLY_OK                = $80
@@ -123,7 +124,10 @@ REPLY_OPEN              = $92
 REPLY_CLOSE             = $93
 REPLY_TALK              = $94
 REPLY_UNTALK            = $95
-REPLY_GET_BYTE          = $96
+REPLY_SEND_BYTE         = $96
+REPLY_LISTEN            = $97
+REPLY_UNLISTEN          = $98
+REPLY_RECEIVE_BYTE      = $99
 
 ; =============================================================================
 VECTOR_PAGE     = IOPEN & $ff00
@@ -133,14 +137,14 @@ NEW_VECTOR_PAGE = >open_trampoline
 vectors:
         .lobytes IOPEN, ICLOSE, ICHKIN
         .lobytes ICKOUT, ICLRCH, IBASIN
-        .lobytes IGETIN, ILOAD, ISAVE
-        .lobytes ICLALL
+        .lobytes IBSOUT, IGETIN, ILOAD
+        .lobytes ISAVE, ICLALL
 
 old_vectors:
         .lobytes old_open_vector, old_close_vector, old_chkin_vector
         .lobytes old_ckout_vector, old_clrch_vector, old_basin_vector
-        .lobytes old_getin_vector, old_load_vector, old_save_vector
-        ; No need to store ICLALL
+        .lobytes old_bsout_vector, old_getin_vector, old_load_vector
+        .lobytes old_save_vector        ; No need to store ICLALL
 old_vectors_end:
 
 OLD_VECTORS_SIZE = old_vectors_end - old_vectors
@@ -148,8 +152,8 @@ OLD_VECTORS_SIZE = old_vectors_end - old_vectors
 new_vectors:
         .lobytes open_trampoline, close_trampoline, chkin_trampoline
         .lobytes ckout_trampoline, clrch_trampoline, basin_trampoline
-        .lobytes getin_trampoline, load_trampoline, save_trampoline
-        .lobytes clall_trampoline
+        .lobytes bsout_trampoline, getin_trampoline, load_trampoline
+        .lobytes save_trampoline, clall_trampoline
 new_vectors_end:
 
 NEW_VECTORS_SIZE = new_vectors_end - new_vectors
@@ -242,7 +246,6 @@ open_trampoline:
         lda SA                          ; Send secondary address (channel)
         sta KFF_DATA
 
-        ldx FNLEN
         jsr store_filename_enable
         jmp kff_open
 
@@ -298,26 +301,34 @@ normal_clrch:
 ; -----------------------------------------------------------------------------
 basin_trampoline:
         lda DFLTN
-        bne basin_device                ; Not keyboard
-
-basin_check_input:
-        lda CRSW                        ; Replaced with "lda #" when done
-        bne normal_basin                ; Still reading characters
-
-        jsr enable_kff_rom
-        jmp kff_basin_command           ; Print start commands
-
-basin_device:
         cmp kff_device_number
-        bne normal_basin                ; Not KFF device
+        normal_basin_offset = * + 1
+        bne do_kff_basin                ; will be replaced with normal_basin
+
 do_kff_basin:
         jsr enable_kff_rom
-        jmp kff_basin
+        kff_basin_addr = * + 1
+        jmp kff_basin_command           ; will be replaced with kff_basin
 
 normal_basin_disable:
         jsr disable_kff_rom
 normal_basin:
         old_basin_vector = * + 1
+        jmp $ffff
+
+; -----------------------------------------------------------------------------
+bsout_trampoline:
+        pha
+        lda DFLTO
+        cmp kff_device_number
+        bne normal_bsout                ; Not KFF device
+
+        jsr enable_kff_rom
+        jmp kff_bsout
+
+normal_bsout:
+        pla
+        old_bsout_vector = * + 1
         jmp $ffff
 
 ; -----------------------------------------------------------------------------
@@ -342,9 +353,6 @@ load_trampoline:
         cmp kff_device_number
         bne normal_load
 
-        ldx FNLEN
-        beq normal_load                 ; No filename, load will report error
-
         jsr store_filename_enable
         jmp kff_load
 
@@ -361,9 +369,6 @@ save_trampoline:
         cmp kff_device_number
         bne normal_save
 
-        ldx FNLEN
-        beq normal_save                 ; No filename, save will report error
-
         jsr store_filename_enable
         jmp kff_save
 
@@ -375,6 +380,7 @@ normal_save:
 
 ; -----------------------------------------------------------------------------
 store_filename_enable:
+        ldx FNLEN
         stx KFF_DATA                    ; Send filename Length
         beq enable_kff_rom
 
@@ -421,7 +427,7 @@ kernal_call:
 
 ; -----------------------------------------------------------------------------
 .if * > KFF_RAM + KFF_RAM_SIZE
-    .error "Not enough space for disk_api"
+        .error "Not enough space for disk_api"
 .endif
 .reloc
 disk_api_end:
@@ -473,9 +479,12 @@ kff_open:
         lda #REPLY_OPEN                 ; Send reply
         jsr kff_send_reply
         beq @open_ok
+        cmp #CMD_WAIT_SYNC
+        beq @wait_for_sync
         cmp #CMD_END_OF_FILE
         beq @end_of_file
 
+@file_not_found:
         lda #ERROR_FILE_NOT_FOUND      ; File not found error
         sec
         bcs @open_done
@@ -488,6 +497,11 @@ kff_open:
         clc
 @open_done:
         jmp disable_kff_rom
+
+@wait_for_sync:
+        jsr kff_save_ram_wait_sync
+        beq @open_ok
+        jmp @file_not_found
 .endproc
 
 ; =============================================================================
@@ -512,8 +526,14 @@ kff_close:
 
         lda SA                          ; Send secondary address (channel)
         sta KFF_DATA
+
         lda #REPLY_CLOSE                ; Send reply
         jsr kff_send_reply
+        beq @normal_close
+
+@wait_for_sync:
+        jsr kff_save_ram_wait_sync
+        bne @wait_for_sync
 
 @normal_close:
         lda tmp1
@@ -527,23 +547,21 @@ kff_chkin:
         txa                             ; Find logical file (in X)
         ldx LDTND
 :       dex
-        bmi normal_chkin                ; Not found
+        bmi @normal_chkin               ; Not found
         cmp LAT,x
         bne :-
         sta LA                          ; Store logical file
 
         lda FAT,x                       ; Lookup device
         cmp kff_device_number
-        bne normal_chkin                ; Not KFF device
+        bne @normal_chkin               ; Not KFF device
 
-send_talk_cmd:
+        sta DFLTN                       ; Set input device
         sta FA                          ; Store device
-        sta DFLTN
         lda SAT,x                       ; Lookup secondary address
         sta SA
+        sta KFF_DATA                    ; Send secondary address (channel)
 
-        lda SA                          ; Send secondary address (channel)
-        sta KFF_DATA
         lda #REPLY_TALK                 ; Send reply
         jsr kff_send_reply
 
@@ -552,13 +570,10 @@ send_talk_cmd:
         clc                             ; OK
         jmp disable_kff_rom
 
-normal_chkin:
+@normal_chkin:
         ldx tmp1
         jmp normal_chkin_disable
 .endproc
-
-; "Export" function
-send_talk_cmd = kff_chkin::send_talk_cmd
 
 ; =============================================================================
 .proc kff_ckout
@@ -575,7 +590,20 @@ kff_ckout:
         lda FAT,x                       ; Lookup device
         cmp kff_device_number
         bne @normal_ckout               ; Not KFF device
-        jmp send_talk_cmd
+
+        sta DFLTO                       ; Set output device
+        sta FA                          ; Store device
+        lda SAT,x                       ; Lookup secondary address
+        sta SA
+        sta KFF_DATA                    ; Send secondary address (channel)
+
+        lda #REPLY_LISTEN               ; Send reply
+        jsr kff_send_reply
+
+        lda #$00                        ; Clear device status
+        sta STATUS
+        clc                             ; OK
+        jmp disable_kff_rom
 
 @normal_ckout:
         ldx tmp1
@@ -586,12 +614,22 @@ kff_ckout:
 .proc kff_clrch
 kff_clrch:
         lda #$00                        ; Keyboard channel
-
         ldx kff_device_number
         cpx DFLTO                       ; Check output channel
         bne @check_input                ; Not KFF device
         sta DFLTO                       ; Don't send commands to the serial bus
 
+        lda #REPLY_UNLISTEN             ; Send reply
+        jsr kff_send_reply
+        cmp #CMD_WAIT_SYNC
+        bne @check_input_a
+
+        sty tmp1
+        jsr kff_save_ram_wait_sync
+        ldy tmp1
+
+@check_input_a:
+        lda #$00                        ; Keyboard channel
 @check_input:
         cpx DFLTN                       ; Check input channel
         bne @normal_clrch               ; Not KFF device
@@ -607,6 +645,12 @@ kff_clrch:
 ; =============================================================================
 .proc kff_basin_command
 kff_basin_command:
+        lda DFLTN
+        bne @not_keyboard
+
+        lda CRSW
+        bne @normal_basin_disable       ; Still reading characters
+
         lda KFF_DATA
         beq @normal_basin               ; No start commands
 
@@ -636,41 +680,80 @@ kff_basin_command:
         ldx tmp1
 
 @normal_basin:
-        lda #LDA_INSTRUCTION
-        sta basin_check_input           ; Do not call kff_basin_command again
+        lda #normal_basin - normal_basin_offset - 1
+        sta normal_basin_offset         ; Enable KFF device check
 
+        lda #<kff_basin                 ; Do not call kff_basin_command again
+        sta kff_basin_addr
+        lda #>kff_basin
+        sta kff_basin_addr + 1
+
+@normal_basin_disable:
         jmp normal_basin_disable
+
+@not_keyboard:
+        cmp kff_device_number
+        bne @normal_basin_disable       ; Not KFF device
 .endproc
 
-; =============================================================================
+; -----------------------------------------------------------------------------
 .proc kff_basin
 kff_basin:
         lda STATUS
-        beq @status_ok
-        lda #$0d
-        bne @read_done                  ; Status not OK - return CR
+        bne @status_not_ok
 
-@status_ok:
-        lda #REPLY_GET_BYTE             ; Send reply
+        lda #REPLY_SEND_BYTE            ; Send reply
         jsr kff_send_reply
+        bne @check_read_error           ; Check command
 
-        beq @read_ok                    ; Check command
+@read_byte:
+        lda KFF_DATA                    ; Get data
+@read_done:
+        clc
+        jmp disable_kff_rom
+
+@check_read_error:
         cmp #CMD_END_OF_FILE
-        beq @read_end
+        bne @read_error
 
+        lda #STATUS_END_OF_FILE         ; Set status to end of file
+        sta STATUS
+        bne @read_byte
+
+@read_error:
         lda #STATUS_READ_ERROR          ; Set device status to read error occurred
         sta STATUS
         lda #$00
         beq @read_done
 
-@read_end:
-        lda #STATUS_END_OF_FILE         ; Set status to end of file
+@status_not_ok:
+        lda #$0d
+        bne @read_done                  ; Status not OK - return CR
+.endproc
+
+; =============================================================================
+.proc kff_bsout
+kff_bsout:
+        pla
+        sta KFF_DATA                    ; Send data
+
+        lda #REPLY_RECEIVE_BYTE         ; Send reply
+        jsr kff_send_reply
+        beq @write_ok                   ; Check command
+        cmp #CMD_WAIT_SYNC
+        bne @write_error
+
+        sty tmp1
+        jsr kff_save_ram_wait_sync
+        ldy tmp1
+        jmp @write_ok
+
+@write_error:
+        lda #STATUS_SAVE_FILE_EXISTS    ; file already exists
         .byte BIT_INSTRUCTION           ; Skip next 2 bytes
-@read_ok:
+@write_ok:
         lda #$00                        ; Clear status
         sta STATUS
-        lda KFF_DATA                    ; Get data
-@read_done:
         clc
         jmp disable_kff_rom
 .endproc
@@ -687,6 +770,9 @@ kff_clall:
 ; =============================================================================
 .proc kff_load
 kff_load:
+        lda FNLEN
+        beq @no_filename                ; No filename, load will report error
+
         lda VERCK
         bne @not_found                  ; TODO: Support verify operation
 
@@ -709,6 +795,9 @@ kff_load:
         sec
         jmp disable_kff_rom
 
+@no_filename:
+        sta KFF_WRITE_LPTR              ; Clear KFF write buffer (filename)
+        sta KFF_WRITE_HPTR
 @no_drive:
         jmp normal_load_disable
 
@@ -817,14 +906,15 @@ kff_load:
 ; =============================================================================
 .proc kff_save
 kff_save:
-        ldy #KFF_SAVE_RAM_SIZE          ; Send KFF_SAVE_RAM for later retrieval
-        sty KFF_DATA
-        dey
-:       lda KFF_SAVE_RAM, y
-        sta KFF_DATA
-        dey
-        bpl :-
+        lda FNLEN
+        bne @send_reply                 ; Has filename
 
+        sta KFF_WRITE_LPTR              ; Clear KFF write buffer (filename)
+        sta KFF_WRITE_HPTR
+        jmp normal_save_disable         ; No filename, save will report error
+
+@send_reply:
+        jsr kff_save_ram                ; Send KFF_SAVE_RAM for later retrieval
         lda #REPLY_SAVE                 ; Send reply
         jsr kff_send_reply
         beq @save_ok
@@ -929,24 +1019,7 @@ kff_save:
         adc #$00
         sta SAH
 
-        ldy #KFF_SYNC_RAM_SIZE - 1      ; Copy sync prg to KFF_SAVE_RAM
-:       lda kff_sync_prg, y
-        sta KFF_SAVE_RAM, y
-        dey
-        bpl :-
-
-        lda #REPLY_OK
-        jsr wait_for_sync
-
-        ldy KFF_DATA                    ; Restore KFF_SAVE_RAM
-        dey
-:       lda KFF_DATA
-        sta KFF_SAVE_RAM, y
-        dey
-        bpl :-
-
-        lda #REPLY_OK                   ; Get result
-        jsr kff_send_reply
+        jsr kff_wait_for_sync
         beq @save_no_error
 
         lda #STATUS_SAVE_DISK_FULL      ; Set status
@@ -969,6 +1042,50 @@ kff_send_reply:
 
         lda KFF_COMMAND                 ; Get command
         rts
+.endproc
+
+; =============================================================================
+.proc kff_save_ram_wait_sync
+kff_save_ram_wait_sync:
+        jsr kff_save_ram
+        jmp kff_wait_for_sync
+.endproc
+
+; =============================================================================
+.proc kff_save_ram
+kff_save_ram:
+        ldy #KFF_SAVE_RAM_SIZE          ; Send KFF_SAVE_RAM
+        sty KFF_DATA
+        dey
+:       lda KFF_SAVE_RAM, y
+        sta KFF_DATA
+        dey
+        bpl :-
+        rts
+.endproc
+
+; =============================================================================
+.proc kff_wait_for_sync
+kff_wait_for_sync:
+        ldy #KFF_SYNC_RAM_SIZE - 1      ; Copy sync prg to KFF_SAVE_RAM
+:       lda kff_sync_prg, y
+        sta KFF_SAVE_RAM, y
+        dey
+        bpl :-
+
+        lda #REPLY_OK
+        jsr wait_for_sync
+        clc
+
+        ldy KFF_DATA                    ; Restore KFF_SAVE_RAM
+        dey
+:       lda KFF_DATA
+        sta KFF_SAVE_RAM, y
+        dey
+        bpl :-
+
+        lda #REPLY_OK                   ; Get result
+        jmp kff_send_reply
 .endproc
 
 ; =============================================================================

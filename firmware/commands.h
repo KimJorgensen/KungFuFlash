@@ -52,7 +52,6 @@ typedef enum
 
     CMD_MOUNT_DISK,
     CMD_WAIT_RESET,     // Disable screen and wait for reset
-    CMD_WAIT_SYNC,
 
     // Disk commands
     CMD_NO_DRIVE = 0x10,
@@ -60,7 +59,8 @@ typedef enum
     CMD_NOT_FOUND,
     CMD_END_OF_FILE,
 
-    // SYNC command
+    // SYNC commands
+    CMD_WAIT_SYNC = 0x50,
     CMD_SYNC = 0x55,
 
     REPLY_OK = 0x80,
@@ -83,11 +83,17 @@ typedef enum
     // Disk replies
     REPLY_LOAD = 0x90,
     REPLY_SAVE,
+
     REPLY_OPEN,
     REPLY_CLOSE,
+
     REPLY_TALK,
     REPLY_UNTALK,
-    REPLY_GET_BYTE,
+    REPLY_SEND_BYTE,
+
+    REPLY_LISTEN,
+    REPLY_UNLISTEN,
+    REPLY_RECEIVE_BYTE
 } COMMAND_TYPE;
 
 typedef enum

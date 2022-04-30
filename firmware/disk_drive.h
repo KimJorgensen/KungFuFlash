@@ -18,12 +18,20 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#define DISK_STATUS_OK          "00, OK,00,00"
-#define DISK_STATUS_NOT_FOUND   "62,FILE NOT FOUND,00,00"
-#define DISK_STATUS_INIT        "73,KUNG FU FLASH V" VERSION ",00,00"
+static const u16 dir_start_addr = 0x0401;   // Start of BASIC (for the PET)
+static const u16 dir_link_addr = 0x0101;
 
-const u16 dir_start_addr = 0x0401;  // Start of BASIC (for the PET)
-const u16 dir_link_addr = 0x0101;
+static u8 disk_last_error;
+
+typedef enum
+{
+    DISK_STATUS_OK          = 00,
+    DISK_STATUS_SCRATCHED   = 01,
+    DISK_STATUS_NOT_FOUND   = 62,
+    DISK_STATUS_EXISTS      = 63,
+    DISK_STATUS_INIT        = 73,
+    DISK_STATUS_UNSUPPORTED = 0xFF
+} DISK_STATUS;
 
 typedef struct
 {
@@ -38,8 +46,9 @@ typedef struct
 typedef enum
 {
     DISK_BUF_NONE   = 0x00,
-    DISK_BUF_USE    = 0x01,
-    DISK_BUF_DIR    = 0x02
+    DISK_BUF_USE,
+    DISK_BUF_DIR,
+    DISK_BUF_SAVE
 } DISK_BUF_MODE;
 
 typedef struct
@@ -51,8 +60,13 @@ typedef struct
     u8 buf_ptr;
     u8 buf[256];
 
-    char filename[256];
+    union
+    {
+        char filename[256];
+        u8 buf2[256];
+    };
     char *filename_dir;
+    u8 buf2_ptr;
 
     D64 d64;
     DIR dir;
