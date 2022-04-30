@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -194,7 +194,8 @@ static void c64_diag_handler(void)
 {
     // Clear the interrupt flag
     TIM1->SR = ~TIM_SR_CC3IF;
-    __DSB();
+    // Ensure interrupt flag is cleared
+    (void)TIM1->SR;
 
     if (diag_state == DIAG_RUN)
     {
@@ -230,9 +231,18 @@ static void c64_diag_handler(void)
 *************************************************/
 static void c64_interface_enable_no_check(void)
 {
+    u32 dier = TIM1->DIER | TIM_DIER_CC3IE;
+    COMPILER_BARRIER();
+
+    __disable_irq();
+    // Wait for next interrupt
+    TIM1->SR = ~TIM_SR_CC3IF;
+    while (!(TIM1->SR & TIM_SR_CC3IF));
+
     // Capture/Compare 3 interrupt enable
     TIM1->SR = ~(TIM_SR_CC3IF|TIM_SR_CC4IF);
-    TIM1->DIER |= TIM_DIER_CC3IE;
+    TIM1->DIER = dier;
+    __enable_irq();
 }
 
 static void c64_interface(bool state)

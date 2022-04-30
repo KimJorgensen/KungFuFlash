@@ -127,17 +127,17 @@ static void handler(void)                                                       
     /* We need to clear the interrupt flag early otherwise the next */          \
     /* interrupt may be delayed */                                              \
     TIM1->SR = ~TIM_SR_CC3IF;                                                   \
-    __DSB();                                                                    \
+    u32 phi2_high = DWT->COMP0;                                                 \
+    COMPILER_BARRIER();                                                         \
     /* Use debug cycle counter which is faster to access than timer */          \
     DWT->CYCCNT = TIM1->CNT;                                                    \
     COMPILER_BARRIER();                                                         \
-    u32 phi2_high = DWT->COMP0;                                                 \
     while (DWT->CYCCNT < phi2_high);                                            \
     u32 addr = C64_ADDR_READ();                                                 \
+    COMPILER_BARRIER();                                                         \
     u32 control = C64_CONTROL_READ();                                           \
     if (control & C64_WRITE)                                                    \
     {                                                                           \
-        COMPILER_BARRIER();                                                     \
         if (read_handler(control, addr))                                        \
         {                                                                       \
             /* Wait for phi2 to go low */                                       \
@@ -149,7 +149,6 @@ static void handler(void)                                                       
     }                                                                           \
     else                                                                        \
     {                                                                           \
-        COMPILER_BARRIER();                                                     \
         u32 data = C64_DATA_READ();                                             \
         write_handler(control, addr, data);                                     \
     }                                                                           \
