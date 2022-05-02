@@ -134,8 +134,8 @@ static void handler(void)                                                       
     COMPILER_BARRIER();                                                         \
     while (DWT->CYCCNT < phi2_high);                                            \
     u32 addr = C64_ADDR_READ();                                                 \
-    COMPILER_BARRIER();                                                         \
     u32 control = C64_CONTROL_READ();                                           \
+    COMPILER_BARRIER();                                                         \
     if (control & C64_WRITE)                                                    \
     {                                                                           \
         if (read_handler(control, addr))                                        \
