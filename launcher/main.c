@@ -159,7 +159,6 @@ static void mainLoopEF3(void)
 
 static void mainLoopKFF(void)
 {
-        uint16_t size;
     const char *text;
     uint8_t cmd, reply, cxy[3];
 
@@ -342,6 +341,7 @@ static uint8_t menuLoop(void)
 
             // --- leave directory
             case CH_DEL:
+            case CH_FIRE_LEFT:
                 if (searchBuffer[0] && *dir->name != ' ')
                 {
                     reply = search(c);
@@ -423,12 +423,51 @@ static uint8_t menuLoop(void)
                 }
                 break;
 
+            // --- search
+            case CH_INS:
+            case CH_FIRE_UP:
+                if (*dir->name != ' ')
+                {
+                    reply = search(c);
+                }
+                break;
+
+            // --- clear search
+            case CH_CLR:
+                if (searchBuffer[0] && *dir->name != ' ')
+                {
+                    reply = search(c);
+                }
+                break;
+
             case CH_F1:
                 help();
                 break;
 
+            case CH_FIRE_DOWN:
+                if (searchBuffer[0] && *dir->name != ' ')
+                {
+                    reply = search(c);
+                }
+                else
+                {
+                    help();
+                }
+                break;
+
             case CH_F5:
                 reply = REPLY_SETTINGS;
+                break;
+
+            case CH_FIRE_RIGHT:
+                if (searchBuffer[0] && *dir->name != ' ')
+                {
+                    reply = search(c);
+                }
+                else
+                {
+                    reply = REPLY_SETTINGS;
+                }
                 break;
 
             case CH_F6:
@@ -464,9 +503,9 @@ static bool isSearchChar(uint8_t c)
 
 static uint8_t search(uint8_t c)
 {
-    uint16_t cursor_delay;
+    uint8_t cursor_pos, cursor_delay;
     bool changed = false;
-    uint8_t i, cursor_on, last_selected = dir->selected;
+    uint8_t i, last_selected = dir->selected;
 
     dir->selected++;
     printElement(last_selected);
@@ -474,64 +513,170 @@ static uint8_t search(uint8_t c)
 
     textcolor(TEXTC);
     revers(1);
-    memcpy(inputBuffer, searchBuffer, searchLen+1);
+    memcpy(inputBuffer, searchBuffer, searchLen);
+
+    for (i=searchLen; i<SEARCH_LENGTH; i++)
+    {
+        inputBuffer[i] = ' ';
+    }
+    inputBuffer[SEARCH_LENGTH] = 0;
+
+    cursor_pos = searchLen < SEARCH_LENGTH ? searchLen : SEARCH_LENGTH;
+    if (c == CH_FIRE_UP)
+    {
+        c = CH_CURS_LEFT;
+    }
 
     while (c != CH_ENTER)
     {
-        if (c == CH_DEL)
+        if (c == CH_HOME)
         {
-            if (searchLen)
+            cursor_pos = 0;
+        }
+        else if (c == CH_DEL || c == CH_FIRE_LEFT)
+        {
+            if (cursor_pos)
             {
-                inputBuffer[--searchLen] = 0;
+                cursor_pos--;
             }
             else
             {
                 break;
             }
+
+            for (i=cursor_pos; i<SEARCH_LENGTH-1; i++)
+            {
+                inputBuffer[i] = inputBuffer[i+1];
+            }
+            inputBuffer[SEARCH_LENGTH-1] = ' ';
         }
-        else if (c == CH_HOME)
+        else if (c == CH_CURS_LEFT)
         {
-            searchLen = 0;
-            inputBuffer[0] = 0;
+            if (cursor_pos)
+            {
+                cursor_pos--;
+            }
+        }
+        else if (c == CH_CLR || c == CH_FIRE_DOWN)
+        {
+            memset(inputBuffer, ' ', SEARCH_LENGTH);
             break;
         }
-        else if (isSearchChar(c) && searchLen < SEARCH_LENGTH)
+        else if (cursor_pos < SEARCH_LENGTH)
         {
-            inputBuffer[searchLen++] = c;
-            inputBuffer[searchLen] = 0;
+            if (c == CH_INS || c == CH_FIRE_UP)
+            {
+                for (i=SEARCH_LENGTH-1; i>cursor_pos; i--)
+                {
+                    inputBuffer[i] = inputBuffer[i-1];
+                }
+                inputBuffer[cursor_pos] = ' ';
+            }
+            else if (c == CH_CURS_RIGHT)
+            {
+                cursor_pos++;
+            }
+            else if (c == CH_CURS_UP)
+            {
+                c = inputBuffer[cursor_pos] + 1;
+                if (c < 0x2a)   // '*'
+                {
+                    c = 'a';
+                }
+                else if (c < 0x30)  // '0'
+                {
+                    c = '0';
+                }
+                else if (c > 0x39 && c < 0x41)  // '9' - 'a'
+                {
+                    c = ' ';
+                }
+                else if (c > 0x5a)  // 'z'
+                {
+                    c = '*';
+                }
+
+                inputBuffer[cursor_pos] = c;
+            }
+            else if (c == CH_CURS_DOWN)
+            {
+                c = inputBuffer[cursor_pos] - 1;
+                if (c < 0x20)   // ' '
+                {
+                    c = '9';
+                }
+                else if (c < 0x2a)  // '*'
+                {
+                    c = 'z';
+                }
+                else if (c < 0x30)   // '0'
+                {
+                    c = '*';
+                }
+                else if (c > 0x39 && c < 0x41)  // '9' - 'a'
+                {
+                    c = ' ';
+                }
+                else if (c > 0x5a)  // 'z'
+                {
+                    c = ' ';
+                }
+
+                inputBuffer[cursor_pos] = c;
+            }
+            else if (isSearchChar(c))
+            {
+                inputBuffer[cursor_pos++] = c;
+            }
         }
 
-        sprintf(linebuffer, "> Search: %-26s <", inputBuffer);
+        sprintf(linebuffer, "> Search: %s <", inputBuffer);
         cputsxy(1, 0, linebuffer);
 
-        cursor_on = 0;
         cursor_delay = 0;
         while (true)
         {
             if (cursor_delay == 0)
             {
-                revers(cursor_on);
-                cputcxy(11 + searchLen, 0, ' ');
-
-                cursor_delay = 2200;
-                cursor_on = !cursor_on;
+                SCREEN_RAM[11 + cursor_pos] ^= 0x80;
+                cursor_delay = 120;
             }
             cursor_delay--;
 
             if (kbhit())
             {
                 c = cgetc();
-                break;
+                if (c != CH_CURS_UP && c != CH_CURS_DOWN)
+                {
+                    break;
+                }
             }
 
-            if (getJoy())
+            c = getJoy();
+            if (c)
             {
-                c = CH_ENTER;
+                if (c == CH_FIRE_RIGHT)
+                {
+                    c = ' ';
+                }
                 break;
             }
         }
         revers(1);
     }
+
+    for (i=SEARCH_LENGTH; i>0; i--) // remove trailing space
+    {
+        if (inputBuffer[i-1] == ' ')
+        {
+            inputBuffer[i-1] = 0;
+        }
+        else
+        {
+            break;
+        }
+    }
+    searchLen = i;
 
     for (i=0; i<=searchLen; i++)
     {
@@ -594,10 +739,10 @@ static void help(void)
     cputsxy(0, 6, "<RETURN> or Fire    Run/Change Dir");
     cputsxy(0, 7, " + <SHIFT> or Hold  Options");
     cputsxy(0, 8, "<HOME>              Root Dir");
-    cputsxy(0, 9, "<DEL>               Dir Up");
-    cputsxy(0, 10, "<A-Z> and <0-9>     Search");
-    cputsxy(0, 11, "<F1>                Help");
-    cputsxy(0, 12, "<F5>                Settings");
+    cputsxy(0, 9, "<DEL> or Fire left  Dir Up");
+    cputsxy(0, 10, "<A-Z> or Fire up    Search");
+    cputsxy(0, 11, "<F1> or Fire down   Help");
+    cputsxy(0, 12, "<F5> or Fire right  Settings");
     cputsxy(0, 13, "<F6>                C128 Mode");
     cputsxy(0, 14, "<F7>                BASIC (Cart Active)");
     cputsxy(0, 15, "<F8>                Kill");

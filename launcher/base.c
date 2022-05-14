@@ -36,7 +36,7 @@
 #include <joystick.h>
 #include "base.h"
 
-#define LONG_PRESS  (140)
+#define LONG_PRESS  (180)
 #define KEY_PRESS   (80)
 #define KEY_REPEAT  (20)
 #define MIN_PRESS   (4)
@@ -49,10 +49,7 @@ static uint8_t debounceJoy(void)
     for (i=0; i<DEBOUNCE; i++)
     {
         j = joy_read(JOY_2) & JOY_MASK;
-        if (j)
-        {
-            pressed = j;
-        }
+        pressed |= j;
     }
 
     return pressed;
@@ -61,11 +58,20 @@ static uint8_t debounceJoy(void)
 uint8_t getJoy(void)
 {
     static uint8_t last;
-    uint8_t j;
-    uint16_t cnt, cnt_min, cnt_max;
+    uint8_t j, btn_last = 0;
+    uint16_t cnt, cnt_max = KEY_PRESS;
 
-    cnt_min = JOY_BTN_1(last) ? LONG_PRESS + 1 : MIN_PRESS;
-    cnt_max = last ? KEY_REPEAT : KEY_PRESS;
+    if (last)
+    {
+        if (JOY_BTN_1(last))
+        {
+            btn_last = last;
+        }
+        else
+        {
+            cnt_max = KEY_REPEAT;
+        }
+    }
 
     for (cnt=0; cnt<cnt_max; cnt++)
     {
@@ -75,20 +81,46 @@ uint8_t getJoy(void)
             break;
         }
 
-        j = last;
-        if (JOY_BTN_1(j))
+        if (JOY_BTN_1(last))
         {
-            cnt_max = LONG_PRESS;
+            if (last == JOY_BTN_1_MASK) // only button
+            {
+                if (btn_last)
+                {
+                    break;
+                }
+
+                cnt_max = LONG_PRESS;
+            }
+            else    // button and direction
+            {
+                if (btn_last == last)
+                {
+                    break;
+                }
+
+                btn_last = JOY_BTN_1_MASK;
+                cnt_max = KEY_PRESS;
+            }
         }
+
+        j = last;
     }
 
-    if (cnt < cnt_min)
+    if (cnt < MIN_PRESS)
     {
         return CH_NONE;
     }
 
     if (JOY_BTN_1(j))
     {
+        if (j != JOY_BTN_1_MASK)
+        {
+            return JOY_UP(j) ? CH_FIRE_UP :
+                    JOY_DOWN(j) ? CH_FIRE_DOWN :
+                     JOY_LEFT(j) ? CH_FIRE_LEFT : CH_FIRE_RIGHT;
+        }
+
         if (cnt < LONG_PRESS)
         {
             return CH_ENTER;    // short press
@@ -99,8 +131,7 @@ uint8_t getJoy(void)
 
     return JOY_UP(j) ? CH_CURS_UP :
             JOY_DOWN(j) ? CH_CURS_DOWN :
-             JOY_LEFT(j) ? CH_CURS_LEFT :
-              JOY_RIGHT(j) ? CH_CURS_RIGHT : CH_NONE;
+             JOY_LEFT(j) ? CH_CURS_LEFT : CH_CURS_RIGHT;
 }
 
 void waitKey(void)
