@@ -203,6 +203,14 @@ _disk_mount_and_load:
 
 ; -----------------------------------------------------------------------------
 install_disk_vectors:
+        lda IOPEN                       ; Need to install vectors?
+        cmp #<open_trampoline
+        bne @install
+        lda IOPEN + 1
+        cmp #>open_trampoline
+        beq @no_install
+
+@install:
         ldy #NEW_VECTORS_SIZE - 1       ; Install new handlers
 :       lda new_vectors, y
         ldx vectors, y
@@ -213,6 +221,7 @@ install_disk_vectors:
         sta VECTOR_PAGE + 1, x
         dey
         bpl :-
+@no_install:
         rts
 
 ; =============================================================================
@@ -435,16 +444,7 @@ disk_api_end:
 ; =============================================================================
 .proc kff_main
 kff_main:
-        lda IOPEN                       ; Need to install vectors?
-        cmp #<open_trampoline
-        bne @install
-        lda IOPEN + 1
-        cmp #>open_trampoline
-        beq @normal_main
-
-@install:
         jsr install_disk_vectors
-@normal_main:
         jmp normal_main_disable
 .endproc
 
@@ -889,7 +889,10 @@ kff_load:
         dec tmp1
         bne @load_bytes
 @load_end:
-        tya
+        sty tmp1
+        jsr install_disk_vectors        ; Reinstall vectors if changed
+
+        lda tmp1
         clc                             ; Adjust end address
         adc EAL
         sta EAL
