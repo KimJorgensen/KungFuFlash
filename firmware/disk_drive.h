@@ -56,8 +56,8 @@ typedef struct
     u8 number;
 
     u8 buf_mode;    // DISK_BUF_MODE
-    u8 buf_len;
-    u8 buf_ptr;
+    u16 buf_len;
+    u16 buf_ptr;
     u8 buf[256];
 
     union

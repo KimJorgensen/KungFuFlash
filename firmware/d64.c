@@ -89,17 +89,22 @@ static bool d64_seek(D64_IMAGE *image, D64_TS ts)
     return true;
 }
 
-static inline bool d64_read(D64_IMAGE *image, D64_SECTOR *sector)
+static bool d64_seek_read(D64_IMAGE *image, void *buffer, D64_TS ts)
 {
-    return file_read(&image->file, &sector->next, D64_SECTOR_LEN) ==
-           D64_SECTOR_LEN;
+    return d64_seek(image, ts) &&
+           file_read(&image->file, buffer, D64_SECTOR_LEN) == D64_SECTOR_LEN;
+}
+
+static inline bool d64_read_sector(D64 *d64, void *buffer, D64_TS ts)
+{
+    return d64_seek_read(d64->image, buffer, ts);
 }
 
 static bool d64_read_from(D64_IMAGE *image, D64_SECTOR *sector, D64_TS ts)
 {
     sector->current = ts;
 
-    if (!d64_seek(image, ts) || !d64_read(image, sector))
+    if (!d64_seek_read(image, &sector->next, ts))
     {
         sector->next.track = 0;
         return false;
@@ -114,20 +119,20 @@ static inline bool d64_read_next(D64 *d64)
            d64_read_from(d64->image, &d64->sector, d64->sector.next);
 }
 
-static inline bool d64_write(D64_IMAGE *image, D64_SECTOR *sector)
+static bool d64_seek_write(D64_IMAGE *image, void *buffer, D64_TS ts)
 {
-    return file_write(&image->file, &sector->next, D64_SECTOR_LEN) ==
-           D64_SECTOR_LEN;
+    return d64_seek(image, ts) &&
+           file_write(&image->file, buffer, D64_SECTOR_LEN) == D64_SECTOR_LEN;
+}
+
+static bool d64_write_sector(D64 *d64, void *buffer, D64_TS ts)
+{
+    return d64_seek_write(d64->image, buffer, ts) && d64_sync(d64->image);
 }
 
 static bool d64_write_to(D64 *d64, D64_SECTOR *sector, D64_TS ts)
 {
-    if (!d64_seek(d64->image, ts) || !d64_write(d64->image, sector))
-    {
-        return false;
-    }
-
-    return true;
+    return d64_seek_write(d64->image, &sector->next, ts);
 }
 
 static bool d64_write_current(D64 *d64)

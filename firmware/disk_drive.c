@@ -747,6 +747,37 @@ static u32 disk_write_status(DISK_CHANNEL *channel, u8 status, u8 track, u8 sect
     return len;
 }
 
+static u8 disk_parse_number(char **ptr, u8 max_digits)
+{
+    while (**ptr && !isdigit(**ptr))    // Skip non-digits
+    {
+        (*ptr)++;
+    }
+
+    u32 digits = 0;
+    while (isdigit(**ptr))  // Get number of digits
+    {
+        digits++;
+        (*ptr)++;
+    }
+
+    if (digits > max_digits)
+    {
+        digits = max_digits;
+    }
+
+    u32 result = 0;
+    u32 mul = 1;
+
+    for (u32 i=1; i<=digits; i++)
+    {
+        result += (*(*ptr - i) - '0') * mul;
+        mul *= 10;
+    }
+
+    return result;
+}
+
 static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
 {
     u8 status = DISK_STATUS_OK;
@@ -756,7 +787,8 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
     {
         return true;
     }
-    else if (filename[0] == 'M')    // Memory command
+
+    if (filename[0] == 'M') // Memory command
     {
         status = DISK_STATUS_UNSUPPORTED;
     }
@@ -814,9 +846,62 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
             }
         }
 
-        if (fs_change_dir(channel, filename))
+        if (!fs_change_dir(channel, filename))
         {
-            status = DISK_STATUS_OK;
+            status = DISK_STATUS_NOT_FOUND;
+        }
+    }
+    else if (filename[0] == 'B' && filename[1] == '-' &&
+             filename[2] == 'P')    // Buffer pointer
+    {
+        filename += 3;
+        u8 channel_no = disk_parse_number(&filename, 2);
+        u8 location = disk_parse_number(&filename, 3);
+
+        DISK_CHANNEL *buf_channel = channel - (15 - channel_no);
+        if (dat_file.disk.mode && channel_no >= 2 && channel_no <= 14 &&
+            buf_channel->buf_mode == DISK_BUF_USE)
+        {
+            buf_channel->buf_ptr = location;
+        }
+        else
+        {
+            status = DISK_STATUS_NOT_FOUND;
+        }
+    }
+    else if (filename[0] == 'U' &&
+             (filename[1] == '1' || filename[1] == 'A' ||   // Block read
+              filename[1] == '2' || filename[1] == 'B'))    // Block write
+    {
+        bool read = filename[1] == '1' || filename[1] == 'A';
+        filename += 2;
+
+        u8 channel_no = disk_parse_number(&filename, 2);
+        u8 drive = disk_parse_number(&filename, 1);
+        track = disk_parse_number(&filename, 2);
+        sector = disk_parse_number(&filename, 2);
+
+        DISK_CHANNEL *buf_channel = channel - (15 - channel_no);
+        if (dat_file.disk.mode && channel_no >= 2 && channel_no <= 14 &&
+            buf_channel->buf_mode == DISK_BUF_USE && !drive && track)
+        {
+            D64_TS ts = {track, sector};
+            if (read)
+            {
+                d64_read_sector(&buf_channel->d64, buf_channel->buf, ts);
+                buf_channel->buf_ptr = 0;
+            }
+            else
+            {
+                c64_send_command(CMD_WAIT_SYNC);
+                c64_interface(false);
+                disk_receive_data(channel->buf);    // Save temp data
+
+                d64_write_sector(&buf_channel->d64, buf_channel->buf, ts);
+
+                disk_send_data(channel->buf);   // Send temp data back
+                c64_interface_sync();
+            }
         }
         else
         {
@@ -827,20 +912,24 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
     {
         status = DISK_STATUS_INIT;
     }
+    else if (filename[0] == 'I')    // Initialize
+    {
+        // Check drive number
+        if (isdigit(filename[1]) && filename[1] != '0')
+        {
+            return false;
+        }
+    }
     else if (disk_last_error)
     {
         status = disk_last_error;
-    }
-    else
-    {
-        status = DISK_STATUS_OK;
     }
 
     disk_last_error = DISK_STATUS_OK;
 
     u32 len = disk_write_status(channel, status, track, sector);
     channel->buf[len++] = (u8)'\r';
-    channel->buf_len = (u8)len;
+    channel->buf_len = len;
     channel->buf_ptr = 0;
     channel->buf2_ptr = 0;
 
@@ -953,6 +1042,14 @@ static u8 disk_handle_open_prg(DISK_CHANNEL *channel, char *filename)
     return disk_handle_open_read(channel, &parsed);
 }
 
+static u8 disk_hand_open_buffer(DISK_CHANNEL *channel)
+{
+    channel->buf_len = sizeof(channel->buf);
+    channel->buf_ptr = 0;
+    channel->buf_mode = DISK_BUF_USE;
+    return CMD_NONE;
+}
+
 static u8 disk_handle_open(DISK_CHANNEL *channel)
 {
     char *filename = channel->filename;
@@ -970,6 +1067,10 @@ static u8 disk_handle_open(DISK_CHANNEL *channel)
     {
         channel->filename_dir = filename + 1;
         return disk_handle_open_dir(channel);
+    }
+    else if (filename[0] == '#')    // Buffer
+    {
+        return disk_hand_open_buffer(channel);
     }
 
     return disk_handle_open_prg(channel, filename);
@@ -1067,25 +1168,30 @@ static u8 disk_handle_receive_byte(DISK_CHANNEL *channel)
         return CMD_NONE;
     }
 
-    if (channel->buf_mode != DISK_BUF_SAVE)
+    if (channel->buf_mode != DISK_BUF_USE &&
+        channel->buf_mode != DISK_BUF_SAVE)
     {
         return CMD_DISK_ERROR;
     }
 
     channel->buf[channel->buf_ptr++] = data;
-    if (channel->buf_ptr)
+    if (channel->buf_ptr >= sizeof(channel->buf))   // Check if buffer is full
     {
-        return CMD_NONE;    // Buffer not full
+        channel->buf_ptr = 0;
+
+        if (channel->buf_mode == DISK_BUF_SAVE)
+        {
+            c64_send_command(CMD_WAIT_SYNC);
+            c64_interface(false);
+            disk_receive_data(channel->buf2);   // Save temp data
+
+            disk_write_data(channel, channel->buf, sizeof(channel->buf));
+
+            disk_send_data(channel->buf2);  // Send temp data back
+            c64_interface_sync();
+        }
     }
 
-    c64_send_command(CMD_WAIT_SYNC);
-    c64_interface(false);
-    disk_receive_data(channel->buf2);   // Save temp data
-
-    disk_write_data(channel, channel->buf, sizeof(channel->buf));
-
-    disk_send_data(channel->buf2);  // Send temp data back
-    c64_interface_sync();
     return CMD_NONE;
 }
 

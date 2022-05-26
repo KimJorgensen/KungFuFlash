@@ -327,7 +327,7 @@ normal_basin:
 
 ; -----------------------------------------------------------------------------
 bsout_trampoline:
-        pha
+        sta tmp1
         lda DFLTO
         cmp kff_device_number
         bne normal_bsout                ; Not KFF device
@@ -336,7 +336,7 @@ bsout_trampoline:
         jmp kff_bsout
 
 normal_bsout:
-        pla
+        lda tmp1
         old_bsout_vector = * + 1
         jmp $ffff
 
@@ -734,7 +734,7 @@ kff_basin:
 ; =============================================================================
 .proc kff_bsout
 kff_bsout:
-        pla
+        lda tmp1
         sta KFF_DATA                    ; Send data
 
         lda #REPLY_RECEIVE_BYTE         ; Send reply
@@ -743,9 +743,9 @@ kff_bsout:
         cmp #CMD_WAIT_SYNC
         bne @write_error
 
-        sty tmp1
+        sty tmp2
         jsr kff_save_ram_wait_sync
-        ldy tmp1
+        ldy tmp2
         jmp @write_ok
 
 @write_error:
@@ -754,6 +754,7 @@ kff_bsout:
 @write_ok:
         lda #$00                        ; Clear status
         sta STATUS
+        lda tmp1
         clc
         jmp disable_kff_rom
 .endproc
