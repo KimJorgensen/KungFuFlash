@@ -137,26 +137,23 @@ NEW_VECTOR_PAGE = >open_trampoline
 vectors:
         .lobytes IOPEN, ICLOSE, ICHKIN
         .lobytes ICKOUT, ICLRCH, IBASIN
-        .lobytes IBSOUT, IGETIN, ILOAD
-        .lobytes ISAVE, ICLALL
+        .lobytes IBSOUT, IGETIN, ICLALL
+        .lobytes ILOAD, ISAVE
+vectors_end:
+
+VECTORS_SIZE = vectors_end - vectors
 
 old_vectors:
         .lobytes old_open_vector, old_close_vector, old_chkin_vector
         .lobytes old_ckout_vector, old_clrch_vector, old_basin_vector
-        .lobytes old_bsout_vector, old_getin_vector, old_load_vector
-        .lobytes old_save_vector        ; No need to store ICLALL
-old_vectors_end:
-
-OLD_VECTORS_SIZE = old_vectors_end - old_vectors
+        .lobytes old_bsout_vector, old_getin_vector, old_clall_vector
+        .lobytes old_load_vector, old_save_vector
 
 new_vectors:
         .lobytes open_trampoline, close_trampoline, chkin_trampoline
         .lobytes ckout_trampoline, clrch_trampoline, basin_trampoline
-        .lobytes bsout_trampoline, getin_trampoline, load_trampoline
-        .lobytes save_trampoline, clall_trampoline
-new_vectors_end:
-
-NEW_VECTORS_SIZE = new_vectors_end - new_vectors
+        .lobytes bsout_trampoline, getin_trampoline, clall_trampoline
+        .lobytes load_trampoline, save_trampoline
 
 ; =============================================================================
 ;
@@ -181,7 +178,7 @@ _disk_mount_and_load:
         lda KFF_DATA                    ; First byte is device number
         sta kff_device_number
 
-        ldy #OLD_VECTORS_SIZE - 1       ; Store old vectors
+        ldy #VECTORS_SIZE - 1           ; Store old vectors
 :       ldx vectors, y
         lda VECTOR_PAGE, x
         ldx old_vectors, y
@@ -203,25 +200,27 @@ _disk_mount_and_load:
 
 ; -----------------------------------------------------------------------------
 install_disk_vectors:
-        lda IOPEN                       ; Need to install vectors?
-        cmp #<open_trampoline
-        bne @install
-        lda IOPEN + 1
-        cmp #>open_trampoline
-        beq @no_install
+        ldy #VECTORS_SIZE - 1           ; Install new handlers
 
-@install:
-        ldy #NEW_VECTORS_SIZE - 1       ; Install new handlers
-:       lda new_vectors, y
+:       ldx old_vectors, y              ; Check if vector low byte has changed
+        lda OLD_VECTOR_PAGE, x
         ldx vectors, y
+        cmp VECTOR_PAGE, x
+        bne @skip_vector
+
+        ldx old_vectors, y              ; Check if vector high byte has changed
+        lda OLD_VECTOR_PAGE + 1, x
+        ldx vectors, y
+        cmp VECTOR_PAGE + 1, X
+        bne @skip_vector
+
+        lda new_vectors, y              ; Install new vector
         sta VECTOR_PAGE, x
-
         lda #NEW_VECTOR_PAGE
-        ldx vectors, y
         sta VECTOR_PAGE + 1, x
+@skip_vector:
         dey
         bpl :-
-@no_install:
         rts
 
 ; =============================================================================
@@ -327,7 +326,7 @@ normal_basin:
 
 ; -----------------------------------------------------------------------------
 bsout_trampoline:
-        sta tmp1
+        pha
         lda DFLTO
         cmp kff_device_number
         bne normal_bsout                ; Not KFF device
@@ -336,7 +335,7 @@ bsout_trampoline:
         jmp kff_bsout
 
 normal_bsout:
-        lda tmp1
+        pla
         old_bsout_vector = * + 1
         jmp $ffff
 
@@ -354,6 +353,9 @@ normal_getin:
 clall_trampoline:
         jsr enable_kff_rom
         jmp kff_clall
+
+old_clall_vector:
+        .word $ffff
 
 ; -----------------------------------------------------------------------------
 load_trampoline:
@@ -734,7 +736,8 @@ kff_basin:
 ; =============================================================================
 .proc kff_bsout
 kff_bsout:
-        lda tmp1
+        pla
+        sta tmp1
         sta KFF_DATA                    ; Send data
 
         lda #REPLY_RECEIVE_BYTE         ; Send reply
