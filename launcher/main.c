@@ -522,10 +522,6 @@ static uint8_t search(uint8_t c)
     inputBuffer[SEARCH_LENGTH] = 0;
 
     cursor_pos = searchLen < SEARCH_LENGTH ? searchLen : SEARCH_LENGTH;
-    if (c == CH_FIRE_UP)
-    {
-        c = CH_CURS_LEFT;
-    }
 
     while (c != CH_ENTER)
     {
