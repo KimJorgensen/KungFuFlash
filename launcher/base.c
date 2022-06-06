@@ -137,7 +137,7 @@ uint8_t getJoy(void)
 void waitKey(void)
 {
 	revers(1);
-	textcolor(COLOR_VIOLET);
+	textcolor(COLOR_PURPLE);
 	cputs("PRESS A KEY");
 	revers(0);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -44,7 +44,7 @@
 #define DIRH 22
 
 #define TEXTC COLOR_LIGHTGREEN
-#define BACKC COLOR_VIOLET
+#define BACKC COLOR_PURPLE
 #define SEARCHC COLOR_GRAY2
 #define WARNC COLOR_YELLOW
 #define ERRORC COLOR_LIGHTRED
