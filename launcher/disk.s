@@ -907,6 +907,7 @@ kff_load:
         tay
 
         clc
+        lda $dc0d                       ; Clear timer interrupt flags
         jmp disable_kff_rom
 .endproc
 
@@ -1035,6 +1036,7 @@ kff_save:
         lda #$00
         sta STATUS
         clc
+        lda $dc0d                       ; Clear timer interrupt flags
         jmp disable_kff_rom
 .endproc
 
