@@ -48,6 +48,7 @@ static u32 freezer_state;
 #include "easyflash_3.c"
 #include "prophet64.c"
 #include "freeze_machine.c"
+#include "pagefox.c"
 #include "rgcd.c"
 #include "c128_normal.c"
 #include "kff.c"
@@ -120,6 +121,9 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
         case CRT_FREEZE_MACHINE:
             return NTSC_OR_PAL_HANDLER(fm);
 
+        case CRT_PAGEFOX:
+            return pagefox_handler;
+
         case CRT_RGCD:
             return rgcd_handler;
 
@@ -179,6 +183,10 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
         case CRT_FREEZE_FRAME:
         case CRT_FREEZE_MACHINE:
             fm_init(crt_header);
+            break;
+
+        case CRT_PAGEFOX:
+            pagefox_init();
             break;
 
         case CRT_RGCD:
