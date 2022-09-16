@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2022 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -96,10 +96,11 @@ FORCE_INLINE void ss5_early_write_handler(void)
 FORCE_INLINE void ss5_write_handler(u32 control, u32 addr, u32 data)
 {
     /*  The SS5 register is reset to $00 on reset.
-        Bit 5-7: Unused
-        Bit 4:   Bank address 14 for ROM/RAM
+        Bit 6-7: Unused
+        Bit 5:   Bank address 16 for ROM
+        Bit 4:   Bank address 15 for ROM/RAM
         Bit 3:   1 = Kill cartridge, register and ROM inactive
-        Bit 2:   Bank address 13 for ROM/RAM
+        Bit 2:   Bank address 14 for ROM/RAM
         Bit 1:   EXROM line, 1 = low, 0 additionally selects RAM for ROML
         Bit 0:   GAME line, 0 = low, 1 additionally exits freeze mode
     */
@@ -107,7 +108,7 @@ FORCE_INLINE void ss5_write_handler(u32 control, u32 addr, u32 data)
     {
         if (!(control & C64_IO1))
         {
-            u8 bank = ((data >> 3) & 0x02) | ((data >> 2) & 0x01);
+            u8 bank = ((data >> 3) & 0x06) | ((data >> 2) & 0x01);
             crt_rom_ptr = crt_banks[bank];
 
             u32 mode = ss5_mode[((data >> 1) & 0x04) | (data & 0x03)];

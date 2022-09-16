@@ -32,9 +32,13 @@
 #define CRT_RAM_BANK(bank)      (CRT_RAM_BUF + (u32)(8*1024 * bank))
 
 // Fast look-up of 8k RAM bank address
-static u8 * const crt_ram_banks[4] =
+static u8 * const crt_ram_banks[8] =
 {
     CRT_RAM_BANK(0),
+    CRT_RAM_BANK(1),
+    CRT_RAM_BANK(2),
+    CRT_RAM_BANK(3),
+    CRT_RAM_BANK(0), // Mirror of first 32k
     CRT_RAM_BANK(1),
     CRT_RAM_BANK(2),
     CRT_RAM_BANK(3)
