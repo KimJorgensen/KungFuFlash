@@ -96,7 +96,8 @@ FORCE_INLINE void ss5_early_write_handler(void)
 FORCE_INLINE void ss5_write_handler(u32 control, u32 addr, u32 data)
 {
     /*  The SS5 register is reset to $00 on reset.
-        Bit 5-7: Unused
+        Bit 6-7: Unused
+        Bit 5:   Bank address 15 for ROM
         Bit 4:   Bank address 14 for ROM/RAM
         Bit 3:   1 = Kill cartridge, register and ROM inactive
         Bit 2:   Bank address 13 for ROM/RAM
@@ -107,7 +108,15 @@ FORCE_INLINE void ss5_write_handler(u32 control, u32 addr, u32 data)
     {
         if (!(control & C64_IO1))
         {
-            u8 bank = ((data >> 3) & 0x02) | ((data >> 2) & 0x01);
+            u8 bank;
+            if ((control & C64_ROML) && !((data >> 1) & 0x01))
+            {
+                bank = ((data >> 3) & 0x02) | ((data >> 2) & 0x01);
+            }
+            else
+            {
+                bank = ((data >> 3) & 0x06) | ((data >> 2) & 0x01);
+            }
             crt_rom_ptr = crt_banks[bank];
 
             u32 mode = ss5_mode[((data >> 1) & 0x04) | (data & 0x03)];
