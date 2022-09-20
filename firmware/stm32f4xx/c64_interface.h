@@ -106,9 +106,9 @@ static inline void led_toggle(void)
 *************************************************/
 
 // C64_BUS_HANDLER timing
-#define NTSC_PHI2_HIGH      93
-#define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 41)
-#define NTSC_PHI2_LOW       142
+#define NTSC_PHI2_HIGH      94
+#define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 42)
+#define NTSC_PHI2_LOW       143
 
 #define PAL_PHI2_HIGH       98
 #define PAL_PHI2_INT        (PAL_PHI2_HIGH - 43)
@@ -156,7 +156,7 @@ static void handler(void)                                                       
 
 // C64_VIC_BUS_HANDLER timing
 // NTSC
-#define NTSC_PHI2_CPU_START     96
+#define NTSC_PHI2_CPU_START     97
 #define NTSC_PHI2_WRITE_DELAY   126
 #define NTSC_PHI2_CPU_END       NTSC_PHI2_LOW
 
@@ -173,7 +173,6 @@ static void handler(void)                                                       
     while (DWT->CYCCNT < NTSC_PHI2_VIC_DELAY);
 
 #define NTSC_VIC_DELAY_SHORT()  \
-    __NOP();                    \
     __NOP();                    \
     __NOP();                    \
     __NOP();                    \
