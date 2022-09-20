@@ -45,17 +45,21 @@ FORCE_INLINE bool ss5_vic_read_handler(u32 control, u32 addr)
 *************************************************/
 FORCE_INLINE bool ss5_read_handler(u32 control, u32 addr)
 {
-    if (crt_ptr)
+    if ((control & (C64_IO1|C64_ROML|C64_ROMH)) != (C64_IO1|C64_ROML|C64_ROMH))
     {
-        if (!(control & C64_ROML))
+        if (crt_ptr)
         {
-            C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
-            return true;
-        }
+            u8 data;
+            if (!(control & C64_ROML))
+            {
+                data = crt_ptr[addr & 0x3fff];
+            }
+            else
+            {
+                data = crt_rom_ptr[addr & 0x3fff];
+            }
 
-        if ((control & (C64_IO1|C64_ROMH)) != (C64_IO1|C64_ROMH))
-        {
-            C64_DATA_WRITE(crt_rom_ptr[addr & 0x3fff]);
+            C64_DATA_WRITE(data);
             return true;
         }
     }
