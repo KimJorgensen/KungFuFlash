@@ -119,6 +119,18 @@ static void systick_config(void)
 }
 
 /*************************************************
+* Floating-point unit
+*************************************************/
+static void fpu_config(void)
+{
+    // No automatic FPU state preservation
+    MODIFY_REG(FPU->FPCCR, FPU_FPCCR_LSPEN_Msk|FPU_FPCCR_ASPEN_Msk, 0);
+
+    // No floating-point context active
+    __set_CONTROL(0);
+}
+
+/*************************************************
 * Debug cycle counter
 *************************************************/
 static void dwt_cyccnt_config(void)
@@ -185,6 +197,7 @@ NO_RETURN restart_to_menu(void)
 static void configure_system(void)
 {
     sysclk_config();
+    fpu_config();
     dwt_cyccnt_config();
     systick_config();
 
