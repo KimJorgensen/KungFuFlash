@@ -28,7 +28,7 @@
  * and also packs a lot of features.
  */
 
-u32 warpspeed_on;
+static u32 warpspeed_on;
 
 /*************************************************
 * C64 bus read callback

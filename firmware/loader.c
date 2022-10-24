@@ -475,13 +475,12 @@ static bool auto_boot(void)
         while (menu_button_pressed())
         {
             // Menu button long press will start diagnostic
-            if (++i > 1500)
+            if (++i > 100)
             {
-                led_off();
                 dat_file.boot_type = DAT_DIAG;
                 result = true;
+                break;
             }
-            delay_ms(1);
         }
     }
     else
@@ -489,7 +488,11 @@ static bool auto_boot(void)
         result = true;
     }
 
-    menu_button_enable();
+    if (dat_file.boot_type != DAT_DIAG)
+    {
+        menu_button_enable();
+    }
+
     return result;
 }
 

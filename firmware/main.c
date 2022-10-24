@@ -24,6 +24,7 @@
 #include <string.h>
 #include "common.h"
 #include "commands.h"
+#include "file_types.h"
 #include "print.h"
 #include "memory.h"
 #include "hal.c"

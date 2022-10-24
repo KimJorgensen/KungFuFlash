@@ -18,11 +18,8 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
-#include "file_types.h"
 #include "t64.h"
 #include "d64.h"
-
-DAT_HEADER dat_file;
 
 static inline bool prg_size_valid(u32 size)
 {

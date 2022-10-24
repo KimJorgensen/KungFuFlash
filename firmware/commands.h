@@ -44,6 +44,7 @@ typedef enum
     CMD_MESSAGE,
     CMD_WARNING,
     CMD_FLASH_MESSAGE,
+    CMD_TEXT,
     CMD_TEXT_WAIT,
 
     CMD_MENU,

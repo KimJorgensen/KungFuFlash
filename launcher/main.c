@@ -194,12 +194,16 @@ static void mainLoopKFF(void)
                 kff_wait_for_sync();
                 break;
 
+            case CMD_TEXT:
             case CMD_TEXT_WAIT:
                 kff_receive_data(&cxy, sizeof(cxy));
                 text = kff_read_text();
                 textcolor(cxy[0]);
                 cputsxy(cxy[1], cxy[2], text);
-                kff_wait_for_sync();
+                if (cmd == CMD_TEXT_WAIT)
+                {
+                    kff_wait_for_sync();
+                }
                 break;
 
             case CMD_MENU:

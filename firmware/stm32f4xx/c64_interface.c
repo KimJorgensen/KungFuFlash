@@ -138,17 +138,13 @@ static void c64_clock_config()
     /**** Setup timer 1 to measure clock speed in CCR1 and duty cycle in CCR2 ****/
 
     // CC1 and CC2 channel is input, IC1 and IC2 is mapped on TI1
-    MODIFY_REG(TIM1->CCMR1,
-               TIM_CCMR1_CC1S|TIM_CCMR1_CC2S,
-               TIM_CCMR1_CC1S_0|TIM_CCMR1_CC2S_1);
+    TIM1->CCMR1 = TIM_CCMR1_CC1S_0|TIM_CCMR1_CC2S_1;
 
     // TI1FP1 active on falling edge. TI1FP2 active on rising edge
-    MODIFY_REG(TIM1->CCER,
-               TIM_CCER_CC1P|TIM_CCER_CC1NP|TIM_CCER_CC2P|TIM_CCER_CC2NP,
-               TIM_CCER_CC1P);
+    TIM1->CCER = TIM_CCER_CC1P;
 
     // Select TI1FP1 as trigger
-    MODIFY_REG(TIM1->SMCR, TIM_SMCR_TS|TIM_SMCR_SMS, TIM_SMCR_TS_2|TIM_SMCR_TS_0);
+    TIM1->SMCR = TIM_SMCR_TS_2|TIM_SMCR_TS_0;
 
     // Set reset mode
     TIM1->SMCR |= TIM_SMCR_SMS_2;
@@ -158,18 +154,17 @@ static void c64_clock_config()
 
     /**** Setup phi2 interrupt ****/
 
-    // Generate OC3 interrupt before 0.5 of the C64 clock cycle
-    // Value set in c64_interface()
+    // Generate CC3 interrupt just before the C64 CPU clock cycle begings
+    // Value set by c64_interface()
     TIM1->CCR3 = 52;
 
     // Set CC4IF on timer owerflow
     TIM1->CCR4 = -1;
 
-    // Enable compare mode 1. OC3 and OC4 is high when TIM1_CNT == TIM1_CCRx
-    MODIFY_REG(TIM1->CCMR2, TIM_CCMR2_OC3M|TIM_CCMR2_OC3M,
-                            TIM_CCMR2_OC3M_0|TIM_CCMR2_OC4M_0);
+    // Enable compare mode 1. OC3REF is high when TIM1_CNT == TIM1_CCR3
+    TIM1->CCMR2 = TIM_CCMR2_OC3M_0;
 
-    // Disable all TIM1 (and TIM8) interrupts
+    // Disable all TIM1 interrupts
     TIM1->DIER = 0;
 
     // Enable TIM1_CC_IRQn, highest priority
@@ -177,7 +172,7 @@ static void c64_clock_config()
     NVIC_EnableIRQ(TIM1_CC_IRQn);
 
     // Enable counter
-    TIM1->CR1 |= TIM_CR1_CEN;
+    TIM1->CR1 = TIM_CR1_CEN;
 }
 
 /*************************************************
@@ -231,17 +226,51 @@ static void c64_diag_handler(void)
 *************************************************/
 static void c64_interface_enable_no_check(void)
 {
-    u32 dier = TIM1->DIER | TIM_DIER_CC3IE;
-    COMPILER_BARRIER();
+    s8 phi2_offset = dat_file.phi2_offset;
 
+    // Limit offset
+    if (phi2_offset > 20)
+    {
+        phi2_offset = 20;
+    }
+    else if (phi2_offset < -20)
+    {
+        phi2_offset = -20;
+    }
+    dat_file.phi2_offset = phi2_offset;
+
+    if (c64_is_ntsc())  // NTSC timing
+    {
+        // Generate interrupt before phi2 is high
+        TIM1->CCR3 = NTSC_PHI2_INT + phi2_offset;
+
+        // Abuse COMPx registers for better performance
+        DWT->COMP0 = NTSC_PHI2_HIGH + phi2_offset;  // After phi2 is high
+        DWT->COMP1 = NTSC_PHI2_LOW + phi2_offset;   // Before phi2 is low
+    }
+    else    // PAL timing
+    {
+        // Generate interrupt before phi2 is high
+        TIM1->CCR3 = PAL_PHI2_INT + phi2_offset;
+
+        // Abuse COMPx registers for better performance
+        DWT->COMP0 = PAL_PHI2_HIGH + phi2_offset;   // After phi2 is high
+        DWT->COMP1 = PAL_PHI2_LOW + phi2_offset;    // Before phi2 is low
+    }
+    DWT->COMP2 = -phi2_offset;
+
+    COMPILER_BARRIER();
     __disable_irq();
     // Wait for next interrupt
-    TIM1->SR = ~TIM_SR_CC3IF;
+    TIM1->SR = 0;
     while (!(TIM1->SR & TIM_SR_CC3IF));
 
     // Capture/Compare 3 interrupt enable
-    TIM1->SR = ~(TIM_SR_CC3IF|TIM_SR_CC4IF);
-    TIM1->DIER = dier;
+    TIM1->SR = 0;
+    TIM1->DIER = TIM_DIER_CC3IE;
+
+    // Release reset here for C64_VIC_BUS_HANDLER
+    C64_RESET_RELEASE();
     __enable_irq();
 }
 
@@ -283,26 +312,7 @@ static void c64_interface(bool state)
 
         delay_us(2); // Wait more than a clock cycle
     }
-
     led_on();
-    if (c64_is_ntsc())
-    {
-        // NTSC timing
-        TIM1->CCR3 = NTSC_PHI2_INT;     // generate interrupt before phi2 is high
-
-        // Abuse COMPx registers for better performance
-        DWT->COMP0 = NTSC_PHI2_HIGH;    // after phi2 is high
-        DWT->COMP1 = NTSC_PHI2_LOW;     // before phi2 is low
-    }
-    else
-    {
-        // PAL timing
-        TIM1->CCR3 = PAL_PHI2_INT;     // generate interrupt before phi2 is high
-
-        // Abuse COMPx registers for better performance
-        DWT->COMP0 = PAL_PHI2_HIGH;    // after phi2 is high
-        DWT->COMP1 = PAL_PHI2_LOW;     // before phi2 is low
-    }
 
     c64_interface_enable_no_check();
 }
@@ -351,9 +361,26 @@ static void c64_reset_config(void)
 /*************************************************
 * Menu button and special button on PA4 & PA5
 *************************************************/
-static void special_button_wait_release(void)
+static u32 button_pressed(void)
 {
-    while (special_button_pressed());
+    u32 control = 0;
+    for (u32 i=0; i<24; i++)    // Debounce
+    {
+        control |= C64_CONTROL_READ();
+        delay_us(500);
+    }
+
+    return control & (MENU_BTN|SPECIAL_BTN);
+}
+
+static inline bool menu_button_pressed(void)
+{
+    return (button_pressed() & MENU_BTN) != 0;
+}
+
+static inline bool special_button_pressed(void)
+{
+    return (button_pressed() & SPECIAL_BTN) != 0;
 }
 
 void EXTI4_IRQHandler(void)

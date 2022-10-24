@@ -18,6 +18,8 @@
  * 3. This notice may not be removed or altered from any source distribution.
  */
 
+static bool (*c64_wait_handler)(void);
+
 // Use KFF registers to communicate with C64
 static inline bool c64_get_reply(u8 cmd, u8 *reply)
 {
@@ -60,26 +62,31 @@ static void c64_send_data(const void *buffer, size_t size)
     }
 }
 
-static u8 c64_wait_for_command(u8 cmd)
+static void c64_wait_for_command(u8 cmd)
 {
     u8 reply;
-    while (!c64_get_reply(cmd, &reply));
-
-    return reply;
+    while (!c64_get_reply(cmd, &reply))
+    {
+        if (c64_wait_handler && !c64_wait_handler())
+        {
+            c64_set_command(CMD_NONE);
+            break;
+        }
+    }
 }
 
-static u8 c64_send_command(u8 cmd)
+static void c64_send_command(u8 cmd)
 {
     c64_set_command(cmd);
-    return c64_wait_for_command(cmd);
+    c64_wait_for_command(cmd);
 }
 
-static u8 c64_interface_sync(void)
+static void c64_interface_sync(void)
 {
     c64_set_command(CMD_SYNC);
     c64_interface(true);
 
-    return c64_wait_for_command(CMD_SYNC);
+    c64_wait_for_command(CMD_SYNC);
 }
 
 static char sanitize_char(char c)
@@ -206,35 +213,45 @@ static void c64_send_petscii(const char *text)
     c64_send_byte(0);
 }
 
-static u8 c64_send_text_wait(u8 color, u8 x, u8 y, const char *text)
+static void c64_send_cxy_text(u8 color, u8 x, u8 y, const char *text)
 {
     c64_send_byte(color);
     c64_send_byte(x);
     c64_send_byte(y);
     c64_send_petscii(text);
-
-    return c64_send_command(CMD_TEXT_WAIT);
 }
 
-static u8 c64_send_message_command(u8 cmd, const char *text)
+static void c64_send_text(u8 color, u8 x, u8 y, const char *text)
+{
+    c64_send_cxy_text(color, x, y, text);
+    c64_send_command(CMD_TEXT);
+}
+
+static void c64_send_text_wait(u8 color, u8 x, u8 y, const char *text)
+{
+    c64_send_cxy_text(color, x, y, text);
+    c64_send_command(CMD_TEXT_WAIT);
+}
+
+static void c64_send_message_command(u8 cmd, const char *text)
 {
     c64_send_petscii(text);
-    return c64_send_command(cmd);
+    c64_send_command(cmd);
 }
 
-static inline u8 c64_send_message(const char *text)
+static inline void c64_send_message(const char *text)
 {
-    return c64_send_message_command(CMD_MESSAGE, text);
+    c64_send_message_command(CMD_MESSAGE, text);
 }
 
-static inline u8 c64_send_warning(const char *text)
+static inline void c64_send_warning(const char *text)
 {
-    return c64_send_message_command(CMD_WARNING, text);
+    c64_send_message_command(CMD_WARNING, text);
 }
 
-static inline u8 c64_send_prg_message(const char *text)
+static inline void c64_send_prg_message(const char *text)
 {
-    return c64_send_message_command(CMD_FLASH_MESSAGE, text);
+    c64_send_message_command(CMD_FLASH_MESSAGE, text);
 }
 
 static void c64_receive_string(char *buffer)

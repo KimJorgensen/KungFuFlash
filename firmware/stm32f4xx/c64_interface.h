@@ -105,14 +105,26 @@ static inline void led_toggle(void)
 * C64 clock input on PA8 (timer 1)
 *************************************************/
 
-// C64_BUS_HANDLER timing
-#define NTSC_PHI2_HIGH      94
-#define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 42)
-#define NTSC_PHI2_LOW       143
+FORCE_INLINE void wait_n_cycles(u32 n_cycles)
+{
+    asm volatile("1:\n\t"
+                 "adds %0, %0, #3\n\t"
+                 "ble 1b"
+                 :: "r"(n_cycles): "%0", "cc");
+}
 
-#define PAL_PHI2_HIGH       98
+#define WAIT_CYCLES(cnt, until)                             \
+    /* Make cycles to wait negative to reduce code size */  \
+    wait_n_cycles(cnt - until)
+
+// C64_BUS_HANDLER timing
+#define NTSC_PHI2_HIGH      98
+#define NTSC_PHI2_INT       (NTSC_PHI2_HIGH - 42)
+#define NTSC_PHI2_LOW       147
+
+#define PAL_PHI2_HIGH       102
 #define PAL_PHI2_INT        (PAL_PHI2_HIGH - 43)
-#define PAL_PHI2_LOW        149
+#define PAL_PHI2_LOW        153
 
 #define C64_BUS_HANDLER(name)                                                   \
     C64_BUS_HANDLER_(name##_handler, name##_read_handler, name##_write_handler)
@@ -124,15 +136,17 @@ static inline void led_toggle(void)
 __attribute__((optimize("O2")))                                                 \
 static void handler(void)                                                       \
 {                                                                               \
-    /* We need to clear the interrupt flag early otherwise the next */          \
-    /* interrupt may be delayed */                                              \
-    TIM1->SR = ~TIM_SR_CC3IF;                                                   \
     u32 phi2_high = DWT->COMP0;                                                 \
     COMPILER_BARRIER();                                                         \
+    /* We need to clear the interrupt flag early otherwise the next */          \
+    /* interrupt may be delayed */                                              \
+    TIM1->SR = 0;                                                               \
     /* Use debug cycle counter which is faster to access than timer */          \
-    DWT->CYCCNT = TIM1->CNT;                                                    \
+    u32 cnt = TIM1->CNT;                                                        \
+    DWT->CYCCNT = cnt;                                                          \
     COMPILER_BARRIER();                                                         \
-    while (DWT->CYCCNT < phi2_high);                                            \
+    /* Wait for CPU cycle */                                                    \
+    WAIT_CYCLES(cnt, phi2_high);                                                \
     u32 addr = C64_ADDR_READ();                                                 \
     u32 control = C64_CONTROL_READ();                                           \
     COMPILER_BARRIER();                                                         \
@@ -156,13 +170,13 @@ static void handler(void)                                                       
 
 // C64_VIC_BUS_HANDLER timing
 // NTSC
-#define NTSC_PHI2_CPU_START     97
-#define NTSC_PHI2_WRITE_DELAY   126
-#define NTSC_PHI2_CPU_END       NTSC_PHI2_LOW
+#define NTSC_PHI2_CPU_START     98
+#define NTSC_PHI2_WRITE_DELAY   127
+#define NTSC_PHI2_CPU_END       144
 
-#define NTSC_PHI2_VIC_START     17
-#define NTSC_PHI2_VIC_DELAY     32
-#define NTSC_PHI2_VIC_END       58
+#define NTSC_PHI2_VIC_START     180
+#define NTSC_PHI2_VIC_DELAY     195
+#define NTSC_PHI2_VIC_END       221
 
 #define NTSC_WRITE_DELAY()                              \
     /* Wait for data to become ready on the data bus */ \
@@ -183,13 +197,13 @@ static void handler(void)                                                       
     __NOP();
 
 // PAL
-#define PAL_PHI2_CPU_START      102
-#define PAL_PHI2_WRITE_DELAY    130
-#define PAL_PHI2_CPU_END        PAL_PHI2_LOW
+#define PAL_PHI2_CPU_START      103
+#define PAL_PHI2_WRITE_DELAY    131
+#define PAL_PHI2_CPU_END        150
 
-#define PAL_PHI2_VIC_START      18
-#define PAL_PHI2_VIC_DELAY      33
-#define PAL_PHI2_VIC_END        61
+#define PAL_PHI2_VIC_START      187
+#define PAL_PHI2_VIC_DELAY      202
+#define PAL_PHI2_VIC_END        230
 
 #define PAL_WRITE_DELAY()                               \
     /* Wait for data to become ready on the data bus */ \
@@ -263,15 +277,14 @@ static void handler(void)                                                       
 __attribute__((optimize("O2")))                                                 \
 void handler(void)                                                              \
 {                                                                               \
-    /* As we don't return from this handler, we need to do this here */         \
-    C64_RESET_RELEASE();                                                        \
-    /* Use debug cycle counter which is faster to access than timer */          \
-    DWT->CYCCNT = TIM1->CNT;                                                    \
-    COMPILER_BARRIER();                                                         \
     while (true)                                                                \
     {                                                                           \
+        /* Use debug cycle counter which is faster to access than timer */      \
+        u32 cnt = DWT->COMP2 + TIM1->CNT;                                       \
+        DWT->CYCCNT = cnt;                                                      \
+        COMPILER_BARRIER();                                                     \
         /* Wait for CPU cycle */                                                \
-        while (DWT->CYCCNT < timing##_PHI2_CPU_START);                          \
+        WAIT_CYCLES(cnt, timing##_PHI2_CPU_START);                              \
         u32 addr = C64_ADDR_READ();                                             \
         COMPILER_BARRIER();                                                     \
         u32 control = C64_CONTROL_READ();                                       \
@@ -310,9 +323,6 @@ void handler(void)                                                              
             break;                                                              \
         }                                                                       \
         /* Wait for VIC-II cycle */                                             \
-        while (TIM1->CNT >= 80);                                                \
-        DWT->CYCCNT = TIM1->CNT;                                                \
-        COMPILER_BARRIER();                                                     \
         while (DWT->CYCCNT < timing##_PHI2_VIC_START);                          \
         addr = C64_ADDR_READ();                                                 \
         COMPILER_BARRIER();                                                     \
@@ -327,6 +337,7 @@ void handler(void)                                                              
             while (DWT->CYCCNT < timing##_PHI2_VIC_END);                        \
             C64_DATA_INPUT();                                                   \
         }                                                                       \
+        COMPILER_BARRIER();                                                     \
     }                                                                           \
     C64_INTERFACE_DISABLE();                                                    \
     /* Ensure interrupt flag is cleared before leaving the handler */           \
@@ -352,24 +363,11 @@ static inline bool c64_interface_active(void)
 
 #define C64_INTERFACE_DISABLE()                 \
     /* Capture/Compare 3 interrupt disable */   \
-    TIM1->DIER &= ~TIM_DIER_CC3IE;              \
-    TIM1->SR = ~TIM_SR_CC3IF
+    TIM1->DIER = 0;                             \
+    TIM1->SR = 0
 
 /*************************************************
 * C64 reset on PA15
 *************************************************/
 #define C64_RESET_RELEASE()                     \
     GPIOA->BSRR = GPIO_BSRR_BR15
-
-/*************************************************
-* Menu button and special button on PA4 & PA5
-*************************************************/
-static inline bool menu_button_pressed(void)
-{
-    return (GPIOA->IDR & GPIO_IDR_ID4) != 0;
-}
-
-static inline bool special_button_pressed(void)
-{
-    return (GPIOA->IDR & GPIO_IDR_ID5) != 0;
-}

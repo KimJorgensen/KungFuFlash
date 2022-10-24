@@ -236,7 +236,7 @@ typedef struct
 
     u8 flags;           // DAT_FLAGS
     u8 boot_type;       // DAT_BOOT_TYPE
-    u8 reserved;        // Should be 0
+    s8 phi2_offset;
 
     union
     {
@@ -252,3 +252,5 @@ typedef struct
 
 #define ELEMENT_NOT_SELECTED 0xffff
 #define DAT_SIGNATURE "KungFu:\1"
+
+static DAT_HEADER dat_file;
