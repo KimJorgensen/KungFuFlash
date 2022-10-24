@@ -21,7 +21,22 @@ Both jumpers should be removed after the firmware has been installed.
 ## Diagnostic
 Introduced in firmware v1.27
 
-The diagnostic tool is started by pressing the menu button for 2 seconds (until the LED turns off) and is intended to help debug stability problems on some C64 models.
-The tool can also be started in a USB only mode if Kung Fu Flash refuses to start at all. In this mode debug data is send via USB only and the C64 should start normally (boot to Basic). This mode is started by pressing both the special and menu button for 2 seconds, then releasing the menu button followed by the special button.
-
+The diagnostic tool is started by pressing the menu button for 2 seconds (until the LED turns off) and is intended to debug stability problems on some C64 models.
 For reference the phi2 clock frequency should be around 985248 Hz for PAL and around 1022727 Hz for NTSC.
+
+As of firmware v1.44, the diagnostic tool allows adjusting a phi2 clock offset to address any stability issues.
+Some C64 breadbin/longboards may require a small negative phi2 offset and C64C/shortboards may require a small positive offset.
+
+In the diagnostic tool the following buttons on the cartridge can be used:
+
+* Reset: Exit diagnostic tool without saving offset
+
+* Menu: Increase offset
+* Menu, hold for 2 seconds: Reset offset (without saving)
+
+* Special: Decrease offset
+* Special, hold for 2 seconds: Save offset and exit
+
+* Special + Menu, hold for 2 seconds: Reset and save offset. This combo will also work without starting the diagnostic tool first
+
+The phi2 offset is saved to the KungFuFlash.dat file and is reset if the file is not found on the SD card.
