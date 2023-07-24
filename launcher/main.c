@@ -92,6 +92,7 @@ static const char menuBar[] =    {"          " KUNG_FU_FLASH_VER "  <F1> Help"};
 
 int main(void)
 {
+    uint8_t i, tmp, tst;
     initScreen(COLOR_BLACK, COLOR_BLACK, TEXTC);
 
     dir = (Directory *)malloc(sizeof(Directory));
@@ -111,12 +112,27 @@ int main(void)
 
     isC128 = is_c128() != 0;
 
-    if (USB_STATUS == KFF_ID_VALUE)
+    if (USB_STATUS == KFF_ID_VALUE) // KFF mode
     {
         mainLoopKFF();
     }
-    else
+    else    // EF3 mode
     {
+        // We can also end up here if there is a hardware problem
+        // Test EF3 RAM to make sure we are indeed in EF3 mode
+        tst = tmp = EF_RAM_TEST;
+        for (i=0; i<=8; i++)
+        {
+            if (EF_RAM_TEST != tst)
+            {
+                showMessage("Communication with cartridge failed.", ERRORC);
+                cprintf("Check hardware");
+                while (true);
+            }
+            EF_RAM_TEST = tst = 1<<i;
+        }
+        EF_RAM_TEST = tmp;
+
         mainLoopEF3();
     }
 

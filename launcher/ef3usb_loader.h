@@ -28,6 +28,8 @@
 #ifndef _EF3USB_LOADER_H_
 #define _EF3USB_LOADER_H_
 
+#define EF_RAM_TEST *((volatile uint8_t*) 0xdf10)
+
 void ef3usb_load_and_run(void);
 
 #endif /* _EF3USB_LOADER_H_ */

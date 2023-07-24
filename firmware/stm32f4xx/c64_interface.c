@@ -427,6 +427,7 @@ static void c64_interface_config(void)
 {
     c64_address_config();
     c64_data_config();
+    c64_control_config();
 
     c64_crt_config();
     c64_irq_config();
