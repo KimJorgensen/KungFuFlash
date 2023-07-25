@@ -54,7 +54,7 @@ The following cartridge types are currently supported:
 The following file types are currently supported:
 
 * Cartridge (CRT)
-* C128 external function ROM (ROM, BIN)
+* C64/C128 Generic cartridge (ROM, BIN)
 * Disk image (D64, D71, D81)
 * Tape image (T64)
 * Program (PRG, P00)

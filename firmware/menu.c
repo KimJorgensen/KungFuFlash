@@ -215,8 +215,9 @@ static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no
             break;
 
         case FILE_CRT:
-            select_text = "Run";
             vic_text = "Run (VIC-II/C128 mode)";
+        case FILE_ROM:
+            select_text = "Run";
             break;
 
         case FILE_P00:

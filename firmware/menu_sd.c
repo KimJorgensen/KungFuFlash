@@ -569,31 +569,69 @@ static u8 sd_handle_load(SD_STATE *state, const char *file_name, u8 file_type,
             FIL file;
             sd_file_open(&file, file_name);
 
-            if (!rom_load_file(&file) ||
-                // Look for C128 CRT identifier
-                memcmp("CBM", &dat_buffer[0x0007], 3) != 0 ||
-                memcmp("CBM", &dat_buffer[0x4007], 3) != 0)
+            u16 len = rom_load_file(&file);
+            if (len &&  // Look for C128 CRT identifier
+                (memcmp("CBM", &dat_buffer[0x0007], 3) == 0 ||
+                 memcmp("CBM", &dat_buffer[0x4007], 3) == 0))
+            {
+                dat_file.crt.type = CRT_C128_NORMAL_CARTRIDGE;
+                dat_file.crt.exrom = 1;
+                dat_file.crt.game = 1;
+
+                if (!crt_is_supported(dat_file.crt.type))
+                {
+                    return sd_handle_crt_unsupported(dat_file.crt.type);
+                }
+
+                if (sd_c128_only_warning(flags))
+                {
+                    return sd_handle_c128_only_warning(file_name, element);
+                }
+            }
+            else if (len && len <= 16*1024)
+            {
+                dat_file.crt.type = CRT_NORMAL_CARTRIDGE;
+                dat_file.crt.exrom = 0;
+                dat_file.crt.game = 0;
+                // Look for C64 CRT identifier "CBM80"
+                if (memcmp("\xc3""\xc2""\xcd""80", &dat_buffer[0x0004], 5) == 0)
+                {
+                    if (len <= 8*1024)
+                    {
+                        dat_file.crt.game = 1;
+                    }
+                }
+                else    // Assume Ultimax
+                {
+                    dat_file.crt.exrom = 1;
+                    // Mirror the first 4k
+                    if (len <= 4*1024)
+                    {
+                        memcpy(&dat_buffer[4*1024], dat_buffer, 4*1024);
+                    }
+
+                    // Mirror the first 8k
+                    if (len <= 8*1024)
+                    {
+                        memcpy(&dat_buffer[8*1024], dat_buffer, 8*1024);
+                    }
+
+                    // Validate reset vector
+                    u8 reset_hi = dat_buffer[0x3ffd];
+                    if (reset_hi < 0x80 || (reset_hi >= 0xa0 && reset_hi < 0xe0))
+                    {
+                        return handle_unsupported(file_name);
+                    }
+                }
+            }
+            else
             {
                 return handle_unsupported(file_name);
             }
 
-            u32 type = CRT_C128_NORMAL_CARTRIDGE;
-            if (!crt_is_supported(type))
-            {
-                return sd_handle_crt_unsupported(type);
-            }
-
-            if (sd_c128_only_warning(flags))
-            {
-                return sd_handle_c128_only_warning(file_name, element);
-            }
-
             u8 banks = 4;
             u32 flash_hash = crt_calc_flash_crc(banks);
-            dat_file.crt.type = type;
             dat_file.crt.hw_rev = 0;
-            dat_file.crt.exrom = 1;
-            dat_file.crt.game = 1;
             dat_file.crt.banks = banks;
             dat_file.crt.flags = CRT_FLAG_VIC;
             dat_file.crt.flash_hash = flash_hash;
