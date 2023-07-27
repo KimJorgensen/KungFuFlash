@@ -1,4 +1,4 @@
-; Updated to be used with the latest 64tass compiler (V1.55.2200)
+; Updated to be used with the latest 64tass compiler (V1.58.2974)
 
 delta	= $02
 dummy	= $03
@@ -39,7 +39,7 @@ end
   rts
 .pend
 ;            0123456789012345678901234567890123456789
-.enc screen
+.enc "screen"
 text1  .text "initiating tap transfer now...",0
 
 ;---------------------------------
@@ -81,7 +81,7 @@ init_io .proc
 .pend
 
 ;---------------------------------
-;first, fill buffer 
+;first, fill buffer
 fill_buffer .proc
 init_loop
   lda delta
@@ -104,7 +104,7 @@ start_mastering
   ldx #0
   ldy delta    ;buffer starts ahead
 ;======================================
-start  
+start
    lda #OFFSET ;offset for timing, fine tune this ;-)
    sec
 source
@@ -123,7 +123,7 @@ source
   lda $01		;3
   ora #%00001000	;2
   sta $01		;3
- 
+
 ;try to read one byte
   lda delta ;if delta > 127 fetch no new byte	;3
   ;bmi no_new_byte				;2/3
@@ -135,8 +135,8 @@ source
  nop		;2
   lda dummy	;3
   jmp no_new_byte ;3
-  
-  
+
+
 good
   bit $de09	;4
   bpl no_new_byte ;USB  just wasnt ready yet
@@ -219,7 +219,7 @@ end4
   jmp endtaptransfer
 .pend
 ;            0123456789012345678901234567890123456789
-.enc screen
+.enc "screen"
 text2  .text "* end of tap file.",0
 text3  .text "* an error occured during transfer!",0
 
