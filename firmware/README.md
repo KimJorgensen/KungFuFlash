@@ -29,14 +29,11 @@ Some C64 breadbin/longboards may require a small negative phi2 offset and C64C/s
 
 In the diagnostic tool the following buttons on the cartridge can be used:
 
-* Reset: Exit diagnostic tool without saving offset
-
-* Menu: Increase offset
-* Menu, hold for 2 seconds: Reset offset (without saving)
-
-* Special: Decrease offset
-* Special, hold for 2 seconds: Save offset and exit
-
-* Special + Menu, hold for 2 seconds: Reset and save offset. This combo will also work without starting the diagnostic tool first
+* `Special`: Decrease offset
+* `Menu`: Increase offset
+* `Special`, hold for 2 seconds: Save offset and exit
+* `Menu`, hold for 2 seconds: Reset offset (without saving)
+* `Special` + `Menu`, hold for 2 seconds: Reset and save offset. This combo will also work without starting the diagnostic tool first
+* `Reset`: Exit diagnostic tool without saving offset
 
 The phi2 offset is saved to the KungFuFlash.dat file and is reset if the file is not found on the SD card.
