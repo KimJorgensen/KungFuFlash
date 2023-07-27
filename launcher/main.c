@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -50,6 +50,7 @@
 /* declarations */
 static void mainLoopEF3(void);
 static void mainLoopKFF(void);
+static void textReaderLoop(void);
 static uint8_t menuLoop(void);
 
 static void updateScreen(void);
@@ -75,6 +76,7 @@ static char inputBuffer[SEARCH_LENGTH+1];
 static char searchBuffer[SEARCH_LENGTH+1];
 static uint8_t searchLen;
 static uint8_t *bigBuffer = NULL;
+static uint16_t *pageBuffer = NULL;
 static Directory *dir = NULL;
 
 // Use different name to bypass FW update check for NTSC users (prior v1.32)
@@ -97,6 +99,7 @@ int main(void)
 
     dir = (Directory *)malloc(sizeof(Directory));
     bigBuffer = (uint8_t *)dir;
+    pageBuffer = (uint16_t *)dir;
 
     if (dir == NULL)
     {
@@ -222,6 +225,11 @@ static void mainLoopKFF(void)
                 }
                 break;
 
+            case CMD_TEXT_READER:
+                textReaderLoop();
+                wait_for_reset();
+                break;
+
             case CMD_MENU:
                 cmd = menuLoop();
                 continue;
@@ -263,6 +271,113 @@ static void showKFFMessage(uint8_t color)
 {
     const char *text = kff_read_text();
     showMessage(text, color);
+}
+
+static void showTextPage(uint16_t page)
+{
+    uint8_t i, chr, last_c = 0;
+
+    clrscr();
+    revers(1);
+    textcolor(BACKC);
+    cputsxy(0, 0, " >");
+    KFF_READ_PTR = 0;
+    for (i=0; i<DIR_NAME_LENGTH; i++)
+    {
+        cputc(KFF_DATA);
+    }
+    cputs("< ");
+    cputsxy(0, BOTTOM, programBar);
+    revers(0);
+    textcolor(TEXTC);
+    gotoxy(0, 1);
+
+    KFF_READ_PTR = pageBuffer[page];
+    while (true)
+    {
+        chr = KFF_DATA;
+        if (!chr || wherey() >= 24)
+        {
+            (KFF_READ_PTR)--;
+            break;
+        }
+
+        if (chr == 0x0a && last_c != 0x0d)  // Handle line endings
+        {
+            cputs("\r\n");
+        }
+        else if (chr == 0x09)   // Handle tab
+        {
+            if ((wherex() % 2) == 0)
+            {
+                cputs("  ");
+            }
+            else
+            {
+                cputc(' ');
+            }
+        }
+        else
+        {
+            cputc(chr);
+        }
+
+        last_c = chr;
+    }
+
+    pageBuffer[page + 1] = KFF_READ_PTR;
+}
+
+static void textReaderLoop(void)
+{
+    uint8_t c;
+    uint16_t i, size, page = 0;
+
+    KFF_READ_PTR = DIR_NAME_LENGTH;
+    kff_receive_data(&size, 2);
+    size++;
+    pageBuffer[0] = KFF_READ_PTR;
+    showTextPage(0);
+
+    waitRelease();
+    while (true)
+    {
+        c = kbhit() ? cgetc() : getJoy();
+        switch (c)
+        {
+            case CH_ENTER:
+            case CH_SHIFT_ENTER:
+            case CH_DEL:
+            case CH_STOP:
+                return;
+
+            case CH_HOME:
+            case CH_FIRE_LEFT:
+            case CH_FIRE_UP:
+                page = 0;
+                showTextPage(page);
+                break;
+
+            case CH_CURS_DOWN:
+            case CH_CURS_RIGHT:
+                if (KFF_READ_PTR < size && page < (sizeof(Directory)/2))
+                {
+                    showTextPage(++page);
+                }
+                break;
+
+            case CH_CURS_LEFT:
+            case CH_CURS_UP:
+                if (page)
+                {
+                    showTextPage(--page);
+                }
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 static void updateScreen(void)

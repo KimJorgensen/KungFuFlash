@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -159,6 +159,7 @@ typedef enum
     FILE_T64,
     FILE_T64_PRG,
     FILE_ROM,
+    FILE_TXT,
 
     FILE_UPD        = 0xfd,
     FILE_DAT,
@@ -184,7 +185,7 @@ typedef enum
     DAT_PRG,
     DAT_USB,
     DAT_DISK,
-    DAT_KERNAL,
+    DAT_TXT,
     DAT_BASIC,
     DAT_KILL,
     DAT_KILL_C128,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -736,6 +736,16 @@ static u8 sd_handle_load(SD_STATE *state, const char *file_name, u8 file_type,
             dat_file.prg.element = 0;
             menu = t64_menu_init(file_name);
             return menu->dir(menu->state);
+        }
+        break;
+
+        case FILE_TXT:
+        {
+            FIL file;
+            sd_file_open(&file, file_name);
+            txt_load_file(&file);
+            dat_file.boot_type = DAT_TXT;
+            return CMD_WAIT_SYNC;
         }
         break;
 

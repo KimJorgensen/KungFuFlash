@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -24,8 +24,9 @@
 #ifndef KFF_DATA_H
 #define KFF_DATA_H
 
-#define KFF_DATA    *((volatile uint8_t*) 0xde00)
-#define KFF_COMMAND *((volatile uint8_t*) 0xde01)
+#define KFF_DATA        *((volatile uint8_t*) 0xde00)
+#define KFF_COMMAND     *((volatile uint8_t*) 0xde01)
+#define KFF_READ_PTR    *((volatile uint16_t*) 0xde04)
 
 #define KFF_SEND_BYTE(data) KFF_DATA = (data)
 #define KFF_GET_COMMAND()   (KFF_COMMAND)

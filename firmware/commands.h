@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -46,6 +46,7 @@ typedef enum
     CMD_FLASH_MESSAGE,
     CMD_TEXT,
     CMD_TEXT_WAIT,
+    CMD_TEXT_READER,
 
     CMD_MENU,
     CMD_READ_DIR,

@@ -54,11 +54,12 @@ The following cartridge types are currently supported:
 The following file types are currently supported:
 
 * Cartridge (CRT)
-* C64/C128 Generic cartridge (ROM, BIN)
+* C64/C128 generic cartridge (ROM, BIN)
 * Disk image (D64, D71, D81)
 * Tape image (T64)
 * Program (PRG, P00)
 * Firmware update (UPD)
+* Text document (TXT, NFO, 1ST)
 
 ## USB Port
 The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.

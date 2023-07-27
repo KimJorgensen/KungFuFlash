@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -194,14 +194,14 @@ static char ascii_to_petscii(char c)
     return c;
 }
 
-static void c64_send_petscii(const char *text)
+static void c64_send_petscii(const char *text, u16 max_len)
 {
     dbg("Sending text \"%s\"", text);
 
     u16 text_len = strlen(text) + 1;
-    if (text_len > 800)
+    if (text_len > max_len)
     {
-        text_len = 800;
+        text_len = max_len;
     }
     c64_send_data(&text_len, 2);
 
@@ -213,12 +213,17 @@ static void c64_send_petscii(const char *text)
     c64_send_byte(0);
 }
 
+static void c64_send_petscii_line(const char *text)
+{
+    c64_send_petscii(text, 800);
+}
+
 static void c64_send_cxy_text(u8 color, u8 x, u8 y, const char *text)
 {
     c64_send_byte(color);
     c64_send_byte(x);
     c64_send_byte(y);
-    c64_send_petscii(text);
+    c64_send_petscii_line(text);
 }
 
 static void c64_send_text(u8 color, u8 x, u8 y, const char *text)
@@ -233,9 +238,15 @@ static void c64_send_text_wait(u8 color, u8 x, u8 y, const char *text)
     c64_send_command(CMD_TEXT_WAIT);
 }
 
+static void c64_send_text_reader(const char *text, u16 max_len)
+{
+    c64_send_petscii(text, max_len);
+    c64_send_command(CMD_TEXT_READER);
+}
+
 static void c64_send_message_command(u8 cmd, const char *text)
 {
-    c64_send_petscii(text);
+    c64_send_petscii_line(text);
     c64_send_command(cmd);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -72,6 +72,15 @@ static u16 rom_load_file(FIL *file)
     memset(dat_buffer, 0xff, sizeof(dat_buffer));
 
     u16 len = file_read(file, dat_buffer, sizeof(dat_buffer));
+    return len;
+}
+
+static u16 txt_load_file(FIL *file)
+{
+    memset(dat_buffer, 0x00, sizeof(dat_buffer));
+
+    u16 len = file_read(file, &dat_buffer[DIR_NAME_LENGTH+2],
+                        sizeof(dat_buffer) - (DIR_NAME_LENGTH+3));
     return len;
 }
 
@@ -682,6 +691,14 @@ static bool load_disk(void)
     return true;
 }
 
+static void start_text_reader(void)
+{
+    format_path(scratch_buf, true);
+    c64_send_data(scratch_buf, DIR_NAME_LENGTH);
+    c64_send_text_reader((char *)&dat_buffer[DIR_NAME_LENGTH+2],
+                         sizeof(dat_buffer) - (DIR_NAME_LENGTH+3));
+}
+
 static void c64_launcher_mode(void)
 {
     crt_ptr = CRT_LAUNCHER_BANK;
@@ -766,6 +783,15 @@ static bool c64_set_mode(void)
                 break;
             }
 
+            c64_disable();
+            kff_init();
+            c64_enable();
+            result = true;
+        }
+        break;
+
+        case DAT_TXT:
+        {
             c64_disable();
             kff_init();
             c64_enable();
