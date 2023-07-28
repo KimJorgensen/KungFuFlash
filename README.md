@@ -16,7 +16,7 @@ If you have mounted the USB connector you will need to cut a hole for that as we
 
 You can also 3D print a cartridge case as the one designed by bigby, [see here](https://www.thingiverse.com/thing:4153414).
 
-![Kung Fu Flash PCB](pics/pcb_rev1.jpg)
+![Kung Fu Flash PCB](pics/pcb_rev2.jpg)
 
 The gerber files and BOM can be found [here](https://github.com/KimJorgensen/KungFuFlash/releases/tag/rev.2).
 
