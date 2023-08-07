@@ -491,11 +491,9 @@ int main(int argc, char *argv[])
 {
   char *fname = NULL;
   FILE *fp;
-  int read;
+  int read = 0;
 
   int i;
-  int len;
-  int batch;
   int mode = 0;
   int mode40 = 0;
   int command = -1;
@@ -736,7 +734,7 @@ int main(int argc, char *argv[])
                         bufstart[fnlen+3]='0';
                 }
 
-                if (!(fp = fopen(bufstart, "wb")))
+                if (!(fp = fopen((char *)bufstart, "wb")))
                 {
                         printf("Can't open %s for writing !\n", bufstart);
                 }
@@ -857,7 +855,7 @@ int main(int argc, char *argv[])
                                 bufstart[0] = 0xff;                     // indicate that we are transferring a sector
                                 written = serial_write(bufstart, 1);
 
-                                sprintf(bufstart,"%2d %2d",track,sector);
+                                sprintf((char *)bufstart,"%2d %2d",track,sector);
                                 written = serial_write(bufstart, 5);       // send over the string containing track & sector
 
                                 // calc checksum
@@ -930,7 +928,7 @@ int main(int argc, char *argv[])
 
                         for(int il = 0; il < interleave; il++) {
                                 for(sector = numsec -1 - il; sector>=0; sector-=interleave) {
-                                        
+
                                         printf("T:%2d S:%2d%c%c%c%c%c%c%c%c%c",track,sector,8,8,8,8,8,8,8,8,8);
                                         fflush(stdout);
 
@@ -1055,7 +1053,7 @@ int main(int argc, char *argv[])
                                 bufstart[0] = 0xff;                     // indicate that we are transferring a sector
                                 written = serial_write(bufstart, 1);
 
-                                sprintf(bufstart,"%2d %2d",track,sector);
+                                sprintf((char *)bufstart,"%2d %2d",track,sector);
                                 written = serial_write(bufstart, 5);       // send over the string containing track & sector
 
                                 written = serial_read(buf+pos, 256);      // send the sector over
@@ -1346,15 +1344,14 @@ int main(int argc, char *argv[])
 
         startcommand(0x09);
 
-        size_t  size;
         size_t total = 0;
         uint8_t       buffer[256];
 
-                size_t bufsize = 40000000;
+        size_t bufsize = 40000000;
 
-                sprintf(buffer, "C64-TAPE-RAW%c", 0x01);
+        sprintf((char *)buffer, "C64-TAPE-RAW%c", 0x01);
 
-            unsigned char * buf = (unsigned char *) malloc(bufsize);
+        unsigned char * buf = (unsigned char *) malloc(bufsize);
 
         printf(" - Press PLAY on tape to start reading!");
 
@@ -1495,7 +1492,7 @@ int main(int argc, char *argv[])
         do
         {
                 waiting = 0;
-                sprintf(bufstart,"EFSTART:PRG%c",0);
+                sprintf((char *)bufstart,"EFSTART:PRG%c",0);
 
                 printf("Handshake: EFSTART:PRG\n");
                 written = serial_write(bufstart, 12);
@@ -1572,7 +1569,7 @@ int main(int argc, char *argv[])
         do
         {
                 waiting = 0;
-                sprintf(bufstart,"EFSTART:CRT%c",0);
+                sprintf((char *)bufstart,"EFSTART:CRT%c",0);
 
                 printf("Handshake: EFSTART:CRT\n");
                 written = serial_write(bufstart, 12);
@@ -1853,8 +1850,6 @@ int main(int argc, char *argv[])
                                                 usednum = 0;
                                                 int ok = 1;
                                                 int corrupted = 0;
-                                                unsigned char currtr = filetr;
-                                                unsigned char currse = filese;
                                                 fileptr = 0;
                                                 while (ok)
                                                 {
