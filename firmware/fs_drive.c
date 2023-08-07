@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -137,6 +137,12 @@ static char * fs_get_filename(D64_DIR_ENTRY *entry)
     }
 
     return entry->filename;
+}
+
+static inline bool fs_is_file_type(D64_DIR_ENTRY *entry, u8 file_type)
+{
+    // The file system does not support different file types
+    return (entry->type & 7) != D64_FILE_DIR;
 }
 
 static void fs_open_file_read(DISK_CHANNEL *channel, D64_DIR_ENTRY *entry)

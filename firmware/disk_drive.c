@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -155,6 +155,16 @@ static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
     }
 
     return found;
+}
+
+static bool disk_is_file_type(D64_DIR_ENTRY *entry, u8 file_type)
+{
+    if (dat_file.disk.mode)
+    {
+        return d64_is_file_type(entry, file_type);
+    }
+
+    return fs_is_file_type(entry, file_type);
 }
 
 static char * disk_get_diskname(DISK_CHANNEL *channel)
@@ -463,7 +473,7 @@ static D64_DIR_ENTRY * disk_find_file(DISK_CHANNEL *channel,
     D64_DIR_ENTRY *entry;
     while ((entry = disk_read_dir(channel)))
     {
-        if (file_type && !d64_is_file_type(entry, file_type))
+        if (file_type && !disk_is_file_type(entry, file_type))
         {
             continue;
         }
@@ -689,7 +699,7 @@ static u8 disk_handle_save(DISK_CHANNEL *channel)
 
     D64_DIR_ENTRY *existing = disk_find_file(channel, parsed.name, 0);
     if ((existing && (!parsed.overwrite ||
-                      !d64_is_file_type(existing, parsed.type))) ||
+                      !disk_is_file_type(existing, parsed.type))) ||
         (!existing && parsed.wildcard))
     {
         disk_last_error = DISK_STATUS_EXISTS;
@@ -970,7 +980,7 @@ static u8 disk_handle_open_write(DISK_CHANNEL *channel, PARSED_FILENAME *parsed)
 {
     D64_DIR_ENTRY *existing = disk_find_file(channel, parsed->name, 0);
     if ((existing && (!parsed->overwrite ||
-                      !d64_is_file_type(existing, parsed->type))) ||
+                      !disk_is_file_type(existing, parsed->type))) ||
         (!existing && parsed->wildcard))
     {
         disk_last_error = DISK_STATUS_EXISTS;

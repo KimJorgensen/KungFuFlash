@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -179,7 +179,7 @@ typedef struct
 typedef struct
 {
     D64_TS next;
-    u8 type;
+    u8 type;            // D64_FILE_TYPE
     D64_TS start;
     char filename[16];
     u8 ignored[9];
