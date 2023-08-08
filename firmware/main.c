@@ -66,9 +66,11 @@ int main(void)
 
     if (dat_file.boot_type == DAT_CRT || dat_file.boot_type == DAT_DISK)
     {
+#if !(LOG_ENABLED)
         // Disable all interrupts besides the C64 bus handler beyond this point
         // to ensure consistent response times
         usb_disable();
+#endif
     }
 
     if (!c64_set_mode())

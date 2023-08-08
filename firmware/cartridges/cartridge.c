@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -29,7 +29,7 @@ static u8 *crt_rom_ptr;
 static u32 special_button;
 static u32 freezer_state;
 
-/* ordered by cartridge id */
+// Ordered by cartridge id
 #include "crt_normal.c"
 #include "action_replay_4x.c"
 #include "kcs_power_cartridge.c"
@@ -64,6 +64,8 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
         case CRT_NORMAL_CARTRIDGE:
             return NTSC_OR_PAL_HANDLER(crt);
 
+// Make room for debug logging by disabling support for some cartridges
+#if !(LOG_ENABLED)
         case CRT_ACTION_REPLAY:
             return NTSC_OR_PAL_HANDLER(ar4x);
 
@@ -104,6 +106,7 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
 
         case CRT_COMAL_80:
             return comal80_handler;
+#endif
 
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:

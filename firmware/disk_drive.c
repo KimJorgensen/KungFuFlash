@@ -798,6 +798,11 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
         return true;
     }
 
+    if (filename[0] != '-')
+    {
+        dbg("handle disk command: %s", filename);
+    }
+
     if (filename[0] == 'M') // Memory command
     {
         status = DISK_STATUS_UNSUPPORTED;
@@ -891,9 +896,14 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
         track = disk_parse_number(&filename, 2);
         sector = disk_parse_number(&filename, 2);
 
+        if (drive)
+        {
+            return false;
+        }
+
         DISK_CHANNEL *buf_channel = channel - (15 - channel_no);
         if (dat_file.disk.mode && channel_no >= 2 && channel_no <= 14 &&
-            buf_channel->buf_mode == DISK_BUF_USE && !drive && track)
+            buf_channel->buf_mode == DISK_BUF_USE && track)
         {
             D64_TS ts = {track, sector};
             if (read)
