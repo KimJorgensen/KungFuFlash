@@ -800,7 +800,7 @@ static bool disk_handle_command(DISK_CHANNEL *channel, char *filename)
 
     if (filename[0] != '-')
     {
-        dbg("handle disk command: %s", filename);
+        dbg("Handle disk command: %s", filename);
     }
 
     if (filename[0] == 'M') // Memory command
