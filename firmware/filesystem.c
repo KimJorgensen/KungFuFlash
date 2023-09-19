@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -17,6 +17,9 @@
  *    misrepresented as being the original software.
  * 3. This notice may not be removed or altered from any source distribution.
  */
+
+// Use a different name for DIR to avoid conflict with the POSIX type
+#define DIR_t DIR
 
 static FATFS fs;
 
@@ -202,7 +205,7 @@ static bool dir_current(char *path, size_t path_size)
     return res == FR_OK;
 }
 
-static bool dir_open(DIR *dir, const char *pattern)
+static bool dir_open(DIR_t *dir, const char *pattern)
 {
     if (!pattern || !pattern[0])
     {
@@ -220,7 +223,7 @@ static bool dir_open(DIR *dir, const char *pattern)
     return res == FR_OK;
 }
 
-static bool dir_read(DIR *dir, FILINFO *file_info)
+static bool dir_read(DIR_t *dir, FILINFO *file_info)
 {
     FRESULT res;
     do
@@ -244,7 +247,7 @@ static bool dir_read(DIR *dir, FILINFO *file_info)
     return res == FR_OK;
 }
 
-static bool dir_close(DIR *dir)
+static bool dir_close(DIR_t *dir)
 {
     FRESULT res = f_closedir(dir);
     if (res != FR_OK)

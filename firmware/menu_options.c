@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -34,7 +34,7 @@ static u8 options_dir(OPTIONS_STATE *state)
         {
             element->text[0] = SELECTED_ELEMENT;
         }
-        else if (element->text[0] == SELECTED_ELEMENT)
+        else if (element->text[0] == (char)SELECTED_ELEMENT)
         {
             element->text[0] = ' ';
         }

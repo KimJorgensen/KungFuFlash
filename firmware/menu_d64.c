@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -44,7 +44,7 @@ static void sprint_u16_left(char *buffer, u16 val)
 static void d64_sanitize_filename(char *dest, const char *src)
 {
     char c;
-    while ((c = *src++) && c != 0xa0)
+    while ((c = *src++) && c != (char)0xa0)
     {
         *dest++ = sanitize_char(c);
     }

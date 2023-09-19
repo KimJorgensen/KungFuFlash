@@ -104,7 +104,7 @@ static char * convert_to_screen_code(char *dest, const char *src)
 {
     while (*src)
     {
-        char c = *src++;
+        u8 c = *src++;
         if (c <= 0x1f)
         {
             c |= 0x80;

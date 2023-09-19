@@ -32,7 +32,7 @@
 #include "menu_options.c"
 #include "menu_settings.c"
 
-static void menu_loop()
+static void menu_loop(void)
 {
     menu = sd_menu_init();
     char *search = sd_state.search;

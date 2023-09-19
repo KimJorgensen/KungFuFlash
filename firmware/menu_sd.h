@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -23,8 +23,8 @@ typedef struct
     bool in_root;
     bool dir_end;
 
-    DIR start_page;
-    DIR end_page;
+    DIR_t start_page;
+    DIR_t end_page;
     u16 page_no;
 
     char search[SEARCH_LENGTH+2];

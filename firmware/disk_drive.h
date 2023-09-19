@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -69,6 +69,6 @@ typedef struct
     u8 buf2_ptr;
 
     D64 d64;
-    DIR dir;
+    DIR_t dir;
     FIL file;
 } DISK_CHANNEL;

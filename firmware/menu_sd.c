@@ -303,7 +303,7 @@ static u8 sd_handle_dir(SD_STATE *state)
 
     if (dat_file.file[0])
     {
-        DIR first_page = state->start_page;
+        DIR_t first_page = state->start_page;
         while (true)
         {
             u8 element = 0;
@@ -415,7 +415,7 @@ static u8 sd_handle_dir_next_page(SD_STATE *state)
 {
     if (!state->dir_end)
     {
-        DIR start = state->end_page;
+        DIR_t start = state->end_page;
         state->page_no++;
 
         if (sd_send_page(state, MAX_ELEMENTS_PAGE) > 0)
@@ -819,7 +819,7 @@ static u8 sd_handle_select(SD_STATE *state, u8 flags, u8 element)
     }
 
     FILINFO file_info;
-    DIR dir = state->start_page;
+    DIR_t dir = state->start_page;
     for (u8 i=0; i<=element_no; i++)
     {
         if (!dir_read(&dir, &file_info))

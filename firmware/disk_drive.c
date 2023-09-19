@@ -57,7 +57,7 @@ static void put_diskname(u8 **ptr, char* str)
     for (u32 i=0; i<23; i++)
     {
         char c = *str++;
-        if (c == 0xa0)
+        if (c == (char)0xa0)
         {
             c = (i != 22) ? ' ' : '1';
         }
@@ -79,7 +79,7 @@ static void put_filename(u8 **ptr, const char* str)
             // Allow characters after the end-quote, like the 1541
             c &= 0x7f;
         }
-        else if (c == 0xa0 || c == '"')
+        else if (c == (char)0xa0 || c == '"')
         {
             end_char = ' ';
             c = '"';
@@ -136,7 +136,7 @@ static bool disk_filename_match(D64_DIR_ENTRY *entry, const char *filename)
         {
             continue;
         }
-        else if (!f && e == 0xa0)
+        else if (!f && e == (char)0xa0)
         {
             break;
         }

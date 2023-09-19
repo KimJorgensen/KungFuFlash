@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -90,7 +90,7 @@ static inline void timer_start_ms(u32 ms)
     timer_start_us(1000 * ms);
 }
 
-static inline bool timer_elapsed()
+static inline bool timer_elapsed(void)
 {
     return (SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk);
 }
