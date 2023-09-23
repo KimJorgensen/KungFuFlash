@@ -48,6 +48,7 @@ typedef enum
     DISK_BUF_NONE   = 0x00,
     DISK_BUF_USE,
     DISK_BUF_DIR,
+    DISK_BUF_DIR_END,
     DISK_BUF_SAVE
 } DISK_BUF_MODE;
 

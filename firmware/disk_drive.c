@@ -1065,7 +1065,7 @@ static u8 disk_handle_open_prg(DISK_CHANNEL *channel, char *filename)
 static u8 disk_hand_open_buffer(DISK_CHANNEL *channel)
 {
     channel->buf_len = sizeof(channel->buf);
-    channel->buf_ptr = 0;
+    channel->buf_ptr = 1;   // Skip first byte like the 1541
     channel->buf_mode = DISK_BUF_USE;
     return CMD_NONE;
 }
@@ -1138,12 +1138,17 @@ static u8 disk_handle_send_byte(DISK_CHANNEL *channel)
             if (!disk_put_dir_entry(channel, &ptr))
             {
                 disk_put_dir_footer(channel, &ptr);
-                channel->buf_mode = DISK_BUF_USE;
+                channel->buf_mode = DISK_BUF_DIR_END;
             }
 
             channel->buf_len = ptr - channel->buf;
             channel->buf_ptr = 0;
             return CMD_NONE;
+        }
+        else if (channel->buf_mode == DISK_BUF_USE && channel->number != 15)
+        {
+            // Wrap around and skip first byte like the 1541
+            channel->buf_ptr = 1;
         }
 
         return CMD_END_OF_FILE;
