@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -150,6 +150,7 @@ static void vkprint(const char *fmt, va_list args, void (*_putchar)(char))
         case 'p':
             _putchar('0');
             _putchar('x');
+            // fall through
         case 'x':
         case 'X':
             printhex(va_arg(args, int), ndigits, _putchar);

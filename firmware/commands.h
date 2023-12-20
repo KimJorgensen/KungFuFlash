@@ -24,10 +24,12 @@
 #define SEARCH_LENGTH 26
 
 // Use non-breaking spaces as first character in dir name
+#define NORMAL_DIR       0x20
 #define SEARCH_SUPPORTED 0xa0
 #define CLEAR_SEARCH     0xe0
 
 // Use non-breaking spaces as first character for element type
+#define NORMAL_ELEMENT   0x20
 #define SELECTED_ELEMENT 0xa0
 #define TEXT_ELEMENT     0xe0
 

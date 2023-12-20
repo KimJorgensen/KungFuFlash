@@ -82,7 +82,7 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DSTM32F405xx \
--DVERSION=\"${version}\"
+-DKFF_VER=\"${version}\"
 
 # AS includes
 AS_INCLUDES =
@@ -133,31 +133,30 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.s=.o)))
 vpath %.s $(sort $(dir $(ASM_SOURCES)))
 
-$(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
+$(OBJECTS): $(LDSCRIPT) Makefile | $(BUILD_DIR)
+
+$(BUILD_DIR)/%.o: %.c
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
-$(BUILD_DIR)/%.o: %.s Makefile | $(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.s
 	$(AS) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.s=.lst)) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS)
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
-	$(SZ) $@
+	@$(SZ) $@
 
-$(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf | $(BUILD_DIR)
-	$(BIN) --gap-fill 0xff --pad-to 0xc000 $< $@
+$(BUILD_DIR)/$(TARGET).bin: $(BUILD_DIR)/$(TARGET).elf
+	@$(BIN) --gap-fill 0xff --pad-to 0xc000 $< $@
 
-$(BUILD_DIR)/$(TARGET)_mem.bin: $(BUILD_DIR)/$(TARGET).bin | $(BUILD_DIR)
-	@cat $(BUILD_DIR)/$(TARGET).bin > $@
-
-$(BUILD_DIR)/$(TARGET).upd: $(BUILD_DIR)/$(TARGET).bin $(LAUNCHER) | $(BUILD_DIR)
+$(BUILD_DIR)/$(TARGET).upd: $(LAUNCHER) $(BUILD_DIR)/$(TARGET).bin
 	@cat $(BUILD_DIR)/$(TARGET).bin > $@
 	@cat $(LAUNCHER) >> $@
 
 $(BUILD_DIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 $(LAUNCHER): $(wildcard $(LAUNCHER_DIR)*)
-	$(MAKE) -C $(LAUNCHER_DIR)
+	@$(MAKE) -C $(LAUNCHER_DIR)
 
 #######################################
 # Debug
@@ -172,7 +171,7 @@ burn: all
 	@st-flash write $(BUILD_DIR)/$(TARGET).bin 0x8000000
 	@#dfu-util -a 0 -s 0x08000000 -D $(BUILD_DIR)/$(TARGET).bin
 
-mem: $(BUILD_DIR)/$(TARGET)_mem.bin
+mem: $(BUILD_DIR)/$(TARGET).bin
 	@st-flash write $< 0x20000000
 
 #######################################
@@ -180,7 +179,7 @@ mem: $(BUILD_DIR)/$(TARGET)_mem.bin
 #######################################
 clean:
 	-rm -fR $(BUILD_DIR)
-	-$(MAKE) -C $(LAUNCHER_DIR) clean
+	@-$(MAKE) -C $(LAUNCHER_DIR) clean
 
 #######################################
 # dependencies

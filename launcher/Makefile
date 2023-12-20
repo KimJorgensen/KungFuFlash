@@ -25,7 +25,7 @@ inc      += ../3rd_party/libef3usb/src
 libef3usb := ../3rd_party/libef3usb/libef3usb.lib
 
 INCLUDE  := $(addprefix -I,$(inc))
-DEFINE   := -DVERSION=\"${version}\"
+DEFINE   := -DKFF_VER=\"${version}\"
 
 .PHONY: all
 all: build/$(name).bin
@@ -49,22 +49,22 @@ build/%.o: %.s | build
 ###############################################################################
 #
 $(libef3usb): force
-	$(MAKE) -C $(dir $@)
+	@$(MAKE) -C $(dir $@)
 
 .PHONY: force
 force:
 
 ###############################################################################
 build:
-	mkdir -p $@
+	@mkdir -p $@
 
 build/$(name).bin: build/crt0.crt.o $(obj) $(ld_config) $(libef3usb)
 	ld65 -o $@ -Ln $@.lbl -m $@.map -C $(ld_config) build/crt0.crt.o $(obj) \
 		--lib  $(libef3usb) \
 		-L /usr/local/lib/cc65/lib --lib c64.lib
-	cat $@.map | grep -e "^Name\|^CODE\|^DATA\|^BSS\|^RODATA\|^ONCE\|^INIT\|^EAPI"
+	@cat $@.map | grep -e "^Name\|^CODE\|^DATA\|^BSS\|^RODATA\|^ONCE\|^INIT\|^EAPI"
 
 .PHONY: clean
 clean:
 	rm -rf build
-	-$(MAKE) -C $(dir $(libef3usb)) clean
+	@-$(MAKE) -C $(dir $(libef3usb)) clean

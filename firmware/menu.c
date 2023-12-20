@@ -208,6 +208,7 @@ static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no
     {
         case FILE_DIR:
             mount_text = "Mount";
+            // fall through
         case FILE_DIR_UP:
             title = "Directory Options";
             select_text = "Open";
@@ -216,6 +217,7 @@ static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no
 
         case FILE_CRT:
             vic_text = "Run (VIC-II/C128 mode)";
+            // fall through
         case FILE_ROM:
             select_text = "Run";
             break;
@@ -231,6 +233,7 @@ static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no
 
         case FILE_D64_STAR:
             delete_option = false;
+            // fall through
         case FILE_D64_PRG:
         case FILE_PRG:
             select_text = "Mount and load";
@@ -239,6 +242,7 @@ static u8 handle_file_options(const char *file_name, u8 file_type, u8 element_no
 
         case FILE_T64_PRG:
             delete_option = false;
+            // fall through
         case FILE_T64:
         case FILE_TXT:
             select_text = "Open";
@@ -310,12 +314,12 @@ static bool format_path(char *buf, bool include_file)
 
     if (include_file)
     {
-        if (len > 1)
+        char *filename = dat_file.file;
+        if (len > 1 && *filename)
         {
             buf[len++] = '/';
         }
 
-        char *filename = dat_file.file;
         for (; *filename; len++)
         {
             buf[len] = *filename++;

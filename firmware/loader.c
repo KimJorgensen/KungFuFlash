@@ -19,7 +19,6 @@
  */
 
 #define DAT_FILENAME "/KungFuFlash.dat"
-#define UPD_FILENAME ("/KungFuFlash_v" VERSION ".upd")
 
 #define CRT_C64_SIGNATURE  "C64 CARTRIDGE   "
 #define CRT_C128_SIGNATURE "C128 CARTRIDGE  "
@@ -392,13 +391,13 @@ static bool crt_write_file(FIL *crt_file, u8 banks)
     return true;
 }
 
-static u32 crt_calc_flash_crc(u8 crt_banks)
+static u32 crt_calc_flash_crc(u8 banks)
 {
     crc_reset();
-    if (crt_banks > 4)
+    if (banks > 4)
     {
         u8 *flash_buffer = (u8 *)FLASH_BASE + 16*1024 * 4;
-        size_t flash_used = (crt_banks-4) * 16*1024;
+        size_t flash_used = (banks-4) * 16*1024;
         crc_calc(flash_buffer, flash_used);
     }
 

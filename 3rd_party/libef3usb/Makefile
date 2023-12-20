@@ -3,7 +3,7 @@ libname := libef3usb
 
 inc := src/ef3usb_macros.s
 
-obj := 
+obj :=
 obj += obj/ef3usb_check_cmd.o
 obj += obj/ef3usb_discard_rx.o
 obj += obj/ef3usb_send_data.o
@@ -19,10 +19,10 @@ obj/%.o: src/%.s $(inc) | obj
 	ca65 -I src -t c64 -o $@ $<
 
 obj:
-	mkdir -p obj
+	@mkdir -p obj
 
 $(libname).lib: $(obj)
-	rm -f $@
+	@rm -f $@
 	ar65 a $@ $(obj)
 
 .PHONY: clean

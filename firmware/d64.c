@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  * Copyright (c) 2020 Sandor Vass
  *
  * This software is provided 'as-is', without any express or implied
@@ -670,6 +670,7 @@ static u8 d64_get_sectors(D64 *d64, u8 track)
             {
                 track -= D64_TRACKS;
             }
+            // fall through
         default:
             return d64_track_offset[track] - d64_track_offset[track-1];
     }

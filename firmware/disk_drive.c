@@ -739,7 +739,7 @@ static u32 disk_write_status(DISK_CHANNEL *channel, u8 status, u8 track, u8 sect
             break;
 
         case DISK_STATUS_INIT:
-            status_text = "KUNG FU FLASH V" VERSION;
+            status_text = "KUNG FU FLASH V" KFF_VER;
             break;
 
         case DISK_STATUS_UNSUPPORTED:

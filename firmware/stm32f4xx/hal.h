@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021 Kim Jørgensen
+ * Copyright (c) 2019-2023 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -19,7 +19,6 @@
  */
 
 #define FIRMWARE_SIZE   (48*1024)
-#define LAUNCHER_ADDR   (FLASH_BASE + FIRMWARE_SIZE)
 
 /* Clock PLLs for 405 and 407 chip */
 #if defined (STM32F405xx) || defined (STM32F407xx)

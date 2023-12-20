@@ -1,5 +1,5 @@
 ;
-; Copyright (c) 2019-2022 Kim Jørgensen
+; Copyright (c) 2019-2023 Kim Jørgensen
 ;
 ; Derived from EasyFlash 3 Boot Image
 ; Copyright (c) 2012-2013 Thomas Giesel
@@ -179,8 +179,17 @@ trampoline:
 trampoline_end:
 .endproc
 
+; ------------------------------------------------------------------------
+
+        .segment "ULTIMAX"
+.proc dummy_vector
+dummy_vector:
+        dec $d020
+        jmp dummy_vector
+.endproc
+
         .segment "VECTORS"
-.word   0
+.word   dummy_vector    ; NMI vector
 reset_vector:
-.word   ultimax_reset
-.word   0 ;irq
+.word   ultimax_reset   ; Reset vector
+.word   dummy_vector    ; IRQ/BRK vector

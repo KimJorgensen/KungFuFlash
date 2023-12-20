@@ -80,8 +80,8 @@ static uint16_t *pageBuffer = NULL;
 static Directory *dir = NULL;
 
 // Use different name to bypass FW update check for NTSC users (prior v1.32)
-#define KUNG_FU_FLASH_VER_UPD "Kung Fu Flash " ## VERSION " "
-#define KUNG_FU_FLASH_VER "Kung Fu Flash v" ## VERSION
+#define KUNG_FU_FLASH_VER_UPD "Kung Fu Flash " ## KFF_VER " "
+#define KUNG_FU_FLASH_VER "Kung Fu Flash v" ## KFF_VER
 
 // Place program name in the start of the output file
 // so it can be read by the firmware
@@ -331,7 +331,7 @@ static void showTextPage(uint16_t page)
 static void textReaderLoop(void)
 {
     uint8_t c;
-    uint16_t i, size, page = 0;
+    uint16_t size, page = 0;
 
     KFF_READ_PTR = DIR_NAME_LENGTH;
     kff_receive_data(&size, 2);
