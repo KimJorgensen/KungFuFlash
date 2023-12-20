@@ -8,6 +8,16 @@ https://csdb.dk/release/?id=150097
 Note that Kung Fu Flash shows up as a standard serial port when connected to a
 PC not requiring any custom drivers to be installed.
 
+To activate the USB connection in this modified version you must press the Menu
+button to enter the Kung Fu Flash menu (not the Easy Flash 3 menu).  You will
+then need to find the new serial connection:
+  * For Windows look for a new "Serial USB device ( COM x )" entry in the
+  Device Manager under "Connections (COM & LPT)".  For Windows 11 you may need
+  to right click on your computer name at the top of the device list and enable
+  legacy devices.
+  * For Linux run "sudo dmesg" immediately after plugging in the USB cable to
+  see the name of the serial connection - e.g. /dev/ttyACM3
+
 
 ===============================================================================
 Following is the original readme:
