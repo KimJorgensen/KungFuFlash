@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -226,21 +226,26 @@ static bool dir_open(DIR_t *dir, const char *pattern)
 static bool dir_read(DIR_t *dir, FILINFO *file_info)
 {
     FRESULT res;
-    do
+    while (true)
     {
         res = f_findnext(dir, file_info);
+        if (res != FR_OK)
+        {
+            err("f_findnext failed (%u)", res);
+            break;
+        }
 
-        // Ignore dot files
-        if (file_info->fname[0] != '.')
+        if (!file_info->fname[0])
         {
             break;
         }
-    }
-    while (res == FR_OK);
 
-    if (res != FR_OK)
-    {
-        err("f_findnext failed (%u)", res);
+        // Ignore hidden files
+        if (file_info->fname[0] != '.' &&
+            !(file_info->fattrib & (AM_HID|AM_SYS)))
+        {
+            break;
+        }
     }
 
     led_on();
