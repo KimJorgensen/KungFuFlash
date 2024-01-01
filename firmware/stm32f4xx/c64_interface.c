@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -274,19 +274,8 @@ static void c64_interface_enable_no_check(void)
     __enable_irq();
 }
 
-static void c64_interface(bool state)
+static void c64_wait_valid_clock(void)
 {
-    if (!state)
-    {
-        C64_INTERFACE_DISABLE();
-        return;
-    }
-
-    if (c64_interface_active())
-    {
-        return;
-    }
-
     u32 valid_clock_count = 0;
     u32 led_activity = 0;
 
@@ -313,7 +302,22 @@ static void c64_interface(bool state)
         delay_us(2); // Wait more than a clock cycle
     }
     led_on();
+}
 
+static void c64_interface(bool state)
+{
+    if (!state)
+    {
+        C64_INTERFACE_DISABLE();
+        return;
+    }
+
+    if (c64_interface_active())
+    {
+        return;
+    }
+
+    c64_wait_valid_clock();
     c64_interface_enable_no_check();
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -705,17 +705,23 @@ static void c64_launcher_mode(void)
     C64_INSTALL_HANDLER(kff_handler);
 }
 
-static void c64_ef3_mode_disable(void)
+static void c64_ef3_mode(void)
 {
-    c64_disable();
     ef_init();
     C64_INSTALL_HANDLER(ef3_handler);
 }
 
 static bool c64_set_mode(void)
 {
-    bool result = false;
+    if (!c64_is_reset())
+    {
+        // Disable VIC-II output if C64 has been started (needed for FC3)
+        c64_interface_sync();
+        c64_send_command(CMD_WAIT_RESET);
+    }
+    c64_disable();
 
+    bool result = false;
     switch (dat_file.boot_type)
     {
         case DAT_PRG:
@@ -723,7 +729,7 @@ static bool c64_set_mode(void)
             result = prg_size_valid(dat_file.prg.size);
             if (result)
             {
-                c64_ef3_mode_disable();
+                c64_ef3_mode();
                 c64_enable();
                 send_prg();
             }
@@ -749,14 +755,7 @@ static bool c64_set_mode(void)
                 break;
             }
 
-            if (!c64_is_reset())
-            {
-                // Disable VIC-II output if C64 has been started (needed for FC3)
-                c64_interface_sync();
-                c64_send_command(CMD_WAIT_RESET);
-                c64_disable();
-            }
-
+            c64_wait_valid_clock();
             crt_install_handler(&dat_file.crt);
             // Try prevent triggering bug in H.E.R.O. No effect at power-on though
             c64_sync_with_vic();
@@ -767,9 +766,8 @@ static bool c64_set_mode(void)
 
         case DAT_USB:
         {
-            c64_ef3_mode_disable();
+            c64_ef3_mode();
             c64_enable();
-
             basic_loading("FROM USB");
             result = true;
         }
@@ -782,7 +780,6 @@ static bool c64_set_mode(void)
                 break;
             }
 
-            c64_disable();
             kff_init();
             c64_enable();
             result = true;
@@ -791,7 +788,6 @@ static bool c64_set_mode(void)
 
         case DAT_TXT:
         {
-            c64_disable();
             kff_init();
             c64_enable();
             result = true;
@@ -800,7 +796,7 @@ static bool c64_set_mode(void)
 
         case DAT_BASIC:
         {
-            c64_ef3_mode_disable();
+            c64_ef3_mode();
             // Unstoppable reset! - https://www.c64-wiki.com/wiki/Reset_Button
             C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_8K);
             c64_enable();
@@ -812,7 +808,6 @@ static bool c64_set_mode(void)
 
         case DAT_KILL:
         {
-            c64_disable();
             // Also unstoppable!
             C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_8K);
             c64_reset(false);
@@ -824,7 +819,6 @@ static bool c64_set_mode(void)
 
         case DAT_KILL_C128:
         {
-            c64_disable();
             C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
             c64_reset(false);
             result = true;
@@ -833,7 +827,6 @@ static bool c64_set_mode(void)
 
         case DAT_DIAG:
         {
-            c64_disable();
             kff_init();
             result = true;
         }
