@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -20,13 +20,13 @@
 #define FLASH_KEYR_KEY1     0x45670123
 #define FLASH_KEYR_KEY2     0xCDEF89AB
 
-static void flash_unlock()
+static void flash_unlock(void)
 {
     FLASH->KEYR = FLASH_KEYR_KEY1;
     FLASH->KEYR = FLASH_KEYR_KEY2;
 }
 
-static inline void flash_lock()
+static inline void flash_lock(void)
 {
     FLASH->CR |= FLASH_CR_LOCK;
 }
