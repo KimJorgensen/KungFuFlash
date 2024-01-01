@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -340,8 +340,6 @@ void handler(void)                                                              
         COMPILER_BARRIER();                                                     \
     }                                                                           \
     C64_INTERFACE_DISABLE();                                                    \
-    /* Ensure interrupt flag is cleared before leaving the handler */           \
-    (void)TIM1->SR;                                                             \
 }
 
 #define C64_INSTALL_HANDLER(handler)            \
@@ -364,7 +362,9 @@ static inline bool c64_interface_active(void)
 #define C64_INTERFACE_DISABLE()                 \
     /* Capture/Compare 3 interrupt disable */   \
     TIM1->DIER = 0;                             \
-    TIM1->SR = 0
+    TIM1->SR = 0;                               \
+    /* Ensure interrupt flag is cleared */      \
+    (void)TIM1->SR
 
 /*************************************************
 * C64 reset on PA15
