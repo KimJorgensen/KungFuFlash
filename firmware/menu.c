@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023 Kim Jørgensen
+ * Copyright (c) 2019-2024 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -52,6 +52,7 @@ static void menu_loop(void)
                 dat_file.boot_type = DAT_USB;
                 should_save_dat = false;
                 cmd = CMD_WAIT_SYNC;
+                c64_disable();
                 break;
             }
         }
