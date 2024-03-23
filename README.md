@@ -1,4 +1,5 @@
 # Kung Fu Flash
+
 Cartridge for the Commodore 64 that packs a punch.
 
 ![Kung Fu Flash Launcher](pics/launcher.jpg)
@@ -7,6 +8,7 @@ Kung Fu Flash can emulate different cartridge types, load PRG files and use D64 
 Just place your desired CRT, PRG or D64 files on a FAT formatted microSD card and use the built-in launcher to execute them.
 
 ## Hardware
+
 There are three buttons on the cartridge; a reset button, a menu button for starting the launcher, and a special button that is used by the freezer cartridges.
 
 ![Cartridge Case](pics/cartridge_case2.jpg)
@@ -21,6 +23,7 @@ You can also 3D print a cartridge case as the one designed by bigby, [see here](
 The gerber files and BOM can be found [here](https://github.com/KimJorgensen/KungFuFlash/releases/tag/rev.2).
 
 ## Supported Cartridges
+
 The following cartridge types are currently supported:
 
 * Generic cartridge (8k, 16k, Ultimax)
@@ -50,6 +53,7 @@ The following cartridge types are currently supported:
 * WarpSpeed 128
 
 ## Supported File Types
+
 The following file types are currently supported:
 
 * Cartridge (CRT)
@@ -61,18 +65,27 @@ The following file types are currently supported:
 * Text document (TXT, NFO, 1ST)
 
 ## USB Port
-The USB port is active while the launcher is running allowing programs to be transferred from a PC using the EasyFlash 3 USB protocol.
+
+The USB port allows programs or disk images to be transferred from/to a PC using the EasyFlash 3 USB protocol.
+The USB port is active when:
+
+* The Kung Fu Flash launcher is running
+* A program is started using "Load" in the file options menu (SHIFT+RETURN)
+* BASIC is started via F7 in the launcher
+
 Kung Fu Flash shows up as a standard serial port when connected to a PC not requiring any custom drivers to be installed.
-This means, however, that the program on the PC side must be modified to support Kung Fu Flash.
+This means, however, that the EasyFlash 3 program on the PC side must be modified to support Kung Fu Flash.
 For that reason a modified version of [EasyFlash 3 USB Utilities](3rd_party/ef3utils) and [EasyFlash 3 BBS](3rd_party/ef3bbs) has been included in this repository.
 
 ## Firmware Update
+
 Just place the KungFuFlash_v1.xx.upd file on the SD card and select the file in the launcher to initiate the firmware update.
 The newest firmware can be found [here](https://github.com/KimJorgensen/KungFuFlash/releases/).
 
 For initial firmware installation, [see here](firmware/README.md).
 
 ## Limitations
+
 Kung Fu Flash is a so called Software Defined Cartridge where a fast microcontroller emulates cartridge hardware in software.
 This makes it extremely flexible, allowing different cartridge types to be supported at a relative low cost.
 
@@ -86,6 +99,7 @@ Disk drive emulation is using kernal vectors and will not work with fast loaders
 Currently REL files are not supported and only a subset of the Commodore DOS commands are supported.
 
 ## Thanks
+
 Kung Fu Flash was based on or uses other open source projects:
 
 * [EasyFlash 3](https://bitbucket.org/skoe/easyflash) by Thomas Giesel
