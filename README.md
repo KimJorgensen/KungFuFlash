@@ -46,6 +46,7 @@ The following cartridge types are currently supported:
 * Prophet64
 * Freeze Frame
 * Freeze Machine
+* MACH 5
 * Pagefox
 * RGCD, Hucky
 * Drean

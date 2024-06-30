@@ -88,6 +88,7 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
             return c64gs_handler;
 
         case CRT_WARP_SPEED:
+        case CRT_MACH_5:
         case CRT_C128_WARP_SPEED:
             return NTSC_OR_PAL_HANDLER(warpspeed);
 
@@ -158,6 +159,7 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
             break;
 
         case CRT_WARP_SPEED:
+        case CRT_MACH_5:
         case CRT_C128_WARP_SPEED:
             warpspeed_init(crt_header);
             break;

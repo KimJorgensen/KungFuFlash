@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2019-2022 Kim Jørgensen and Sven Oliver (SvOlli) Moll
+ * Copyright (c) 2019-2024 Kim Jørgensen and Sven Oliver (SvOlli) Moll
+ * Copyright (c) 2024 Lord Kopromaster
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -26,6 +27,8 @@
  * - write $DF00-$DFFF turns ROM off
  * still it's twice as fast as JiffyDOS and can load to RAM at $D000-$DFFF,
  * and also packs a lot of features.
+ *
+ * MACH 5 has a similar hardware setup to Warp Speed but only has an 8k bank
  */
 
 static u32 warpspeed_on;
@@ -53,17 +56,23 @@ FORCE_INLINE void warpspeed_write_handler(u32 control, u32 addr, u32 data)
 {
     if (!(control & C64_IO1))
     {
+        // Any write to IO1: Enable ROM
         C64_CRT_CONTROL(warpspeed_on);
     }
     else if (!(control & C64_IO2))
     {
+        // Any write to IO2: Disable ROM
         C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
     }
 }
 
 static void warpspeed_init(DAT_CRT_HEADER *crt_header)
 {
-    if (crt_header->type == CRT_WARP_SPEED)
+    if (crt_header->type == CRT_MACH_5)
+    {
+        warpspeed_on = STATUS_LED_ON|CRT_PORT_8K;
+    }
+    else if (crt_header->type == CRT_WARP_SPEED)
     {
         warpspeed_on = STATUS_LED_ON|CRT_PORT_16K;
     }
