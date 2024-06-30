@@ -243,9 +243,9 @@ static s32 crt_get_offset(CRT_CHIP_HEADER *header, u16 cartridge_type)
         offset = header->bank * 16*1024;
     }
     // ROMH bank (4k Ultimax)
-    else if (header->start_address == 0xf000 && header->image_size == 4*1024)
+    else if (header->start_address == 0xf000 && header->image_size <= 4*1024)
     {
-        offset = header->bank * 16*1024 + 12*1024;
+        offset = header->bank * 16*1024 + 8*1024;
     }
 
     return offset;
@@ -288,6 +288,12 @@ static u8 crt_program_file(FIL *crt_file, u16 cartridge_type)
                 header.bank, header.start_address);
             banks_in_use = 0;
             break;
+        }
+
+        // Mirror 4k image
+        if (header.image_size <= 4*1024)
+        {
+            memcpy(&read_buf[4*1024], read_buf, 4*1024);
         }
 
         // Place image in flash
