@@ -65,6 +65,8 @@ FORCE_INLINE void ross_write_handler(u32 control, u32 addr, u32 data)
         // Any write to IO2: Disable ROM
         // C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
     }
+
+    return;
 }
 
 static void ross_init(DAT_CRT_HEADER *crt_header)
