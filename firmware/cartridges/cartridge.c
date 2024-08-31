@@ -112,7 +112,9 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
 		case CRT_ROSS:
 			return ross_handler;
 #endif
-
+	case CRT_ROSS:
+		return ross_handler;
+	    
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
             if (cartridge_type != CRT_EASYFLASH || vic_support)
