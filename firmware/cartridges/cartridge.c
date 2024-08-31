@@ -108,12 +108,9 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
 
         case CRT_COMAL_80:
             return comal80_handler;
-			
-		case CRT_ROSS:
-			return ross_handler;
 #endif
 	case CRT_ROSS:
-		return ross_handler;
+	    return ross_handler;
 	    
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
@@ -188,7 +185,7 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
             break;
 
         case CRT_ROSS:
-            ross_init(crt_header);
+            ross_init();
             break;
 
         case CRT_EASYFLASH:
