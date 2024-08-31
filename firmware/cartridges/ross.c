@@ -20,6 +20,17 @@
  */
 
 /*
+Hardware ID: 23 (ROSS)
+Hardware Revision: 0
+Mode: exrom: 0 game: 0 (16k Game)
+
+offset  sig  type  bank start size  chunklen
+$000040 CHIP ROM   #000 $8000 $4000 $4010
+
+total banks: 1 size: $004000
+*/
+
+/*
  * Ross has an easy hardware setup
  * - a single 16k bank that can be turned on or off
  * - read $DE00-$DFFF will switch banks if 32k image 
