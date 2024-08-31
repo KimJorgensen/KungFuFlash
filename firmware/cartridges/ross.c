@@ -42,7 +42,7 @@ total banks: 1 size: $004000
 *************************************************/
 FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
 {
-     if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
+    if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
     {
         C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
@@ -75,7 +75,7 @@ FORCE_INLINE void ross_write_handler(u32 control, u32 addr, u32 data)
     
 }
 
-static void ross_init(DAT_CRT_HEADER *crt_header)
+static void ross_init()
 {
     
     C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
