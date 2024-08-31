@@ -46,11 +46,7 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
         C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         return true;
         
-    } /* else if (!(control & C64_IO1))
-    {
-        C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
-        return true;
-    } */
+    }
 
     return false;
 }
@@ -60,13 +56,9 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
 *************************************************/
 FORCE_INLINE void ross_write_handler(u32 control, u32 addr, u32 data)
 {
-    if (!(control & C64_IO2))
-    {
-        // Any write to IO2: Disable ROM
-        // C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
-    }
 
-    return;
+    // No support for write
+    
 }
 
 static void ross_init(DAT_CRT_HEADER *crt_header)
