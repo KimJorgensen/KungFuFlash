@@ -33,6 +33,12 @@ static u32 ross_on;
 *************************************************/
 FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
 {
+    if ((control & (C64_ROML|C64_ROMH)) != (C64_ROML|C64_ROMH))
+    {
+        C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
+        return true;
+    }
+    
     /* IO and ROM access */
     if (!(control & C64_IO2))
     {
@@ -40,11 +46,11 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
         C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         return true;
         
-    } else if (!(control & C64_IO1))
+    } /* else if (!(control & C64_IO1))
     {
         C64_DATA_WRITE(crt_ptr[addr & 0x1fff]);
         return true;
-    }
+    } */
 
     return false;
 }
