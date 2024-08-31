@@ -66,6 +66,7 @@ static void ross_init(DAT_CRT_HEADER *crt_header)
     if (crt_header->type == CRT_ROSS)
     {
         ross_on = STATUS_LED_ON|CRT_PORT_16K;
+        crt_rom_ptr = crt_banks[0];
     }
 
 
