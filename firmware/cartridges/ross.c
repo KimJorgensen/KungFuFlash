@@ -33,12 +33,12 @@ static u32 ross_on;
 *************************************************/
 FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
 {
-    if (!(control & C64_IO1))
+/*    if (!(control & C64_IO1))
     {
         crt_ptr = crt_banks[addr & 0x3f];
         return false;
     }
-    
+  */  
     /* IO and ROM access */
     if (!(control & C64_IO2))
     {
@@ -63,13 +63,9 @@ FORCE_INLINE void ross_write_handler(u32 control, u32 addr, u32 data)
 
 static void ross_init(DAT_CRT_HEADER *crt_header)
 {
-    if (crt_header->type == CRT_ROSS)
-    {
-        ross_on = STATUS_LED_ON|CRT_PORT_16K;
-        crt_rom_ptr = crt_banks[0];
-    }
-
-
+    ross_on = STATUS_LED_ON|CRT_PORT_16K;
+//    crt_rom_ptr = crt_banks[0];
+    
     C64_CRT_CONTROL(ross_on);
 }
 
