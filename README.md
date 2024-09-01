@@ -52,7 +52,7 @@ The following cartridge types are currently supported:
 * Drean
 * C128 Generic cartridge (external function ROM)
 * WarpSpeed 128
-* Ross (16K only)
+* Ross (16K and 32K)
 
 ## Supported File Types
 
