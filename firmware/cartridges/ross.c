@@ -47,19 +47,20 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
         C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
-/*    if (!(control & C64_IO1))
-    {
-        crt_ptr = crt_banks[addr & 0x3f];
-        return false;
-    }
-  */  
+    
     /* IO and ROM access */
     if (!(control & C64_IO2))
     {
         // Any read to IO2: Disable ROM
         C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
-        return true;
-        
+        return true;   
+    }
+
+    if (!(control & C64_IO1))
+    {
+        // Any read to IO1: Switch bank
+        crt_ptr = crt_banks[1];
+        return false;
     }
 
     return false;
