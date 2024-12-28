@@ -1,13 +1,12 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Note that this is only intended to report issues with the content in this repository.
+  Please ask the seller for support if the cartridge was purchased.
 title: ''
 labels: ''
 assignees: ''
 
 ---
-
-Note that this is only intended to report issues with the content in this repository. Please ask the seller for support if the cartridge was purchased.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
