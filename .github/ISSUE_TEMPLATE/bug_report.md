@@ -4,7 +4,7 @@ about: Note that this is only intended to report issues with the content in this
   Please ask the seller for support if the cartridge was purchased.
 title: ''
 labels: ''
-assignees: ''
+assignees: KimJorgensen
 
 ---
 
