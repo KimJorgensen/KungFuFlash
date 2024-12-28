@@ -1,7 +1,7 @@
 ---
 name: Bug report
-about: Note that this is only intended to report issues with the content in this repository.
-  Please ask the seller for support if the cartridge was purchased.
+about: Report issues with the content in this repository. Please ask the seller for
+  support if the cartridge was purchased.
 title: ''
 labels: ''
 assignees: KimJorgensen
