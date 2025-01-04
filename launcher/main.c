@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023 Kim Jørgensen
+ * Copyright (c) 2019-2025 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -180,12 +180,17 @@ static void mainLoopKFF(void)
 {
     const char *text;
     uint8_t cmd, reply, cxy[3];
+    uint16_t cmd_wait = 0;
 
     // Get command from Kung Fu Flash cartridge using the KFF protocol
-    cmd = KFF_GET_COMMAND();
-    if (!cmd || cmd >= REPLY_OK)
+    while (!(cmd = KFF_GET_COMMAND()) || cmd >= REPLY_OK)
     {
-        showMessage("Communication with cartridge failed.", ERRORC);
+        if (++cmd_wait > 10000)
+        {
+            cmd_wait = 0;
+            showMessage("Waiting for command from cartridge.", ERRORC);
+            cprintf("Command: %x", cmd);
+        }
     }
 
     while (true)
