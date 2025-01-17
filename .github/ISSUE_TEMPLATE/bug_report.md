@@ -3,7 +3,7 @@ name: Bug report
 about: Report issues with the content in this repository. Please ask the seller for
   support if the cartridge was purchased.
 title: ''
-labels: ''
+labels: bug
 assignees: ''
 
 ---
