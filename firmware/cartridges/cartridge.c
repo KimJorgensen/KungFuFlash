@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2023 Kim Jørgensen
+ * Copyright (c) 2019-2025 Kim Jørgensen
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -108,10 +108,10 @@ static void (*crt_get_handler(u32 cartridge_type, bool vic_support)) (void)
 
         case CRT_COMAL_80:
             return comal80_handler;
+
+        case CRT_ROSS:
+            return ross_handler;
 #endif
-	case CRT_ROSS:
-	    return ross_handler;
-	    
         case CRT_OCEAN_TYPE_1:
         case CRT_EASYFLASH:
             if (cartridge_type != CRT_EASYFLASH || vic_support)
@@ -185,7 +185,7 @@ static void crt_init(DAT_CRT_HEADER *crt_header)
             break;
 
         case CRT_ROSS:
-            ross_init();
+            ross_init(crt_header);
             break;
 
         case CRT_EASYFLASH:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2024 Kim Jørgensen and Sven Oliver (SvOlli) Moll
+ * Copyright (c) 2019-2025 Kim Jørgensen and Sven Oliver (SvOlli) Moll
  * Copyright (c) 2024 Vladan Nikolic
  *
  * This software is provided 'as-is', without any express or implied
@@ -20,22 +20,15 @@
  */
 
 /*
-Hardware ID: 23 (ROSS)
-Hardware Revision: 0
-Mode: exrom: 0 game: 0 (16k Game)
-
-offset  sig  type  bank start size  chunklen
-$000040 CHIP ROM   #000 $8000 $4000 $4010
-
-total banks: 1 size: $004000
-*/
-
-/*
- * Ross has an easy hardware setup
- * - a single 16k bank that can be turned on or off
- * - read $DE00-$DFFF will switch banks if 32k image == NOT IMPLEMENTED
- * - read $DF00-$DFFF turns ROM off
+ * The Ross cartridge supports 16 kb, 32 kb, and 64 kb ROM
+ *
+ * Any read or write to $DE00-$DEFF will switch banks
+ * Any read or write to $DF00-$DFFF turns ROM off
+ *
+ * See https://github.com/msolajic/EX-YU_64K_C64_CART for more details
  */
+
+static u32 ross_bank;
 
 /*************************************************
 * C64 bus read callback
@@ -47,19 +40,19 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
         C64_DATA_WRITE(crt_ptr[addr & 0x3fff]);
         return true;
     }
-    
-    /* IO and ROM access */
-    if (!(control & C64_IO2))
-    {
-        // Any read to IO2: Disable ROM
-        C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
-        return true;   
-    }
 
     if (!(control & C64_IO1))
     {
         // Any read to IO1: Switch bank
-        crt_ptr = crt_banks[1];
+        crt_ptr = crt_banks[ross_bank & 0x03];
+        ross_bank >>= 2;
+        return false;
+    }
+
+    if (!(control & C64_IO2))
+    {
+        // Any read to IO2: Disable ROM
+        C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
         return false;
     }
 
@@ -71,15 +64,39 @@ FORCE_INLINE bool ross_read_handler(u32 control, u32 addr)
 *************************************************/
 FORCE_INLINE void ross_write_handler(u32 control, u32 addr, u32 data)
 {
+    if (!(control & C64_IO1))
+    {
+        // Any write to IO1: Switch bank
+        crt_ptr = crt_banks[ross_bank & 0x03];
+        ross_bank >>= 2;
+        return;
+    }
 
-    // No support for write
-    
+    if (!(control & C64_IO2))
+    {
+        // Any write to IO2: Disable ROM
+        C64_CRT_CONTROL(STATUS_LED_OFF|CRT_PORT_NONE);
+        return;
+    }
 }
 
-static void ross_init()
+static void ross_init(DAT_CRT_HEADER *crt_header)
 {
-    
-    // C64_CRT_CONTROL(STATUS_LED_ON|CRT_PORT_16K);
+    if (crt_header->banks <= 1)
+    {
+        // 16 kb cartridge - no bank switching
+        ross_bank = 0;
+    }
+    else if (crt_header->banks == 2)
+    {
+        // 32 kb cartridge - 2 banks
+        ross_bank = (1 << 4) | (0 << 2) | (1 << 0);
+    }
+    else
+    {
+        // 64 kb cartridge - 4 banks
+        ross_bank = (3 << 4) | (2 << 2) | (1 << 0);
+    }
 }
 
 C64_BUS_HANDLER(ross)

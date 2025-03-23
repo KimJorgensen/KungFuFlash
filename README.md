@@ -42,6 +42,7 @@ The following cartridge types are currently supported:
 * Magic Desk, Domark, HES Australia
 * Super Snapshot v5
 * Comal-80
+* Ross
 * EasyFlash
 * Prophet64
 * Freeze Frame
@@ -52,7 +53,6 @@ The following cartridge types are currently supported:
 * Drean
 * C128 Generic cartridge (external function ROM)
 * WarpSpeed 128
-* Ross (16K and 32K)
 
 ## Supported File Types
 
