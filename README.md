@@ -42,6 +42,7 @@ The following cartridge types are currently supported:
 * Magic Desk, Domark, HES Australia
 * Super Snapshot v5
 * Comal-80
+* Ross
 * EasyFlash
 * Prophet64
 * Freeze Frame
